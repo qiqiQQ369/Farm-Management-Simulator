@@ -116,6 +116,11 @@ export class CoinConsumer extends Component {
         this.remainingLabel.node.active = true;
         this.fillSprite.fillRange = 0;
 
+        // 员工解锁点复用为搬运工解锁点：拖拉机完成前隐藏，完成后移动到拖拉机解锁位置。
+        if (this.targetLevel === UpgradeTarget.FACTORY && this.node.name === 'unlockLevel3L') {
+            this.node.active = false;
+        }
+
         // this.loggerNode.active = false;
     }
 
@@ -188,7 +193,8 @@ export class CoinConsumer extends Component {
         });
         
         this._upgradeConfigs.set(UpgradeTarget.FACTORY, {
-            requiredCoins: this.factoryRequiredCoins,
+            // 左侧员工解锁点在拖拉机解锁后复用为搬运工解锁点，门槛为 170。
+            requiredCoins: this.node.name === 'unlockLevel3L' ? 170 : this.factoryRequiredCoins,
             prefab: this.factoryPrefab,
             name: "工厂",
             spawnCount: 1
@@ -374,6 +380,13 @@ export class CoinConsumer extends Component {
 
         if(this.targetLevel == 2){
             this.machineNode.active = true;
+
+            // 复用员工解锁点作为搬运工解锁点，并放到当前拖拉机解锁点的位置。
+            const haulerUnlockPad = find('unlockLevel3L');
+            if (haulerUnlockPad) {
+                haulerUnlockPad.setWorldPosition(this.node.worldPosition);
+                haulerUnlockPad.active = true;
+            }
             
             // this.node.getComponentInChildren(Animation).play("animation_DiMianUI_Close");
             tween(this.node.getChildByName("view"))
