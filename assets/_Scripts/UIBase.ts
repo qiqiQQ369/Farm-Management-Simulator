@@ -242,13 +242,14 @@ export class UIBase extends Component {
     }
 
     //childpath:node下面的组件路径
-    static SetText(node:Node,str:string, childpath:string=null)
-    {
-        if (childpath == null) {
-            node.getComponent(Label).string= str
-        } else {
-            node.getChildByPath(childpath).getComponent(Label).string= str
+    static SetText(node: Node | null, str: string, childpath: string | null = null): void {
+        const target = childpath == null ? node : node?.getChildByPath(childpath);
+        const label = target?.getComponent(Label);
+        if (!label) {
+            console.warn(`UIBase.SetText: missing Label at ${childpath ?? 'node'}`);
+            return;
         }
+        label.string = str;
     }
 
     static SetColor(node:Node,str:Color, childpath:string=null)

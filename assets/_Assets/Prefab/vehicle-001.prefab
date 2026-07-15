@@ -871,7 +871,7 @@
     },
     "coinDropArea": null,
     "coinPrefab": {
-      "__uuid__": "36310374-505f-4f95-842d-ab7d08954fec",
+      "__uuid__": "90a9b3b2-5370-4819-8a5c-b980f4c5315a",
       "__expectedType__": "cc.Prefab"
     },
     "maxCapacity": 50,

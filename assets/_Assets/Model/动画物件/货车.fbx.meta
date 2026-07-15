@@ -286,10 +286,6 @@
             "mainTexture": {
               "__uuid__": "39f3dbd8-f0a4-4f77-a1a9-5cb499abe23d@6c48a",
               "__expectedType__": "cc.Texture2D"
-            },
-            "normalMap": {
-              "__uuid__": "4ee61a5b-244f-425b-b44b-148dbbda1d74@e873a",
-              "__expectedType__": "cc.Texture2D"
             }
           },
           {},

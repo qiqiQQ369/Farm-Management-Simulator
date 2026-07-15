@@ -260,10 +260,6 @@
               "__uuid__": "18beeef2-2e12-4486-9d74-b8731dbc9354@6c48a",
               "__expectedType__": "cc.Texture2D"
             },
-            "normalMap": {
-              "__uuid__": "58e90ca8-99c5-4a77-9ce1-154dd08b04b6@6c48a",
-              "__expectedType__": "cc.TextureBase"
-            },
             "emissiveMap": {
               "__uuid__": "18beeef2-2e12-4486-9d74-b8731dbc9354@6c48a",
               "__expectedType__": "cc.Texture2D"
