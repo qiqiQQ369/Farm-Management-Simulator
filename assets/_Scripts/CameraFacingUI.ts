@@ -1,41 +1,25 @@
-import { _decorator, Camera, Canvas, Component, Node, find, Vec3 } from 'cc';
+import { _decorator, Camera, Component, find, Vec3, Quat } from 'cc';
 
 const { ccclass } = _decorator;
 
-/** 将世界对象上的提示框转换为跟随目标的屏幕 UI。 */
+/** 让世界空间中的提示 UI 始终朝向当前主摄像机。 */
 @ccclass('CameraFacingUI')
 export class CameraFacingUI extends Component {
     private _camera: Camera | null = null;
-    private _canvasCamera: Camera | null = null;
-    private _target: Node | null = null;
-    private readonly _screenPosition = new Vec3();
-    private readonly _uiWorldPosition = new Vec3();
-    private readonly _targetOffset = new Vec3(0, 2.4, 0);
-    private readonly _screenOffset = new Vec3(0, 38, 0);
+    private readonly _rotation = new Quat();
+    private _tilt = -45;
 
     protected onLoad(): void {
         const cameraNode = find('Main Camera');
         this._camera = cameraNode ? cameraNode.getComponent(Camera) : null;
-        this._target = this.node.parent;
-
-        const canvasNode = find('Canvas');
-        const canvas = canvasNode ? canvasNode.getComponent(Canvas) : null;
-        this._canvasCamera = canvas?.cameraComponent ?? this._camera;
-
-        if (canvasNode && this.node.parent !== canvasNode) {
-            this.node.setParent(canvasNode, true);
-        }
-        this.node.setScale(0.75, 0.75, 0.75);
+        // 提示框使用等距游戏常见的固定俯角，只跟随摄像机的水平旋转。
+        this._tilt = this.node.eulerAngles.x || -45;
     }
 
     protected lateUpdate(): void {
-        if (!this._target || !this._target.isValid || !this._canvasCamera || !this._canvasCamera.node.isValid) return;
-
-        const anchor = this._target.worldPosition.clone().add(this._targetOffset);
-        this._canvasCamera.worldToScreen(anchor, this._screenPosition);
-        this._screenPosition.add(this._screenOffset);
-        this._canvasCamera.screenToWorld(this._screenPosition, this._uiWorldPosition);
-        this.node.setWorldPosition(this._uiWorldPosition);
-        this.node.setRotation(0, 0, 0, 1);
+        if (!this._camera || !this._camera.node.isValid) return;
+        const cameraYaw = this._camera.node.eulerAngles.y;
+        Quat.fromEuler(this._rotation, this._tilt, cameraYaw, 0);
+        this.node.setWorldRotation(this._rotation);
     }
 }

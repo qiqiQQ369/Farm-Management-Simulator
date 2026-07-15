@@ -10,8 +10,6 @@ const { ccclass, property } = _decorator;
 @ccclass('NPCScheduler')
 export class NPCScheduler extends Component {
 
-    private readonly emojiByNpc = new Map<Node, Node>();
-
     @property({ type: Node})
     fillTip: Node = null!;
 
@@ -90,7 +88,6 @@ export class NPCScheduler extends Component {
             npc.setWorldPosition(pos);
             const emoji = npc.getChildByName('emoji');
             if (emoji) {
-                this.emojiByNpc.set(npc, emoji);
                 emoji.active = false;
                 if (!emoji.getComponent(CameraFacingUI)) {
                     emoji.addComponent(CameraFacingUI);
@@ -348,8 +345,7 @@ export class NPCScheduler extends Component {
         this.checkTimer = 0;
         for(let i = 0; i < this.npcs.length; i++){
             var npc = this.npcs[i];
-            const emoji = this.getNpcEmoji(npc);
-            if (emoji) emoji.active = false;
+            npc.getChildByName("emoji").active = false;
         }
     }
 
@@ -380,8 +376,7 @@ export class NPCScheduler extends Component {
         var activeEmoji = this.checkEmoji();
         for(let i = 0; i < this.queue.length; i++){
             var npc = this.queue[i];
-            const emoji = this.getNpcEmoji(npc);
-            if (emoji) emoji.active = activeEmoji;
+            npc.getChildByName("emoji").active = activeEmoji;
         }
     }
 
@@ -451,17 +446,12 @@ export class NPCScheduler extends Component {
                     this.dropCoins();
                     await new Promise((resolve) => setTimeout(resolve, 1000));
                     npcStoragePoint.clearStorage();
-                    const emoji = this.getNpcEmoji(npc);
-                    if (emoji) emoji.active = true;
+                    npc.getChildByName("emoji").active = true;
                     return;
                 }
             }
             await new Promise((resolve) => setTimeout(resolve, this.collectInterval * 500));
         }
-    }
-
-    private getNpcEmoji(npc: Node): Node | null {
-        return this.emojiByNpc.get(npc) ?? npc.getChildByName('emoji');
     }
 
     /**
