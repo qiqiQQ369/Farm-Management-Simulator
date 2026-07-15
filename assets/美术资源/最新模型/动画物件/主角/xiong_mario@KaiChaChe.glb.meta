@@ -1,0 +1,115 @@
+{
+  "ver": "2.3.14",
+  "importer": "gltf",
+  "imported": true,
+  "uuid": "81b76a09-aabc-48ce-bbe8-0cea8fd2b118",
+  "files": [
+    "__original-animation-0.bin"
+  ],
+  "subMetas": {
+    "5b6b0": {
+      "importer": "gltf-animation",
+      "uuid": "81b76a09-aabc-48ce-bbe8-0cea8fd2b118@5b6b0",
+      "displayName": "",
+      "id": "5b6b0",
+      "name": "KaiChaChe.animation",
+      "userData": {
+        "gltfIndex": 0,
+        "wrapMode": 2,
+        "sample": 30,
+        "span": {
+          "from": 0,
+          "to": 0.06666666666666667
+        },
+        "events": []
+      },
+      "ver": "1.0.18",
+      "imported": true,
+      "files": [
+        ".bin"
+      ],
+      "subMetas": {}
+    },
+    "5b9b6": {
+      "importer": "gltf-skeleton",
+      "uuid": "81b76a09-aabc-48ce-bbe8-0cea8fd2b118@5b9b6",
+      "displayName": "",
+      "id": "5b9b6",
+      "name": "Bip001.skeleton",
+      "userData": {
+        "gltfIndex": 0,
+        "jointsLength": 29
+      },
+      "ver": "1.0.1",
+      "imported": true,
+      "files": [
+        ".json"
+      ],
+      "subMetas": {}
+    },
+    "f3c12": {
+      "importer": "gltf-scene",
+      "uuid": "81b76a09-aabc-48ce-bbe8-0cea8fd2b118@f3c12",
+      "displayName": "",
+      "id": "f3c12",
+      "name": "xiong_mario@KaiChaChe.prefab",
+      "userData": {
+        "gltfIndex": 0
+      },
+      "ver": "1.0.14",
+      "imported": true,
+      "files": [
+        ".json"
+      ],
+      "subMetas": {}
+    }
+  },
+  "userData": {
+    "imageMetas": [],
+    "animationImportSettings": [
+      {
+        "name": "Bip001|Take 001|BaseLayer",
+        "duration": 0.10000000149011612,
+        "fps": 30,
+        "splits": [
+          {
+            "name": "KaiChaChe",
+            "from": 0,
+            "to": 0.06666666666666667,
+            "wrapMode": 2,
+            "previousId": "5b6b0"
+          }
+        ]
+      }
+    ],
+    "lods": {
+      "enable": false,
+      "hasBuiltinLOD": false,
+      "options": [
+        {
+          "screenRatio": 0.25,
+          "faceCount": 1
+        },
+        {
+          "screenRatio": 0.125,
+          "faceCount": 0.25
+        },
+        {
+          "screenRatio": 0.01,
+          "faceCount": 0.1
+        }
+      ]
+    },
+    "assetFinder": {
+      "meshes": [],
+      "skeletons": [
+        "81b76a09-aabc-48ce-bbe8-0cea8fd2b118@5b9b6"
+      ],
+      "textures": [],
+      "materials": [],
+      "scenes": [
+        "81b76a09-aabc-48ce-bbe8-0cea8fd2b118@f3c12"
+      ]
+    }
+  }
+}

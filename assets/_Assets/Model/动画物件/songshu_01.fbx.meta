@@ -1,0 +1,450 @@
+{
+  "ver": "2.3.14",
+  "importer": "fbx",
+  "imported": true,
+  "uuid": "b56354f8-f331-431c-a230-f031b967d39e",
+  "files": [
+    "__original-animation-0.bin"
+  ],
+  "subMetas": {
+    "9a86c": {
+      "importer": "gltf-mesh",
+      "uuid": "b56354f8-f331-431c-a230-f031b967d39e@9a86c",
+      "displayName": "",
+      "id": "9a86c",
+      "name": "songshu_shuzhuang_38.mesh",
+      "userData": {
+        "gltfIndex": 0,
+        "triangleCount": 30
+      },
+      "ver": "1.1.1",
+      "imported": true,
+      "files": [
+        ".bin",
+        ".json"
+      ],
+      "subMetas": {}
+    },
+    "ffbf5": {
+      "importer": "gltf-mesh",
+      "uuid": "b56354f8-f331-431c-a230-f031b967d39e@ffbf5",
+      "displayName": "",
+      "id": "ffbf5",
+      "name": "songshu_01.mesh",
+      "userData": {
+        "gltfIndex": 1,
+        "triangleCount": 80
+      },
+      "ver": "1.1.1",
+      "imported": true,
+      "files": [
+        ".bin",
+        ".json"
+      ],
+      "subMetas": {}
+    },
+    "be469": {
+      "importer": "gltf-mesh",
+      "uuid": "b56354f8-f331-431c-a230-f031b967d39e@be469",
+      "displayName": "",
+      "id": "be469",
+      "name": "songshu_01_b.mesh",
+      "userData": {
+        "gltfIndex": 2,
+        "triangleCount": 44
+      },
+      "ver": "1.1.1",
+      "imported": true,
+      "files": [
+        ".bin",
+        ".json"
+      ],
+      "subMetas": {}
+    },
+    "0d495": {
+      "importer": "gltf-mesh",
+      "uuid": "b56354f8-f331-431c-a230-f031b967d39e@0d495",
+      "displayName": "",
+      "id": "0d495",
+      "name": "songshu_01_a.mesh",
+      "userData": {
+        "gltfIndex": 3,
+        "triangleCount": 30
+      },
+      "ver": "1.1.1",
+      "imported": true,
+      "files": [
+        ".bin",
+        ".json"
+      ],
+      "subMetas": {}
+    },
+    "73b7f": {
+      "importer": "gltf-animation",
+      "uuid": "b56354f8-f331-431c-a230-f031b967d39e@73b7f",
+      "displayName": "",
+      "id": "73b7f",
+      "name": "KanShu.animation",
+      "userData": {
+        "gltfIndex": 0,
+        "wrapMode": 0,
+        "sample": 60,
+        "span": {
+          "from": 0.33144105521872574,
+          "to": 1
+        },
+        "events": [
+          {
+            "frame": 1,
+            "func": "",
+            "params": []
+          }
+        ]
+      },
+      "ver": "1.0.18",
+      "imported": true,
+      "files": [
+        ".bin"
+      ],
+      "subMetas": {}
+    },
+    "bee69": {
+      "importer": "gltf-animation",
+      "uuid": "b56354f8-f331-431c-a230-f031b967d39e@bee69",
+      "displayName": "",
+      "id": "bee69",
+      "name": "ShuZhuang.animation",
+      "userData": {
+        "gltfIndex": 0,
+        "wrapMode": 0,
+        "speed": 1,
+        "sample": 30,
+        "span": {
+          "from": 1.0666666666666667,
+          "to": 1.1333333333333333
+        },
+        "events": []
+      },
+      "ver": "1.0.18",
+      "imported": true,
+      "files": [
+        ".bin"
+      ],
+      "subMetas": {}
+    },
+    "9ebe8": {
+      "importer": "gltf-animation",
+      "uuid": "b56354f8-f331-431c-a230-f031b967d39e@9ebe8",
+      "displayName": "",
+      "id": "9ebe8",
+      "name": "ChuSheng.animation",
+      "userData": {
+        "gltfIndex": 0,
+        "wrapMode": 1,
+        "speed": 1,
+        "sample": 30,
+        "span": {
+          "from": 1.1666666666666667,
+          "to": 1.8666666666666667
+        },
+        "events": []
+      },
+      "ver": "1.0.18",
+      "imported": true,
+      "files": [
+        ".bin"
+      ],
+      "subMetas": {}
+    },
+    "01127": {
+      "importer": "gltf-animation",
+      "uuid": "b56354f8-f331-431c-a230-f031b967d39e@01127",
+      "displayName": "",
+      "id": "01127",
+      "name": "ShuChangTai.animation",
+      "userData": {
+        "gltfIndex": 0,
+        "wrapMode": 0,
+        "speed": 1,
+        "sample": 30,
+        "span": {
+          "from": 2,
+          "to": 3.3333332538604736
+        },
+        "events": []
+      },
+      "ver": "1.0.18",
+      "imported": true,
+      "files": [
+        ".bin"
+      ],
+      "subMetas": {}
+    },
+    "adacb": {
+      "importer": "gltf-embeded-image",
+      "uuid": "b56354f8-f331-431c-a230-f031b967d39e@adacb",
+      "displayName": "",
+      "id": "adacb",
+      "name": "file2.image",
+      "userData": {
+        "gltfIndex": 0,
+        "fixAlphaTransparencyArtifacts": true,
+        "hasAlpha": true,
+        "type": "texture"
+      },
+      "ver": "1.0.3",
+      "imported": true,
+      "files": [
+        ".json",
+        ".png"
+      ],
+      "subMetas": {}
+    },
+    "e873a": {
+      "importer": "texture",
+      "uuid": "b56354f8-f331-431c-a230-f031b967d39e@e873a",
+      "displayName": "",
+      "id": "e873a",
+      "name": "file2.texture",
+      "userData": {
+        "wrapModeS": "repeat",
+        "wrapModeT": "repeat",
+        "minfilter": "linear",
+        "magfilter": "linear",
+        "mipfilter": "none",
+        "anisotropy": 0,
+        "isUuid": true,
+        "imageUuidOrDatabaseUri": "b56354f8-f331-431c-a230-f031b967d39e@adacb"
+      },
+      "ver": "1.0.22",
+      "imported": true,
+      "files": [
+        ".json"
+      ],
+      "subMetas": {}
+    },
+    "3a730": {
+      "importer": "gltf-material",
+      "uuid": "b56354f8-f331-431c-a230-f031b967d39e@3a730",
+      "displayName": "",
+      "id": "3a730",
+      "name": "mtl_shoujimucai.material",
+      "userData": {
+        "gltfIndex": 0
+      },
+      "ver": "1.0.14",
+      "imported": true,
+      "files": [
+        ".json"
+      ],
+      "subMetas": {}
+    },
+    "8e023": {
+      "importer": "gltf-scene",
+      "uuid": "b56354f8-f331-431c-a230-f031b967d39e@8e023",
+      "displayName": "",
+      "id": "8e023",
+      "name": "songshu_01.prefab",
+      "userData": {
+        "gltfIndex": 0
+      },
+      "ver": "1.0.14",
+      "imported": true,
+      "files": [
+        ".json"
+      ],
+      "subMetas": {}
+    }
+  },
+  "userData": {
+    "imageMetas": [
+      {
+        "name": "file2",
+        "uri": "b56354f8-f331-431c-a230-f031b967d39e@adacb"
+      }
+    ],
+    "fbx": {
+      "smartMaterialEnabled": true
+    },
+    "animationImportSettings": [
+      {
+        "name": "Take 001",
+        "duration": 3.3333332538604736,
+        "fps": 30,
+        "splits": [
+          {
+            "name": "KanShu",
+            "from": 0.33144105521872574,
+            "to": 1,
+            "wrapMode": 0,
+            "previousId": "73b7f",
+            "fps": 60
+          },
+          {
+            "name": "ShuZhuang",
+            "from": 1.0666666666666667,
+            "to": 1.1333333333333333,
+            "wrapMode": 0,
+            "speed": 1,
+            "previousId": "bee69"
+          },
+          {
+            "name": "ChuSheng",
+            "from": 1.1666666666666667,
+            "to": 1.8666666666666667,
+            "wrapMode": 1,
+            "speed": 1,
+            "previousId": "9ebe8"
+          },
+          {
+            "name": "ShuChangTai",
+            "from": 2,
+            "to": 3.3333332538604736,
+            "wrapMode": 0,
+            "speed": 1,
+            "previousId": "01127"
+          }
+        ]
+      }
+    ],
+    "lods": {
+      "enable": false,
+      "hasBuiltinLOD": false,
+      "options": [
+        {
+          "screenRatio": 0.25,
+          "faceCount": 1
+        },
+        {
+          "screenRatio": 0.125,
+          "faceCount": 0.25
+        },
+        {
+          "screenRatio": 0.01,
+          "faceCount": 0.1
+        }
+      ]
+    },
+    "assetFinder": {
+      "meshes": [
+        "b56354f8-f331-431c-a230-f031b967d39e@9a86c",
+        "b56354f8-f331-431c-a230-f031b967d39e@ffbf5",
+        "b56354f8-f331-431c-a230-f031b967d39e@be469",
+        "b56354f8-f331-431c-a230-f031b967d39e@0d495"
+      ],
+      "skeletons": [],
+      "textures": [
+        "b56354f8-f331-431c-a230-f031b967d39e@e873a"
+      ],
+      "materials": [
+        "b56354f8-f331-431c-a230-f031b967d39e@3a730"
+      ],
+      "scenes": [
+        "b56354f8-f331-431c-a230-f031b967d39e@8e023"
+      ]
+    },
+    "materials": {
+      "b56354f8-f331-431c-a230-f031b967d39e@3a730": {
+        "__type__": "cc.Material",
+        "_name": "",
+        "_objFlags": 0,
+        "__editorExtras__": {},
+        "_native": "",
+        "_effectAsset": {
+          "__uuid__": "c8f66d17-351a-48da-a12c-0212d28575c4",
+          "__expectedType__": "cc.EffectAsset"
+        },
+        "_techIdx": 0,
+        "_defines": [
+          {
+            "USE_INSTANCING": true,
+            "USE_ALBEDO_MAP": true
+          },
+          {},
+          {},
+          {},
+          {},
+          {}
+        ],
+        "_states": [
+          {
+            "rasterizerState": {},
+            "depthStencilState": {},
+            "blendState": {
+              "targets": [
+                {}
+              ]
+            }
+          },
+          {
+            "rasterizerState": {},
+            "depthStencilState": {},
+            "blendState": {
+              "targets": [
+                {}
+              ]
+            }
+          },
+          {
+            "rasterizerState": {},
+            "depthStencilState": {},
+            "blendState": {
+              "targets": [
+                {}
+              ]
+            }
+          },
+          {
+            "rasterizerState": {},
+            "depthStencilState": {},
+            "blendState": {
+              "targets": [
+                {}
+              ]
+            }
+          },
+          {
+            "rasterizerState": {},
+            "depthStencilState": {},
+            "blendState": {
+              "targets": [
+                {}
+              ]
+            }
+          },
+          {
+            "rasterizerState": {},
+            "depthStencilState": {},
+            "blendState": {
+              "targets": [
+                {}
+              ]
+            }
+          }
+        ],
+        "_props": [
+          {
+            "mainColor": {
+              "__type__": "cc.Color",
+              "r": 216,
+              "g": 216,
+              "b": 216,
+              "a": 255
+            },
+            "roughness": 0,
+            "specularIntensity": 0,
+            "mainTexture": {
+              "__uuid__": "39f3dbd8-f0a4-4f77-a1a9-5cb499abe23d@6c48a",
+              "__expectedType__": "cc.Texture2D"
+            }
+          },
+          {},
+          {},
+          {},
+          {},
+          {}
+        ]
+      }
+    }
+  }
+}

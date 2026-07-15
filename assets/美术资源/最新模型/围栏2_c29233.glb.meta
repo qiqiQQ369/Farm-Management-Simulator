@@ -1,0 +1,93 @@
+{
+  "ver": "2.3.14",
+  "importer": "gltf",
+  "imported": true,
+  "uuid": "60673036-cff0-4a86-8b08-4c780e311a14",
+  "files": [],
+  "subMetas": {
+    "e2349": {
+      "importer": "gltf-mesh",
+      "uuid": "60673036-cff0-4a86-8b08-4c780e311a14@e2349",
+      "displayName": "",
+      "id": "e2349",
+      "name": "Mesh.mesh",
+      "userData": {
+        "gltfIndex": 0,
+        "triangleCount": 60
+      },
+      "ver": "1.1.1",
+      "imported": true,
+      "files": [
+        ".bin",
+        ".json"
+      ],
+      "subMetas": {}
+    },
+    "57eb5": {
+      "importer": "gltf-material",
+      "uuid": "60673036-cff0-4a86-8b08-4c780e311a14@57eb5",
+      "displayName": "",
+      "id": "57eb5",
+      "name": "1.material",
+      "userData": {
+        "gltfIndex": 0
+      },
+      "ver": "1.0.14",
+      "imported": true,
+      "files": [
+        ".json"
+      ],
+      "subMetas": {}
+    },
+    "c592c": {
+      "importer": "gltf-scene",
+      "uuid": "60673036-cff0-4a86-8b08-4c780e311a14@c592c",
+      "displayName": "",
+      "id": "c592c",
+      "name": "围栏2_c29233.prefab",
+      "userData": {
+        "gltfIndex": 0
+      },
+      "ver": "1.0.14",
+      "imported": true,
+      "files": [
+        ".json"
+      ],
+      "subMetas": {}
+    }
+  },
+  "userData": {
+    "imageMetas": [],
+    "lods": {
+      "enable": false,
+      "hasBuiltinLOD": false,
+      "options": [
+        {
+          "screenRatio": 0.25,
+          "faceCount": 1
+        },
+        {
+          "screenRatio": 0.125,
+          "faceCount": 0.25
+        },
+        {
+          "screenRatio": 0.01,
+          "faceCount": 0.1
+        }
+      ]
+    },
+    "assetFinder": {
+      "meshes": [
+        "60673036-cff0-4a86-8b08-4c780e311a14@e2349"
+      ],
+      "skeletons": [],
+      "textures": [],
+      "materials": [
+        "60673036-cff0-4a86-8b08-4c780e311a14@57eb5"
+      ],
+      "scenes": [
+        "60673036-cff0-4a86-8b08-4c780e311a14@c592c"
+      ]
+    }
+  }
+}

@@ -1,0 +1,115 @@
+{
+  "ver": "2.3.14",
+  "importer": "gltf",
+  "imported": true,
+  "uuid": "dc09b1bb-7c69-4f1b-b9d2-a6fa78eac5f4",
+  "files": [
+    "__original-animation-0.bin"
+  ],
+  "subMetas": {
+    "7f3dc": {
+      "importer": "gltf-animation",
+      "uuid": "dc09b1bb-7c69-4f1b-b9d2-a6fa78eac5f4@7f3dc",
+      "displayName": "",
+      "id": "7f3dc",
+      "name": "walk.animation",
+      "userData": {
+        "gltfIndex": 0,
+        "wrapMode": 2,
+        "sample": 30,
+        "span": {
+          "from": 0,
+          "to": 1.0666666666666667
+        },
+        "events": []
+      },
+      "ver": "1.0.18",
+      "imported": true,
+      "files": [
+        ".bin"
+      ],
+      "subMetas": {}
+    },
+    "5b9b6": {
+      "importer": "gltf-skeleton",
+      "uuid": "dc09b1bb-7c69-4f1b-b9d2-a6fa78eac5f4@5b9b6",
+      "displayName": "",
+      "id": "5b9b6",
+      "name": "Bip001.skeleton",
+      "userData": {
+        "gltfIndex": 0,
+        "jointsLength": 21
+      },
+      "ver": "1.0.1",
+      "imported": true,
+      "files": [
+        ".json"
+      ],
+      "subMetas": {}
+    },
+    "9d3fd": {
+      "importer": "gltf-scene",
+      "uuid": "dc09b1bb-7c69-4f1b-b9d2-a6fa78eac5f4@9d3fd",
+      "displayName": "",
+      "id": "9d3fd",
+      "name": "NPC_Male@walk.prefab",
+      "userData": {
+        "gltfIndex": 0
+      },
+      "ver": "1.0.14",
+      "imported": true,
+      "files": [
+        ".json"
+      ],
+      "subMetas": {}
+    }
+  },
+  "userData": {
+    "imageMetas": [],
+    "animationImportSettings": [
+      {
+        "name": "Bip001|Take 001|BaseLayer",
+        "duration": 1.100000023841858,
+        "fps": 30,
+        "splits": [
+          {
+            "name": "walk",
+            "from": 0,
+            "to": 1.0666666666666667,
+            "wrapMode": 2,
+            "previousId": "7f3dc"
+          }
+        ]
+      }
+    ],
+    "lods": {
+      "enable": false,
+      "hasBuiltinLOD": false,
+      "options": [
+        {
+          "screenRatio": 0.25,
+          "faceCount": 1
+        },
+        {
+          "screenRatio": 0.125,
+          "faceCount": 0.25
+        },
+        {
+          "screenRatio": 0.01,
+          "faceCount": 0.1
+        }
+      ]
+    },
+    "assetFinder": {
+      "meshes": [],
+      "skeletons": [
+        "dc09b1bb-7c69-4f1b-b9d2-a6fa78eac5f4@5b9b6"
+      ],
+      "textures": [],
+      "materials": [],
+      "scenes": [
+        "dc09b1bb-7c69-4f1b-b9d2-a6fa78eac5f4@9d3fd"
+      ]
+    }
+  }
+}

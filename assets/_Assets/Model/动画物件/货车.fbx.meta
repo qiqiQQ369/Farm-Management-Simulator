@@ -1,0 +1,304 @@
+{
+  "ver": "2.3.14",
+  "importer": "fbx",
+  "imported": true,
+  "uuid": "97db4dbd-2632-4437-9f36-3b47280820f8",
+  "files": [
+    "__original-animation-0.bin"
+  ],
+  "subMetas": {
+    "12682": {
+      "importer": "gltf-mesh",
+      "uuid": "97db4dbd-2632-4437-9f36-3b47280820f8@12682",
+      "displayName": "",
+      "id": "12682",
+      "name": "轮胎.mesh",
+      "userData": {
+        "gltfIndex": 1,
+        "triangleCount": 348
+      },
+      "ver": "1.1.1",
+      "imported": true,
+      "files": [
+        ".bin",
+        ".json"
+      ],
+      "subMetas": {}
+    },
+    "58346": {
+      "importer": "gltf-mesh",
+      "uuid": "97db4dbd-2632-4437-9f36-3b47280820f8@58346",
+      "displayName": "",
+      "id": "58346",
+      "name": "huoche.mesh",
+      "userData": {
+        "gltfIndex": 0,
+        "triangleCount": 279
+      },
+      "ver": "1.1.1",
+      "imported": true,
+      "files": [
+        ".bin",
+        ".json"
+      ],
+      "subMetas": {}
+    },
+    "73b7f": {
+      "importer": "gltf-animation",
+      "uuid": "97db4dbd-2632-4437-9f36-3b47280820f8@73b7f",
+      "displayName": "",
+      "id": "73b7f",
+      "name": "DongHua.animation",
+      "userData": {
+        "gltfIndex": 0,
+        "wrapMode": 2,
+        "sample": 30,
+        "span": {
+          "from": 0,
+          "to": 0.5
+        },
+        "events": []
+      },
+      "ver": "1.0.18",
+      "imported": true,
+      "files": [
+        ".bin"
+      ],
+      "subMetas": {}
+    },
+    "43c71": {
+      "importer": "gltf-embeded-image",
+      "uuid": "97db4dbd-2632-4437-9f36-3b47280820f8@43c71",
+      "displayName": "",
+      "id": "43c71",
+      "name": "file1.image",
+      "userData": {
+        "gltfIndex": 0,
+        "fixAlphaTransparencyArtifacts": true,
+        "hasAlpha": true,
+        "type": "texture"
+      },
+      "ver": "1.0.3",
+      "imported": true,
+      "files": [
+        ".json",
+        ".png"
+      ],
+      "subMetas": {}
+    },
+    "d20e9": {
+      "importer": "texture",
+      "uuid": "97db4dbd-2632-4437-9f36-3b47280820f8@d20e9",
+      "displayName": "",
+      "id": "d20e9",
+      "name": "file1.texture",
+      "userData": {
+        "wrapModeS": "repeat",
+        "wrapModeT": "repeat",
+        "minfilter": "linear",
+        "magfilter": "linear",
+        "mipfilter": "none",
+        "anisotropy": 0,
+        "isUuid": true,
+        "imageUuidOrDatabaseUri": "97db4dbd-2632-4437-9f36-3b47280820f8@43c71"
+      },
+      "ver": "1.0.22",
+      "imported": true,
+      "files": [
+        ".json"
+      ],
+      "subMetas": {}
+    },
+    "20eb3": {
+      "importer": "gltf-material",
+      "uuid": "97db4dbd-2632-4437-9f36-3b47280820f8@20eb3",
+      "displayName": "",
+      "id": "20eb3",
+      "name": "mtl_famuchang.material",
+      "userData": {
+        "gltfIndex": 0
+      },
+      "ver": "1.0.14",
+      "imported": true,
+      "files": [
+        ".json"
+      ],
+      "subMetas": {}
+    },
+    "bf441": {
+      "importer": "gltf-scene",
+      "uuid": "97db4dbd-2632-4437-9f36-3b47280820f8@bf441",
+      "displayName": "",
+      "id": "bf441",
+      "name": "货车.prefab",
+      "userData": {
+        "gltfIndex": 0
+      },
+      "ver": "1.0.14",
+      "imported": true,
+      "files": [
+        ".json"
+      ],
+      "subMetas": {}
+    }
+  },
+  "userData": {
+    "imageMetas": [
+      {
+        "name": "file1",
+        "uri": "97db4dbd-2632-4437-9f36-3b47280820f8@43c71"
+      }
+    ],
+    "fbx": {
+      "smartMaterialEnabled": true
+    },
+    "animationImportSettings": [
+      {
+        "name": "Take 001",
+        "duration": 0.5,
+        "fps": 30,
+        "splits": [
+          {
+            "name": "DongHua",
+            "from": 0,
+            "to": 0.5,
+            "wrapMode": 2,
+            "previousId": "73b7f"
+          }
+        ]
+      }
+    ],
+    "lods": {
+      "enable": false,
+      "hasBuiltinLOD": false,
+      "options": [
+        {
+          "screenRatio": 0.25,
+          "faceCount": 1
+        },
+        {
+          "screenRatio": 0.125,
+          "faceCount": 0.25
+        },
+        {
+          "screenRatio": 0.01,
+          "faceCount": 0.1
+        }
+      ]
+    },
+    "assetFinder": {
+      "meshes": [
+        "97db4dbd-2632-4437-9f36-3b47280820f8@58346",
+        "97db4dbd-2632-4437-9f36-3b47280820f8@12682"
+      ],
+      "skeletons": [],
+      "textures": [
+        "97db4dbd-2632-4437-9f36-3b47280820f8@d20e9"
+      ],
+      "materials": [
+        "97db4dbd-2632-4437-9f36-3b47280820f8@20eb3"
+      ],
+      "scenes": [
+        "97db4dbd-2632-4437-9f36-3b47280820f8@bf441"
+      ]
+    },
+    "materials": {
+      "97db4dbd-2632-4437-9f36-3b47280820f8@20eb3": {
+        "__type__": "cc.Material",
+        "_name": "",
+        "_objFlags": 0,
+        "__editorExtras__": {},
+        "_native": "",
+        "_effectAsset": {
+          "__uuid__": "c8f66d17-351a-48da-a12c-0212d28575c4",
+          "__expectedType__": "cc.EffectAsset"
+        },
+        "_techIdx": 0,
+        "_defines": [
+          {
+            "USE_INSTANCING": true,
+            "USE_ALBEDO_MAP": true
+          },
+          {},
+          {},
+          {},
+          {},
+          {}
+        ],
+        "_states": [
+          {
+            "rasterizerState": {},
+            "depthStencilState": {},
+            "blendState": {
+              "targets": [
+                {}
+              ]
+            }
+          },
+          {
+            "rasterizerState": {},
+            "depthStencilState": {},
+            "blendState": {
+              "targets": [
+                {}
+              ]
+            }
+          },
+          {
+            "rasterizerState": {},
+            "depthStencilState": {},
+            "blendState": {
+              "targets": [
+                {}
+              ]
+            }
+          },
+          {
+            "rasterizerState": {},
+            "depthStencilState": {},
+            "blendState": {
+              "targets": [
+                {}
+              ]
+            }
+          },
+          {
+            "rasterizerState": {},
+            "depthStencilState": {},
+            "blendState": {
+              "targets": [
+                {}
+              ]
+            }
+          },
+          {
+            "rasterizerState": {},
+            "depthStencilState": {},
+            "blendState": {
+              "targets": [
+                {}
+              ]
+            }
+          }
+        ],
+        "_props": [
+          {
+            "mainTexture": {
+              "__uuid__": "39f3dbd8-f0a4-4f77-a1a9-5cb499abe23d@6c48a",
+              "__expectedType__": "cc.Texture2D"
+            },
+            "normalMap": {
+              "__uuid__": "4ee61a5b-244f-425b-b44b-148dbbda1d74@e873a",
+              "__expectedType__": "cc.Texture2D"
+            }
+          },
+          {},
+          {},
+          {},
+          {},
+          {}
+        ]
+      }
+    }
+  }
+}

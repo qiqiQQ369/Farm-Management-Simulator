@@ -1,0 +1,15 @@
+# Cocos Creator generated caches and local editor state
+/library/
+/temp/
+/local/
+/profiles/
+
+# Build outputs
+/build/
+/native/
+
+# Tooling and operating-system files
+/node_modules/
+*.log
+.DS_Store
+Thumbs.db
