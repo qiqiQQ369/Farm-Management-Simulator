@@ -4,6 +4,7 @@ import { StoragePoint } from './Resource/StoragePoint';
 import { ResourceManager } from './Resource/ResourceManager';
 import { AnimationLibrary } from './AnimationLibrary';
 import { WoodBackpack } from './WoodBackpack';
+import { CameraFacingUI } from './CameraFacingUI';
 const { ccclass, property } = _decorator;
 
 @ccclass('NPCScheduler')
@@ -85,7 +86,13 @@ export class NPCScheduler extends Component {
             const offset = dir.clone().multiplyScalar(-this.spacing * i);
             const pos = startPos.clone().add(offset);
             npc.setWorldPosition(pos);
-            npc.getChildByName('emoji').active = false;
+            const emoji = npc.getChildByName('emoji');
+            if (emoji) {
+                emoji.active = false;
+                if (!emoji.getComponent(CameraFacingUI)) {
+                    emoji.addComponent(CameraFacingUI);
+                }
+            }
         }
         this.syncQueueMove(true);
     }
