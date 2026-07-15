@@ -31,6 +31,9 @@ export class CameraController extends Component {
     
     @property({ tooltip: "摄像机距离目标的偏移" })
     public offset: Vec3 = new Vec3(0, 10, 8);
+
+    @property({ tooltip: "相机到玩家的跟随距离" })
+    public followDistance: number = 17;
     
     @property({ tooltip: "摄像机注视点偏移" })
     public lookAtOffset: Vec3 = new Vec3(0, 0, 0);
@@ -119,11 +122,8 @@ export class CameraController extends Component {
             this.applyBounds();
         }
         
-        // 更新摄像机注视
-        this.updateLookAt();
-        
         // 更新前一帧的目标位置
-        this._previousTargetPosition.set(this.target.position);
+        this._previousTargetPosition.set(this.target.worldPosition);
     }
 
     /**
@@ -149,12 +149,12 @@ export class CameraController extends Component {
     private initializePosition(): void {
         if (!this.target || this._isInitialized) return;
         
-        // 设置初始位置
-        Vec3.add(this._targetPosition, this.target.position, this.offset);
-        this.node.setPosition(this._targetPosition);
+        // 根据当前相机朝向设置初始位置，保持目标位于画面中心。
+        this.calculateFollowPosition(this._targetPosition, this.target.worldPosition);
+        this.node.setWorldPosition(this._targetPosition);
         
         // 初始化前一帧位置
-        this._previousTargetPosition.set(this.target.position);
+        this._previousTargetPosition.set(this.target.worldPosition);
         
         this._isInitialized = true;
         console.log('摄像机初始化完成');
@@ -164,26 +164,26 @@ export class CameraController extends Component {
      * 固定跟随更新
      */
     private updateFixedFollow(): void {
-        Vec3.add(this._targetPosition, this.target.position, this.offset);
-        this.node.setPosition(this._targetPosition);
+        this.calculateFollowPosition(this._targetPosition, this.target.worldPosition);
+        this.node.setWorldPosition(this._targetPosition);
     }
 
     /**
      * 平滑跟随更新
      */
     private updateSmoothFollow(deltaTime: number): void {
-        // 计算目标位置
-        Vec3.add(this._targetPosition, this.target.position, this.offset);
+        // 根据当前相机朝向计算目标位置，旋转由编辑器控制且不会被运行时改写。
+        this.calculateFollowPosition(this._targetPosition, this.target.worldPosition);
         
         // 检查是否在死区内
-        const currentPos = this.node.position;
+        const currentPos = this.node.worldPosition;
         const distance = Vec3.distance(currentPos, this._targetPosition);
         
         if (distance > this.deadZone) {
             // 平滑移动到目标位置
             Vec3.lerp(this._tempVec3, currentPos, this._targetPosition, 
                      Math.min(this.followSpeed * deltaTime * 60, 1.0));
-            this.node.setPosition(this._tempVec3);
+            this.node.setWorldPosition(this._tempVec3);
         }
     }
 
@@ -192,42 +192,53 @@ export class CameraController extends Component {
      */
     private updatePredictionFollow(deltaTime: number): void {
         // 计算目标速度
-        Vec3.subtract(this._currentVelocity, this.target.position, this._previousTargetPosition);
+        Vec3.subtract(this._currentVelocity, this.target.worldPosition, this._previousTargetPosition);
         Vec3.multiplyScalar(this._currentVelocity, this._currentVelocity, 1.0 / deltaTime);
         
         // 预测目标未来位置
         Vec3.multiplyScalar(this._tempVec3, this._currentVelocity, this.predictionFactor * deltaTime);
-        Vec3.add(this._tempVec3_2, this.target.position, this._tempVec3);
-        Vec3.add(this._targetPosition, this._tempVec3_2, this.offset);
+        Vec3.add(this._tempVec3_2, this.target.worldPosition, this._tempVec3);
+        this.calculateFollowPosition(this._targetPosition, this._tempVec3_2);
         
         // 限制最大跟随距离
-        const distance = Vec3.distance(this.node.position, this._targetPosition);
+        const currentPos = this.node.worldPosition;
+        const distance = Vec3.distance(currentPos, this._targetPosition);
         if (distance > this.maxFollowDistance) {
-            Vec3.subtract(this._tempVec3, this._targetPosition, this.node.position);
+            Vec3.subtract(this._tempVec3, this._targetPosition, currentPos);
             Vec3.normalize(this._tempVec3, this._tempVec3);
             Vec3.multiplyScalar(this._tempVec3, this._tempVec3, this.maxFollowDistance);
-            Vec3.add(this._targetPosition, this.node.position, this._tempVec3);
+            Vec3.add(this._targetPosition, currentPos, this._tempVec3);
         }
         
         // 平滑移动
-        Vec3.lerp(this._tempVec3, this.node.position, this._targetPosition, 
+        Vec3.lerp(this._tempVec3, currentPos, this._targetPosition,
                  Math.min(this.followSpeed * deltaTime * 60, 1.0));
-        this.node.setPosition(this._tempVec3);
+        this.node.setWorldPosition(this._tempVec3);
     }
 
     /**
      * 应用边界限制
      */
     private applyBounds(): void {
-        const currentPos = this.node.position;
+        const currentPos = this.node.worldPosition;
         
         this._tempVec3.set(
             math.clamp(currentPos.x, this.boundsMin.x, this.boundsMax.x),
-            math.clamp(currentPos.y, this.boundsMin.y, this.boundsMax.y),
+            // 锁定高度会破坏“目标位于画面中心”的相机射线，因此不限制 Y 轴。
+            currentPos.y,
             math.clamp(currentPos.z, this.boundsMin.z, this.boundsMax.z)
         );
         
-        this.node.setPosition(this._tempVec3);
+        this.node.setWorldPosition(this._tempVec3);
+    }
+
+    /**
+     * 按相机当前朝向计算跟随位置。
+     * 只读取朝向，不会在运行时修改相机 Rotation。
+     */
+    private calculateFollowPosition(out: Vec3, targetPosition: Vec3): void {
+        Vec3.multiplyScalar(this._tempVec3, this.node.forward, -this.followDistance);
+        Vec3.add(out, targetPosition, this._tempVec3);
     }
 
     /**
@@ -305,6 +316,7 @@ export class CameraController extends Component {
      */
     public setOffset(offset: Vec3): void {
         this.offset.set(offset);
+        this.followDistance = offset.length();
     }
 
     /**
@@ -347,9 +359,9 @@ export class CameraController extends Component {
     public snapToTarget(): void {
         if (!this.target) return;
         
-        Vec3.add(this._targetPosition, this.target.position, this.offset);
-        this.node.setPosition(this._targetPosition);
-        this._previousTargetPosition.set(this.target.position);
+        this.calculateFollowPosition(this._targetPosition, this.target.worldPosition);
+        this.node.setWorldPosition(this._targetPosition);
+        this._previousTargetPosition.set(this.target.worldPosition);
     }
 
     /**
@@ -357,6 +369,7 @@ export class CameraController extends Component {
      */
     public reset(): void {
         this.offset.set(this._originalOffset);
+        this.followDistance = this._originalOffset.length();
         this.followMode = CameraFollowMode.Smooth;
         this.followSpeed = 0.1;
         this.stopShake();
@@ -377,8 +390,8 @@ export class CameraController extends Component {
     } {
         return {
             mode: CameraFollowMode[this.followMode],
-            position: this.node.position.clone(),
-            targetDistance: this.target ? Vec3.distance(this.node.position, this.target.position) : 0,
+            position: this.node.worldPosition.clone(),
+            targetDistance: this.target ? Vec3.distance(this.node.worldPosition, this.target.worldPosition) : 0,
             isShaking: this._shakeTimer > 0
         };
     }
