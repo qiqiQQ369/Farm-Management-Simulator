@@ -30,6 +30,9 @@ export class Woodcutter extends Component {
     
     @property({ tooltip: "砍伐完成后等待时间" })
     public waitAfterChop: number = 1.0;
+
+    @property({ tooltip: "每次挥砍之间的间隔（秒）" })
+    public chopInterval: number = 0.8;
     
     @property({ type: ChopAction, tooltip: "砍伐动作组件" })
     public chopAction: ChopAction = null!;
@@ -337,6 +340,7 @@ export class Woodcutter extends Component {
 
         if (this._currentTarget === target && target.node.isValid &&
             target.getCurrentState() !== TreeState.Chopped) {
+            await new Promise(resolve => setTimeout(resolve, Math.max(this.chopInterval, 0.1) * 1000));
             target.registerWoodcutterChop(this.node);
         }
 
