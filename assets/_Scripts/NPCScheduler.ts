@@ -345,7 +345,8 @@ export class NPCScheduler extends Component {
         this.checkTimer = 0;
         for(let i = 0; i < this.npcs.length; i++){
             var npc = this.npcs[i];
-            npc.getChildByName("emoji").active = false;
+            const emoji = this.getNpcEmoji(npc);
+            if (emoji) emoji.active = false;
         }
     }
 
@@ -376,7 +377,8 @@ export class NPCScheduler extends Component {
         var activeEmoji = this.checkEmoji();
         for(let i = 0; i < this.queue.length; i++){
             var npc = this.queue[i];
-            npc.getChildByName("emoji").active = activeEmoji;
+            const emoji = this.getNpcEmoji(npc);
+            if (emoji) emoji.active = activeEmoji;
         }
     }
 
@@ -446,12 +448,17 @@ export class NPCScheduler extends Component {
                     this.dropCoins();
                     await new Promise((resolve) => setTimeout(resolve, 1000));
                     npcStoragePoint.clearStorage();
-                    npc.getChildByName("emoji").active = true;
+                    const emoji = this.getNpcEmoji(npc);
+                    if (emoji) emoji.active = true;
                     return;
                 }
             }
             await new Promise((resolve) => setTimeout(resolve, this.collectInterval * 500));
         }
+    }
+
+    private getNpcEmoji(npc: Node): Node | null {
+        return npc?.isValid ? npc.getChildByName('emoji') : null;
     }
 
     /**
