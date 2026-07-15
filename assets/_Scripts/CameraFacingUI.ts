@@ -1,4 +1,4 @@
-import { _decorator, Camera, Component, find } from 'cc';
+import { _decorator, Camera, Component, find, Vec3, Quat } from 'cc';
 
 const { ccclass } = _decorator;
 
@@ -6,14 +6,20 @@ const { ccclass } = _decorator;
 @ccclass('CameraFacingUI')
 export class CameraFacingUI extends Component {
     private _camera: Camera | null = null;
+    private readonly _rotation = new Quat();
+    private _tilt = -45;
 
     protected onLoad(): void {
         const cameraNode = find('Main Camera');
         this._camera = cameraNode ? cameraNode.getComponent(Camera) : null;
+        // 提示框使用等距游戏常见的固定俯角，只跟随摄像机的水平旋转。
+        this._tilt = this.node.eulerAngles.x || -45;
     }
 
     protected lateUpdate(): void {
         if (!this._camera || !this._camera.node.isValid) return;
-        this.node.setWorldRotation(this._camera.node.worldRotation);
+        const cameraYaw = this._camera.node.eulerAngles.y;
+        Quat.fromEuler(this._rotation, this._tilt, cameraYaw, 0);
+        this.node.setWorldRotation(this._rotation);
     }
 }
