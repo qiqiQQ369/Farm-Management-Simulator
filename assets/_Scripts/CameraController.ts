@@ -234,7 +234,7 @@ export class CameraController extends Component {
         
         this._tempVec3.set(
             math.clamp(currentPos.x, this.boundsMin.x, this.boundsMax.x),
-            currentPos.y,
+            math.clamp(currentPos.y, this.boundsMin.y, this.boundsMax.y),
             math.clamp(currentPos.z, this.boundsMin.z, this.boundsMax.z)
         );
         
