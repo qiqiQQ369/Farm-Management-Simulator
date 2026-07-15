@@ -139,8 +139,8 @@ export class Tree extends Component {
 
     protected onLoad(): void {
 
-        this.playerChopCount = 3;
-        this.woodcutterChopCount = 2;
+        this.playerChopCount = 1;
+        this.woodcutterChopCount = 4;
         this.vehicleChopCount = 1;
 
         this.playerChopDuration = 0.6;
