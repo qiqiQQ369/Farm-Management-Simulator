@@ -391,7 +391,7 @@ export class Tree extends Component {
     private isChopperMoving(chopper: ChopperInfo): boolean {
         switch (chopper.type) {
             case ChopperType.Player:
-                return chopper.controller && chopper.controller.isMoving ? chopper.controller.isMoving() : false;
+                return false;
                 
             case ChopperType.Woodcutter:
                 return chopper.controller && chopper.controller.getCurrentState ? 
@@ -549,7 +549,9 @@ export class Tree extends Component {
         
         switch (this._currentChopper.type) {
             case ChopperType.Player:
-                if (this._currentChopper.controller && this._currentChopper.controller.faceTarget) {
+                if (this._currentChopper.controller &&
+                    this._currentChopper.controller.faceTarget &&
+                    (!this._currentChopper.controller.isMoving || !this._currentChopper.controller.isMoving())) {
                     this._currentChopper.controller.faceTarget(this.node.position);
                 }
                 break;

@@ -334,7 +334,7 @@ export class PlayerController extends Component implements IJoystickInput {
      * 处理树木交互
      */
     private handleTreeInteraction(): void {
-        if (!this.treeManager || this._isMoving) {
+        if (!this.treeManager) {
             return;
         }
         
@@ -349,7 +349,9 @@ export class PlayerController extends Component implements IJoystickInput {
             const closestTree = nearbyTrees[0];
             
             // 面向最近的树木
-            this.faceTarget(closestTree.node.position);
+            if (!this._isMoving) {
+                this.faceTarget(closestTree.node.position);
+            }
             console.log('playChopSound3');
             // 播放砍伐动作
             this.chopAction.playChopAction(closestTree.node.position);
