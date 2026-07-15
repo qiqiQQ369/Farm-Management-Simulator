@@ -336,6 +336,11 @@ export class Tree extends Component {
             return;
         }
 
+        // 伐木工的砍伐次数由每次挥斧动画完成后显式登记，避免定时器与动画错位。
+        if (this._currentChopper.type === ChopperType.Woodcutter) {
+            return;
+        }
+
         // 检查砍伐者是否停止移动
         const isChopperMoving = this.isChopperMoving(this._currentChopper);
         
@@ -456,6 +461,25 @@ export class Tree extends Component {
     }
 
     /**
+     * 登记伐木工完成的一次挥斧。
+     */
+    public registerWoodcutterChop(chopperNode: Node): boolean {
+        const chopper = this._choppersInRange.get(chopperNode);
+        const isChoppableState = this._currentState === TreeState.Full ||
+            this._currentState === TreeState.Half ||
+            this._currentState === TreeState.Half2;
+
+        if (!chopper || chopper.type !== ChopperType.Woodcutter || !isChoppableState) {
+            return false;
+        }
+
+        this._currentChopper = chopper;
+        this._isChopping = true;
+        void this.completeChop();
+        return true;
+    }
+
+    /**
      * 完成一次砍伐
      */
     private async completeChop(): Promise<void> {
@@ -468,11 +492,6 @@ export class Tree extends Component {
         if(this._currentChopper.type == ChopperType.Player) {
             this._currentChopper.controller.chopAction.playChopAction(this.node.position);
             await new Promise(resolve => setTimeout(resolve, 500));
-        }
-
-        if(this._currentChopper.type ==  ChopperType.Woodcutter && this._currentChopCount == 2){
-            this._choppingSince = -600;
-            await new Promise(resolve => setTimeout(resolve, 600));
         }
 
         this.playShakeAnimation();

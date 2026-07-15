@@ -45,6 +45,7 @@ export class Woodcutter extends Component {
     private _currentTreeIndex: number = 0;
     private _isMoving: boolean = false;
     private _isChopping: boolean = false;
+    private _isChopCycleRunning: boolean = false;
     private _currentTarget: Tree | null = null;
     private _waitTimer: number = 0;
     private _checkReverse: boolean = false;
@@ -170,7 +171,6 @@ export class Woodcutter extends Component {
         if (distance <= this.chopRange) {
             // 到达目标位置，开始砍伐
             this._currentState = WoodcutterState.Chopping;
-            this.skeletalAnimation.play("KanMuTou");
             this.startChopping();
             await new Promise(resolve => setTimeout(resolve, 1000));
             // if(this.lastAnimation != "KanMuTou"){
@@ -212,9 +212,9 @@ export class Woodcutter extends Component {
             return;
         }
         
-        // 继续砍伐
-        if (this.chopAction && !this.chopAction.isPlaying()) {
-            this.chopAction.playChopAction(this._currentTarget.node.position.clone().add(this.offsetVec3));
+        // 每次动画结束后才登记一次砍伐，避免动画与树木计数错位。
+        if (!this._isChopCycleRunning) {
+            void this.playAndRegisterChop();
         }
     }
 
@@ -321,6 +321,26 @@ export class Woodcutter extends Component {
     }
 
     /**
+     * 播放一次挥斧动画，并在完成后登记一次树木砍伐。
+     */
+    private async playAndRegisterChop(): Promise<void> {
+        if (this._isChopCycleRunning || !this._currentTarget || !this.chopAction) {
+            return;
+        }
+
+        const target = this._currentTarget;
+        this._isChopCycleRunning = true;
+        await this.chopAction.playChopAction(target.node.position.clone().add(this.offsetVec3));
+
+        if (this._currentTarget === target && target.node.isValid &&
+            target.getCurrentState() !== TreeState.Chopped) {
+            target.registerWoodcutterChop(this.node);
+        }
+
+        this._isChopCycleRunning = false;
+    }
+
+    /**
      * 开始砍伐
      */
     private startChopping(): void {
@@ -331,10 +351,7 @@ export class Woodcutter extends Component {
         // 面向树木
         //this.faceTarget(this._currentTarget.node.position.clone().add(this.offsetVec3));
         
-        // 播放砍伐动作
-        if (this.chopAction) {
-            this.chopAction.playChopAction(this._currentTarget.node.position.clone().add(this.offsetVec3));
-        }
+        void this.playAndRegisterChop();
     }
 
     /**

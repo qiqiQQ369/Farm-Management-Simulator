@@ -58,13 +58,12 @@ export class ChopAction extends Component {
          // 播放视觉效果
          this.playChopEffect(targetPosition);
         
-        // 设置动作结束
-        this.scheduleOnce(() => {
-            this._isPlaying = false;
-            if(this.futouNode)
-                this.futouNode.active = false;
-            //this.skeletonAnimation.play("idle1");
-        }, 0.1);
+        // Promise 只在动作真正结束后返回，供伐木工将一次挥斧与一次砍伐严格对应。
+        await new Promise(resolve => setTimeout(resolve, 100));
+        this._isPlaying = false;
+        if(this.futouNode)
+            this.futouNode.active = false;
+        //this.skeletonAnimation.play("idle1");
     }
 
     /**
