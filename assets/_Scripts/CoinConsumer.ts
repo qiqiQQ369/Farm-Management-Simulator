@@ -4,6 +4,10 @@ import { CoinBackpack } from './CoinBackpack';
 import { StoragePoint } from './Resource/StoragePoint';
 import { CameraController } from './CameraController';
 import { JoystickController } from './JoystickController';
+import { HaulerNPC } from './HaulerNPC';
+import { HaulerUnlockController } from './HaulerUnlockController';
+import { NPCScheduler } from './NPCScheduler';
+import { ArrowTipController } from './ArrowTipController';
 const { ccclass, property } = _decorator;
 
 /**
@@ -385,7 +389,7 @@ export class CoinConsumer extends Component {
             const haulerUnlockPad = find('unlockLevel3L');
             if (haulerUnlockPad) {
                 haulerUnlockPad.setWorldPosition(this.node.worldPosition);
-                haulerUnlockPad.active = true;
+                this.setupHaulerUnlock(haulerUnlockPad);
             }
             
             // this.node.getComponentInChildren(Animation).play("animation_DiMianUI_Close");
@@ -423,6 +427,55 @@ export class CoinConsumer extends Component {
             }, 1);
             return;
         }
+    }
+
+    /** 将员工解锁点改造成拖拉机解锁后的搬运工解锁点。 */
+    private setupHaulerUnlock(unlockPad: Node): void {
+        const employeeConsumer = unlockPad.getComponent(CoinConsumer);
+        if (employeeConsumer) {
+            employeeConsumer.enabled = false;
+        }
+
+        // 先保持节点关闭，避免动态添加组件时 onLoad 在属性绑定前访问空引用。
+        unlockPad.active = false;
+        const controller = unlockPad.getComponent(HaulerUnlockController) || unlockPad.addComponent(HaulerUnlockController);
+        controller.tractorNode = this.machineNode;
+        controller.unlockPad = unlockPad;
+        controller.playerCoinBackpack = this.playerCoinBackpack;
+        controller.remainingLabel = unlockPad.getComponentInChildren(Label);
+        controller.requiredCoins = 170;
+        controller.haulerNode = this.createHaulerNode(unlockPad);
+        unlockPad.active = true;
+    }
+
+    /** 复用现有买家 NPC 外观，创建一个独立的搬运工节点。 */
+    private createHaulerNode(unlockPad: Node): Node {
+        const schedulerNode = find('NPCScheduler');
+        const scheduler = schedulerNode?.getComponent(NPCScheduler);
+        const template = scheduler?.npcs?.find(npc => npc && npc.activeInHierarchy) || scheduler?.npcs?.[0];
+        if (!template) {
+            console.warn('未找到可复用的买家 NPC，搬运工节点暂不生成');
+            return new Node('HaulerNPC');
+        }
+
+        const hauler = instantiate(template);
+        hauler.name = 'HaulerNPC';
+        hauler.setParent(template.parent);
+        hauler.setWorldPosition(unlockPad.worldPosition);
+        hauler.active = false;
+
+        const behavior = hauler.addComponent(HaulerNPC);
+        const arrow = this.node.scene?.getComponentInChildren(ArrowTipController);
+        const carryStorage = hauler.getComponentInChildren(StoragePoint);
+        if (arrow?.cutterWoodStorageNode && arrow.sellWoodStorageNode && carryStorage) {
+            behavior.collectionStorage = arrow.cutterWoodStorageNode;
+            behavior.sellStorage = arrow.sellWoodStorageNode;
+            behavior.carryStorage = carryStorage;
+            behavior.collectionPoint = arrow.cutterWoodStorageNode.node;
+            behavior.sellPoint = arrow.sellWoodStorageNode.node;
+            behavior.idlePoint = unlockPad;
+        }
+        return hauler;
     }
 
     /**
