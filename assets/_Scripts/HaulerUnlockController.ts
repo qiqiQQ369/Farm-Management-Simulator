@@ -13,6 +13,9 @@ export class HaulerUnlockController extends Component {
     @property({ type: Node, tooltip: '搬运工解锁地块' })
     public unlockPad: Node = null!;
 
+    @property({ tooltip: '将解锁点定位到拖拉机解锁点的世界坐标' })
+    public anchorToTractorUnlockPoint = true;
+
     @property({ type: Node, tooltip: '搬运工 NPC 节点' })
     public haulerNode: Node = null!;
 
@@ -52,6 +55,7 @@ export class HaulerUnlockController extends Component {
 
     protected update(deltaTime: number): void {
         if (!this._unlocked && !this.unlockPad.active && this.tractorNode.activeInHierarchy) {
+            this.alignUnlockPadToTractor();
             this.unlockPad.active = true;
         }
 
@@ -98,6 +102,18 @@ export class HaulerUnlockController extends Component {
         this._playerInside = false;
         this.unlockPad.active = false;
         this.haulerNode.active = true;
+    }
+
+    /** 拖拉机解锁后，搬运工解锁点复用拖拉机解锁点的位置。 */
+    private alignUnlockPadToTractor(): void {
+        if (!this.anchorToTractorUnlockPoint || !this.tractorNode || !this.unlockPad) return;
+
+        const tractorPosition = this.tractorNode.worldPosition;
+        if (this.unlockPad.parent) {
+            this.unlockPad.setWorldPosition(tractorPosition);
+        } else {
+            this.unlockPad.setPosition(tractorPosition);
+        }
     }
 
     private updateLabel(): void {
