@@ -330,6 +330,9 @@ export class Woodcutter extends Component {
 
         const target = this._currentTarget;
         this._isChopCycleRunning = true;
+        if (this.skeletalAnimation) {
+            this.skeletalAnimation.play("KanMuTou");
+        }
         await this.chopAction.playChopAction(target.node.position.clone().add(this.offsetVec3));
 
         if (this._currentTarget === target && target.node.isValid &&
