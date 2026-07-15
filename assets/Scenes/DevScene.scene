@@ -233,6 +233,7 @@
       "y": 0,
       "z": 17
     },
+    "followDistance": 17,
     "lookAtOffset": {
       "__type__": "cc.Vec3",
       "x": 0,
@@ -4913,6 +4914,7 @@
     "moveSpeed": 2,
     "chopRange": 0.7,
     "waitAfterChop": 0.2,
+    "chopInterval": 0.8,
     "chopAction": null,
     "autoStart": true,
     "skeletalAnimation": null,
@@ -5249,8 +5251,8 @@
       "__uuid__": "d900a1d8-94cf-4418-89e4-c80700611986",
       "__expectedType__": "cc.Prefab"
     },
-    "playerChopCount": 1,
-    "woodcutterChopCount": 4,
+    "playerChopCount": 3,
+    "woodcutterChopCount": 3,
     "vehicleChopCount": 1,
     "playerChopDuration": 0.5,
     "woodcutterChopDuration": 1.6,
@@ -6026,8 +6028,8 @@
       "__uuid__": "d900a1d8-94cf-4418-89e4-c80700611986",
       "__expectedType__": "cc.Prefab"
     },
-    "playerChopCount": 1,
-    "woodcutterChopCount": 4,
+    "playerChopCount": 3,
+    "woodcutterChopCount": 3,
     "vehicleChopCount": 1,
     "playerChopDuration": 0.5,
     "woodcutterChopDuration": 1.6,
@@ -6533,8 +6535,8 @@
       "__uuid__": "d900a1d8-94cf-4418-89e4-c80700611986",
       "__expectedType__": "cc.Prefab"
     },
-    "playerChopCount": 1,
-    "woodcutterChopCount": 4,
+    "playerChopCount": 3,
+    "woodcutterChopCount": 3,
     "vehicleChopCount": 1,
     "playerChopDuration": 0.5,
     "woodcutterChopDuration": 1.6,
@@ -7040,8 +7042,8 @@
       "__uuid__": "d900a1d8-94cf-4418-89e4-c80700611986",
       "__expectedType__": "cc.Prefab"
     },
-    "playerChopCount": 1,
-    "woodcutterChopCount": 4,
+    "playerChopCount": 3,
+    "woodcutterChopCount": 3,
     "vehicleChopCount": 1,
     "playerChopDuration": 0.5,
     "woodcutterChopDuration": 1.6,
@@ -7547,8 +7549,8 @@
       "__uuid__": "d900a1d8-94cf-4418-89e4-c80700611986",
       "__expectedType__": "cc.Prefab"
     },
-    "playerChopCount": 1,
-    "woodcutterChopCount": 4,
+    "playerChopCount": 3,
+    "woodcutterChopCount": 3,
     "vehicleChopCount": 1,
     "playerChopDuration": 0.5,
     "woodcutterChopDuration": 1.6,
@@ -8054,8 +8056,8 @@
       "__uuid__": "d900a1d8-94cf-4418-89e4-c80700611986",
       "__expectedType__": "cc.Prefab"
     },
-    "playerChopCount": 1,
-    "woodcutterChopCount": 4,
+    "playerChopCount": 3,
+    "woodcutterChopCount": 3,
     "vehicleChopCount": 1,
     "playerChopDuration": 0.5,
     "woodcutterChopDuration": 1.6,
@@ -8561,8 +8563,8 @@
       "__uuid__": "d900a1d8-94cf-4418-89e4-c80700611986",
       "__expectedType__": "cc.Prefab"
     },
-    "playerChopCount": 1,
-    "woodcutterChopCount": 4,
+    "playerChopCount": 3,
+    "woodcutterChopCount": 3,
     "vehicleChopCount": 1,
     "playerChopDuration": 0.5,
     "woodcutterChopDuration": 1.6,
@@ -9068,8 +9070,8 @@
       "__uuid__": "d900a1d8-94cf-4418-89e4-c80700611986",
       "__expectedType__": "cc.Prefab"
     },
-    "playerChopCount": 1,
-    "woodcutterChopCount": 4,
+    "playerChopCount": 3,
+    "woodcutterChopCount": 3,
     "vehicleChopCount": 1,
     "playerChopDuration": 0.5,
     "woodcutterChopDuration": 1.6,
@@ -9641,8 +9643,8 @@
       "__uuid__": "d900a1d8-94cf-4418-89e4-c80700611986",
       "__expectedType__": "cc.Prefab"
     },
-    "playerChopCount": 1,
-    "woodcutterChopCount": 4,
+    "playerChopCount": 3,
+    "woodcutterChopCount": 3,
     "vehicleChopCount": 1,
     "playerChopDuration": 0.5,
     "woodcutterChopDuration": 1.6,
@@ -10214,8 +10216,8 @@
       "__uuid__": "d900a1d8-94cf-4418-89e4-c80700611986",
       "__expectedType__": "cc.Prefab"
     },
-    "playerChopCount": 1,
-    "woodcutterChopCount": 4,
+    "playerChopCount": 3,
+    "woodcutterChopCount": 3,
     "vehicleChopCount": 1,
     "playerChopDuration": 0.5,
     "woodcutterChopDuration": 1.6,
@@ -10721,8 +10723,8 @@
       "__uuid__": "d900a1d8-94cf-4418-89e4-c80700611986",
       "__expectedType__": "cc.Prefab"
     },
-    "playerChopCount": 1,
-    "woodcutterChopCount": 4,
+    "playerChopCount": 3,
+    "woodcutterChopCount": 3,
     "vehicleChopCount": 1,
     "playerChopDuration": 0.5,
     "woodcutterChopDuration": 1.6,
@@ -11228,8 +11230,8 @@
       "__uuid__": "d900a1d8-94cf-4418-89e4-c80700611986",
       "__expectedType__": "cc.Prefab"
     },
-    "playerChopCount": 1,
-    "woodcutterChopCount": 4,
+    "playerChopCount": 3,
+    "woodcutterChopCount": 3,
     "vehicleChopCount": 1,
     "playerChopDuration": 0.5,
     "woodcutterChopDuration": 1.6,
@@ -11735,8 +11737,8 @@
       "__uuid__": "d900a1d8-94cf-4418-89e4-c80700611986",
       "__expectedType__": "cc.Prefab"
     },
-    "playerChopCount": 1,
-    "woodcutterChopCount": 4,
+    "playerChopCount": 3,
+    "woodcutterChopCount": 3,
     "vehicleChopCount": 1,
     "playerChopDuration": 0.5,
     "woodcutterChopDuration": 1.6,
@@ -12242,8 +12244,8 @@
       "__uuid__": "d900a1d8-94cf-4418-89e4-c80700611986",
       "__expectedType__": "cc.Prefab"
     },
-    "playerChopCount": 1,
-    "woodcutterChopCount": 4,
+    "playerChopCount": 3,
+    "woodcutterChopCount": 3,
     "vehicleChopCount": 1,
     "playerChopDuration": 0.5,
     "woodcutterChopDuration": 1.6,
@@ -12749,8 +12751,8 @@
       "__uuid__": "d900a1d8-94cf-4418-89e4-c80700611986",
       "__expectedType__": "cc.Prefab"
     },
-    "playerChopCount": 1,
-    "woodcutterChopCount": 4,
+    "playerChopCount": 3,
+    "woodcutterChopCount": 3,
     "vehicleChopCount": 1,
     "playerChopDuration": 0.5,
     "woodcutterChopDuration": 1.6,
@@ -13256,8 +13258,8 @@
       "__uuid__": "d900a1d8-94cf-4418-89e4-c80700611986",
       "__expectedType__": "cc.Prefab"
     },
-    "playerChopCount": 1,
-    "woodcutterChopCount": 4,
+    "playerChopCount": 3,
+    "woodcutterChopCount": 3,
     "vehicleChopCount": 1,
     "playerChopDuration": 0.5,
     "woodcutterChopDuration": 1.6,
@@ -13829,8 +13831,8 @@
       "__uuid__": "d900a1d8-94cf-4418-89e4-c80700611986",
       "__expectedType__": "cc.Prefab"
     },
-    "playerChopCount": 1,
-    "woodcutterChopCount": 4,
+    "playerChopCount": 3,
+    "woodcutterChopCount": 3,
     "vehicleChopCount": 1,
     "playerChopDuration": 0.5,
     "woodcutterChopDuration": 1.6,
@@ -14402,8 +14404,8 @@
       "__uuid__": "d900a1d8-94cf-4418-89e4-c80700611986",
       "__expectedType__": "cc.Prefab"
     },
-    "playerChopCount": 1,
-    "woodcutterChopCount": 4,
+    "playerChopCount": 3,
+    "woodcutterChopCount": 3,
     "vehicleChopCount": 1,
     "playerChopDuration": 0.5,
     "woodcutterChopDuration": 1.6,
@@ -14909,8 +14911,8 @@
       "__uuid__": "d900a1d8-94cf-4418-89e4-c80700611986",
       "__expectedType__": "cc.Prefab"
     },
-    "playerChopCount": 1,
-    "woodcutterChopCount": 4,
+    "playerChopCount": 3,
+    "woodcutterChopCount": 3,
     "vehicleChopCount": 1,
     "playerChopDuration": 0.5,
     "woodcutterChopDuration": 1.6,
@@ -15416,8 +15418,8 @@
       "__uuid__": "d900a1d8-94cf-4418-89e4-c80700611986",
       "__expectedType__": "cc.Prefab"
     },
-    "playerChopCount": 1,
-    "woodcutterChopCount": 4,
+    "playerChopCount": 3,
+    "woodcutterChopCount": 3,
     "vehicleChopCount": 1,
     "playerChopDuration": 0.5,
     "woodcutterChopDuration": 1.6,
@@ -15923,8 +15925,8 @@
       "__uuid__": "d900a1d8-94cf-4418-89e4-c80700611986",
       "__expectedType__": "cc.Prefab"
     },
-    "playerChopCount": 1,
-    "woodcutterChopCount": 4,
+    "playerChopCount": 3,
+    "woodcutterChopCount": 3,
     "vehicleChopCount": 1,
     "playerChopDuration": 0.5,
     "woodcutterChopDuration": 1.6,
@@ -16430,8 +16432,8 @@
       "__uuid__": "d900a1d8-94cf-4418-89e4-c80700611986",
       "__expectedType__": "cc.Prefab"
     },
-    "playerChopCount": 1,
-    "woodcutterChopCount": 4,
+    "playerChopCount": 3,
+    "woodcutterChopCount": 3,
     "vehicleChopCount": 1,
     "playerChopDuration": 0.5,
     "woodcutterChopDuration": 1.6,
@@ -16937,8 +16939,8 @@
       "__uuid__": "d900a1d8-94cf-4418-89e4-c80700611986",
       "__expectedType__": "cc.Prefab"
     },
-    "playerChopCount": 1,
-    "woodcutterChopCount": 4,
+    "playerChopCount": 3,
+    "woodcutterChopCount": 3,
     "vehicleChopCount": 1,
     "playerChopDuration": 0.5,
     "woodcutterChopDuration": 1.6,
@@ -17444,8 +17446,8 @@
       "__uuid__": "d900a1d8-94cf-4418-89e4-c80700611986",
       "__expectedType__": "cc.Prefab"
     },
-    "playerChopCount": 1,
-    "woodcutterChopCount": 4,
+    "playerChopCount": 3,
+    "woodcutterChopCount": 3,
     "vehicleChopCount": 1,
     "playerChopDuration": 0.5,
     "woodcutterChopDuration": 1.6,
@@ -18017,8 +18019,8 @@
       "__uuid__": "d900a1d8-94cf-4418-89e4-c80700611986",
       "__expectedType__": "cc.Prefab"
     },
-    "playerChopCount": 1,
-    "woodcutterChopCount": 4,
+    "playerChopCount": 3,
+    "woodcutterChopCount": 3,
     "vehicleChopCount": 1,
     "playerChopDuration": 0.5,
     "woodcutterChopDuration": 1.6,
@@ -18590,8 +18592,8 @@
       "__uuid__": "d900a1d8-94cf-4418-89e4-c80700611986",
       "__expectedType__": "cc.Prefab"
     },
-    "playerChopCount": 1,
-    "woodcutterChopCount": 4,
+    "playerChopCount": 3,
+    "woodcutterChopCount": 3,
     "vehicleChopCount": 1,
     "playerChopDuration": 0.5,
     "woodcutterChopDuration": 1.6,
@@ -19097,8 +19099,8 @@
       "__uuid__": "d900a1d8-94cf-4418-89e4-c80700611986",
       "__expectedType__": "cc.Prefab"
     },
-    "playerChopCount": 1,
-    "woodcutterChopCount": 4,
+    "playerChopCount": 3,
+    "woodcutterChopCount": 3,
     "vehicleChopCount": 1,
     "playerChopDuration": 0.5,
     "woodcutterChopDuration": 1.6,
@@ -19604,8 +19606,8 @@
       "__uuid__": "d900a1d8-94cf-4418-89e4-c80700611986",
       "__expectedType__": "cc.Prefab"
     },
-    "playerChopCount": 1,
-    "woodcutterChopCount": 4,
+    "playerChopCount": 3,
+    "woodcutterChopCount": 3,
     "vehicleChopCount": 1,
     "playerChopDuration": 0.5,
     "woodcutterChopDuration": 1.6,
@@ -20111,8 +20113,8 @@
       "__uuid__": "d900a1d8-94cf-4418-89e4-c80700611986",
       "__expectedType__": "cc.Prefab"
     },
-    "playerChopCount": 1,
-    "woodcutterChopCount": 4,
+    "playerChopCount": 3,
+    "woodcutterChopCount": 3,
     "vehicleChopCount": 1,
     "playerChopDuration": 0.5,
     "woodcutterChopDuration": 1.6,
@@ -20618,8 +20620,8 @@
       "__uuid__": "d900a1d8-94cf-4418-89e4-c80700611986",
       "__expectedType__": "cc.Prefab"
     },
-    "playerChopCount": 1,
-    "woodcutterChopCount": 4,
+    "playerChopCount": 3,
+    "woodcutterChopCount": 3,
     "vehicleChopCount": 1,
     "playerChopDuration": 0.5,
     "woodcutterChopDuration": 1.6,
@@ -21125,8 +21127,8 @@
       "__uuid__": "d900a1d8-94cf-4418-89e4-c80700611986",
       "__expectedType__": "cc.Prefab"
     },
-    "playerChopCount": 1,
-    "woodcutterChopCount": 4,
+    "playerChopCount": 3,
+    "woodcutterChopCount": 3,
     "vehicleChopCount": 1,
     "playerChopDuration": 0.5,
     "woodcutterChopDuration": 1.6,
@@ -21621,8 +21623,8 @@
       "__uuid__": "d900a1d8-94cf-4418-89e4-c80700611986",
       "__expectedType__": "cc.Prefab"
     },
-    "playerChopCount": 1,
-    "woodcutterChopCount": 4,
+    "playerChopCount": 3,
+    "woodcutterChopCount": 3,
     "vehicleChopCount": 1,
     "playerChopDuration": 0.5,
     "woodcutterChopDuration": 1.6,
@@ -22868,6 +22870,7 @@
     "moveSpeed": 2,
     "chopRange": 0.7,
     "waitAfterChop": 0.2,
+    "chopInterval": 0.8,
     "chopAction": null,
     "autoStart": true,
     "skeletalAnimation": null,
@@ -23723,6 +23726,7 @@
     "moveSpeed": 2,
     "chopRange": 0.7,
     "waitAfterChop": 0.2,
+    "chopInterval": 0.8,
     "chopAction": null,
     "autoStart": true,
     "skeletalAnimation": null,
@@ -25088,7 +25092,7 @@
     "_isTrimmedMode": true,
     "_useGrayscale": false,
     "_atlas": null,
-    "_id": "d1LnFIJUlKwq+1rvlvrNTu"
+    "_id": "0dg6GmUUxJB7FdiUt+cw8t"
   },
   {
     "__type__": "cc.Node",
@@ -25143,7 +25147,7 @@
       "y": 0,
       "z": 0
     },
-    "_id": "3fWHD+66ZN4ZfrOz7gHdSm"
+    "_id": "973N32zH1NvIYzMksfETbJ"
   },
   {
     "__type__": "cc.Node",
@@ -25171,7 +25175,7 @@
       "x": 0.5,
       "y": 0.5
     },
-    "_id": "f9F394qHRFpKywuP4MIn6u"
+    "_id": "44fZvGZo5Ps5rC1iRnh5Zt"
   },
   {
     "__type__": "cc.CompPrefabInfo",
@@ -25189,7 +25193,7 @@
     "__prefab": {
       "__id__": 1676
     },
-    "_id": "a8KtbzKWRI5JL5IWHHP1Uw"
+    "_id": "6ey4YXS/9LW43XYEMKb8by"
   },
   {
     "__type__": "cc.CompPrefabInfo",
@@ -25300,7 +25304,7 @@
     "_isTrimmedMode": true,
     "_useGrayscale": false,
     "_atlas": null,
-    "_id": "d7PFVoZ9RMRrb6j0tQSeWs"
+    "_id": "c9YbbKm6RA97RmWTrEyT94"
   },
   {
     "__type__": "cc.Node",
@@ -25355,7 +25359,7 @@
       "y": 0,
       "z": 0
     },
-    "_id": "152i2j+4RPNqn7xG93pJSJ"
+    "_id": "77eKSFfdVMFa5EDXRXIWUp"
   },
   {
     "__type__": "cc.Node",
@@ -25383,7 +25387,7 @@
       "x": 0.5,
       "y": 0.5
     },
-    "_id": "61Ua2WNbhAa7c4382IKk6Q"
+    "_id": "25Du6lME1JpaH3kaFUqByO"
   },
   {
     "__type__": "cc.CompPrefabInfo",
@@ -25401,7 +25405,7 @@
     "__prefab": {
       "__id__": 1687
     },
-    "_id": "f3AwcflDZAubUKyyxLQQ1J"
+    "_id": "d6jp+M9ahOhpsLLAkonEfN"
   },
   {
     "__type__": "cc.CompPrefabInfo",
@@ -30660,7 +30664,7 @@
     "_isTrimmedMode": true,
     "_useGrayscale": false,
     "_atlas": null,
-    "_id": "f22mCLGaJEDphWhuDZynpp"
+    "_id": "dd9FUvAlRC8pkhkWFZwvhc"
   },
   {
     "__type__": "cc.Node",
@@ -30715,7 +30719,7 @@
       "y": 0,
       "z": 0
     },
-    "_id": "d1DJG6/Q1KppF2iMCyzZim"
+    "_id": "0azedcOzNMvbpuXdIMjktz"
   },
   {
     "__type__": "cc.Node",
@@ -30743,7 +30747,7 @@
       "x": 0.5,
       "y": 0.5
     },
-    "_id": "36Zzgqn/dE1JGWlB4KynIX"
+    "_id": "70VzopRWVPhI63/O2xxCvK"
   },
   {
     "__type__": "cc.CompPrefabInfo",
@@ -30761,7 +30765,7 @@
     "__prefab": {
       "__id__": 1959
     },
-    "_id": "45FeK0rwpMvrlvF5Bixg+e"
+    "_id": "79LuViIw5BaaoXdOn9yMgp"
   },
   {
     "__type__": "cc.CompPrefabInfo",
@@ -36078,7 +36082,7 @@
     "_isTrimmedMode": true,
     "_useGrayscale": false,
     "_atlas": null,
-    "_id": "3dr4TMrXtC86MQDPrP9cL5"
+    "_id": "a5t/wjUuBCj4m6Z9fWQmoj"
   },
   {
     "__type__": "cc.Node",
@@ -36133,7 +36137,7 @@
       "y": 0,
       "z": 0
     },
-    "_id": "3c1U+6RHdBoIgInZ63BlHN"
+    "_id": "e6jlEa7klMcr5KrgvFn8Aw"
   },
   {
     "__type__": "cc.Node",
@@ -36161,7 +36165,7 @@
       "x": 0.5,
       "y": 0.5
     },
-    "_id": "5eefJACRdD1I1KLsB8xqrM"
+    "_id": "c21mPhlL5DHLwbBxC/htZk"
   },
   {
     "__type__": "cc.CompPrefabInfo",
@@ -36179,7 +36183,7 @@
     "__prefab": {
       "__id__": 2233
     },
-    "_id": "9fB0I3V3pK/p1W7ZM9O5sc"
+    "_id": "07iHYbtVdEF7pRmlTa52Ug"
   },
   {
     "__type__": "cc.CompPrefabInfo",
