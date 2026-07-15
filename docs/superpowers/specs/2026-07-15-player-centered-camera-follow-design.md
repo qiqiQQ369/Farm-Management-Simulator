@@ -1,28 +1,28 @@
-# Player-centered camera follow design
+# 玩家居中镜头跟随设计
 
-## Goal
+## 目标
 
-Keep the Player visible at the center of the game viewport while the camera follows player movement and preserves the manually tuned camera angle and distance.
+让玩家始终出现在游戏画面中心；玩家移动时，镜头持续跟随，同时保留用户在编辑器中手动调好的镜头角度和距离。
 
-## Current finding
+## 当前结论
 
-`DevScene` already assigns `CameraController.target` to the `Player` node. The player becomes visually lost because the camera's static framing and follow placement do not reliably establish a player-centered world view at startup.
+`DevScene` 已将 `CameraController.target` 指向 `Player` 节点。玩家看似消失的原因不是目标引用丢失，而是静态镜头构图和启动时的跟随定位不能稳定建立以玩家为中心的世界画面。
 
-## Design
+## 设计
 
-- Keep `CameraController` as the single owner of world-camera movement.
-- Validate the configured target during startup. If it is empty, locate the root scene node named `Player`.
-- Place the camera at `Player.worldPosition + offset` during initialization, then maintain the same relative offset while following.
-- Preserve the camera node's manually tuned rotation. The controller will not calculate or overwrite rotation.
-- Retain the existing camera bounds. At a map edge, bounds take precedence over exact centering so that the camera cannot reveal outside-map space.
+- 继续由 `CameraController` 单独负责世界相机移动。
+- 启动时校验目标节点；若 Inspector 中没有绑定，则在场景根节点下查找名为 `Player` 的节点。
+- 初始化时将镜头放到 `Player.worldPosition + offset`；之后保持相同相对偏移跟随玩家。
+- 保留镜头节点中用户手调的 Rotation。控制器不再计算或覆盖镜头旋转。
+- 保留现有镜头边界。接近地图边缘时，边界优先于绝对居中，避免镜头露出地图外区域。
 
-## Scope
+## 范围
 
-- Modify `assets/_Scripts/CameraController.ts` only.
-- Do not modify `DevScene`, map, UI, player model, assets, visibility masks, or render settings.
+- 仅修改 `assets/_Scripts/CameraController.ts`。
+- 不修改 `DevScene`、地图、UI、玩家模型、资源、可见性遮罩或渲染设置。
 
-## Verification
+## 验收
 
-1. Preview `DevScene` and confirm Player is visible in the viewport center at startup.
-2. Drag to move Player and confirm the world camera follows while retaining the manually set rotation.
-3. Move near a map boundary and confirm the camera remains within its configured bounds.
+1. 预览 `DevScene`，确认开场时玩家位于画面中心。
+2. 拖动移动玩家，确认世界相机持续跟随且保持用户手调的 Rotation。
+3. 移动到地图边缘，确认镜头保持在配置的边界内。
