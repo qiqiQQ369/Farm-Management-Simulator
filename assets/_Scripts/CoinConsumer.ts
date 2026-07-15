@@ -381,7 +381,7 @@ export class CoinConsumer extends Component {
             this.machineNode.active = true;
 
             // 复用员工解锁点作为搬运工解锁点，并放到当前拖拉机解锁点的位置。
-            const employeeUnlockPad = find('unlockLevel3L');
+            const employeeUnlockPad = find('LandObj/unlockLevel3L') || find('unlockLevel3L');
             if (employeeUnlockPad) {
                 // 复制员工解锁点外观，原员工节点及其 CoinConsumer 保持不变。
                 const haulerUnlockPad = instantiate(employeeUnlockPad);
