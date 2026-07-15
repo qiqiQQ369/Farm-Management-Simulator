@@ -97,6 +97,7 @@ export class CoinConsumer extends Component {
     private _isConsuming: boolean = false;
     private _currentProgress: number = 0;
     private _isCompleted: boolean = false;
+    private _haulerUnlockPointSpawned: boolean = false;
 
     private _isAnimComplete: boolean = true;
 
@@ -125,6 +126,12 @@ export class CoinConsumer extends Component {
     }
 
     protected update(deltaTime: number): void {
+        // 员工解锁点保留原逻辑，同时兜底检测拖拉机是否已解锁。
+        if (this.targetLevel === UpgradeTarget.FACTORY && this.node.name === 'unlockLevel3L' &&
+            this.machineNode?.activeInHierarchy && !this._haulerUnlockPointSpawned) {
+            this.spawnHaulerUnlockPointAt(this.machineNode.worldPosition);
+        }
+
         if (this._isPlayerInArea && !this._isConsuming && !this._isCompleted) {
             this._consumeTimer += deltaTime;
             
@@ -381,16 +388,7 @@ export class CoinConsumer extends Component {
             this.machineNode.active = true;
 
             // 复用员工解锁点作为搬运工解锁点，并放到当前拖拉机解锁点的位置。
-            const employeeUnlockPad = find('LandObj/unlockLevel3L') || find('unlockLevel3L');
-            if (employeeUnlockPad) {
-                // 复制员工解锁点外观，原员工节点及其 CoinConsumer 保持不变。
-                const haulerUnlockPad = instantiate(employeeUnlockPad);
-                haulerUnlockPad.name = 'HaulerUnlockPad';
-                haulerUnlockPad.setParent(employeeUnlockPad.parent);
-                haulerUnlockPad.setWorldPosition(this.node.worldPosition);
-                haulerUnlockPad.active = false;
-                this.setupHaulerUnlock(haulerUnlockPad);
-            }
+            this.spawnHaulerUnlockPointAt(this.node.worldPosition);
             
             // this.node.getComponentInChildren(Animation).play("animation_DiMianUI_Close");
             tween(this.node.getChildByName("view"))
@@ -427,6 +425,24 @@ export class CoinConsumer extends Component {
             }, 1);
             return;
         }
+    }
+
+    /** 只复制员工解锁点外观，不修改员工原节点。 */
+    private spawnHaulerUnlockPointAt(position: Vec3): void {
+        const employeeUnlockPad = find('LandObj/unlockLevel3L') || find('unlockLevel3L');
+        if (!employeeUnlockPad || this._haulerUnlockPointSpawned) return;
+        if (find('LandObj/HaulerUnlockPad') || find('HaulerUnlockPad')) {
+            this._haulerUnlockPointSpawned = true;
+            return;
+        }
+
+        const haulerUnlockPad = instantiate(employeeUnlockPad);
+        haulerUnlockPad.name = 'HaulerUnlockPad';
+        haulerUnlockPad.setParent(employeeUnlockPad.parent);
+        haulerUnlockPad.setWorldPosition(position);
+        haulerUnlockPad.active = false;
+        this.setupHaulerUnlock(haulerUnlockPad);
+        this._haulerUnlockPointSpawned = true;
     }
 
     /** 将员工解锁点改造成拖拉机解锁后的搬运工解锁点。 */
