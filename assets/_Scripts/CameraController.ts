@@ -1,4 +1,4 @@
-import { _decorator, Component, Node, Vec3, Camera, lerp, math, find } from 'cc';
+import { _decorator, Component, Node, Vec3, Camera, lerp, math } from 'cc';
 const { ccclass, property } = _decorator;
 
 /**
@@ -86,7 +86,6 @@ export class CameraController extends Component {
     private _tempVec3_2: Vec3 = new Vec3();
 
     protected onLoad(): void {
-        this.resolveTarget();
         this.initializeCamera();
     }
 
@@ -121,20 +120,10 @@ export class CameraController extends Component {
         }
         
         // 更新摄像机注视
-        // Rotation 由 Inspector 中用户手调的数值控制；跟随逻辑只更新位置。
+        this.updateLookAt();
         
         // 更新前一帧的目标位置
-        this._previousTargetPosition.set(this.target.worldPosition);
-    }
-
-    private resolveTarget(): boolean {
-        if (this.target?.isValid) return true;
-
-        this.target = find('Player');
-        if (this.target) return true;
-
-        console.error('CameraController: 未找到 Player 跟随目标');
-        return false;
+        this._previousTargetPosition.set(this.target.position);
     }
 
     /**
@@ -161,11 +150,11 @@ export class CameraController extends Component {
         if (!this.target || this._isInitialized) return;
         
         // 设置初始位置
-        Vec3.add(this._targetPosition, this.target.worldPosition, this.offset);
-        this.node.setWorldPosition(this._targetPosition);
+        Vec3.add(this._targetPosition, this.target.position, this.offset);
+        this.node.setPosition(this._targetPosition);
         
         // 初始化前一帧位置
-        this._previousTargetPosition.set(this.target.worldPosition);
+        this._previousTargetPosition.set(this.target.position);
         
         this._isInitialized = true;
         console.log('摄像机初始化完成');
@@ -175,8 +164,8 @@ export class CameraController extends Component {
      * 固定跟随更新
      */
     private updateFixedFollow(): void {
-        Vec3.add(this._targetPosition, this.target.worldPosition, this.offset);
-        this.node.setWorldPosition(this._targetPosition);
+        Vec3.add(this._targetPosition, this.target.position, this.offset);
+        this.node.setPosition(this._targetPosition);
     }
 
     /**
@@ -184,17 +173,17 @@ export class CameraController extends Component {
      */
     private updateSmoothFollow(deltaTime: number): void {
         // 计算目标位置
-        Vec3.add(this._targetPosition, this.target.worldPosition, this.offset);
+        Vec3.add(this._targetPosition, this.target.position, this.offset);
         
         // 检查是否在死区内
-        const currentPos = this.node.worldPosition;
+        const currentPos = this.node.position;
         const distance = Vec3.distance(currentPos, this._targetPosition);
         
         if (distance > this.deadZone) {
             // 平滑移动到目标位置
             Vec3.lerp(this._tempVec3, currentPos, this._targetPosition, 
                      Math.min(this.followSpeed * deltaTime * 60, 1.0));
-            this.node.setWorldPosition(this._tempVec3);
+            this.node.setPosition(this._tempVec3);
         }
     }
 
@@ -203,34 +192,34 @@ export class CameraController extends Component {
      */
     private updatePredictionFollow(deltaTime: number): void {
         // 计算目标速度
-        Vec3.subtract(this._currentVelocity, this.target.worldPosition, this._previousTargetPosition);
+        Vec3.subtract(this._currentVelocity, this.target.position, this._previousTargetPosition);
         Vec3.multiplyScalar(this._currentVelocity, this._currentVelocity, 1.0 / deltaTime);
         
         // 预测目标未来位置
         Vec3.multiplyScalar(this._tempVec3, this._currentVelocity, this.predictionFactor * deltaTime);
-        Vec3.add(this._tempVec3_2, this.target.worldPosition, this._tempVec3);
+        Vec3.add(this._tempVec3_2, this.target.position, this._tempVec3);
         Vec3.add(this._targetPosition, this._tempVec3_2, this.offset);
         
         // 限制最大跟随距离
-        const distance = Vec3.distance(this.node.worldPosition, this._targetPosition);
+        const distance = Vec3.distance(this.node.position, this._targetPosition);
         if (distance > this.maxFollowDistance) {
-            Vec3.subtract(this._tempVec3, this._targetPosition, this.node.worldPosition);
+            Vec3.subtract(this._tempVec3, this._targetPosition, this.node.position);
             Vec3.normalize(this._tempVec3, this._tempVec3);
             Vec3.multiplyScalar(this._tempVec3, this._tempVec3, this.maxFollowDistance);
-            Vec3.add(this._targetPosition, this.node.worldPosition, this._tempVec3);
+            Vec3.add(this._targetPosition, this.node.position, this._tempVec3);
         }
         
         // 平滑移动
-        Vec3.lerp(this._tempVec3, this.node.worldPosition, this._targetPosition,
+        Vec3.lerp(this._tempVec3, this.node.position, this._targetPosition, 
                  Math.min(this.followSpeed * deltaTime * 60, 1.0));
-        this.node.setWorldPosition(this._tempVec3);
+        this.node.setPosition(this._tempVec3);
     }
 
     /**
      * 应用边界限制
      */
     private applyBounds(): void {
-        const currentPos = this.node.worldPosition;
+        const currentPos = this.node.position;
         
         this._tempVec3.set(
             math.clamp(currentPos.x, this.boundsMin.x, this.boundsMax.x),
@@ -238,7 +227,7 @@ export class CameraController extends Component {
             math.clamp(currentPos.z, this.boundsMin.z, this.boundsMax.z)
         );
         
-        this.node.setWorldPosition(this._tempVec3);
+        this.node.setPosition(this._tempVec3);
     }
 
     /**
@@ -295,8 +284,8 @@ export class CameraController extends Component {
         );
         
         // 将震动应用到摄像机位置
-        Vec3.add(this._tempVec3, this.node.worldPosition, this._shakeOffset);
-        this.node.setWorldPosition(this._tempVec3);
+        Vec3.add(this._tempVec3, this.node.position, this._shakeOffset);
+        this.node.setPosition(this._tempVec3);
     }
 
     /**
@@ -358,9 +347,9 @@ export class CameraController extends Component {
     public snapToTarget(): void {
         if (!this.target) return;
         
-        Vec3.add(this._targetPosition, this.target.worldPosition, this.offset);
-        this.node.setWorldPosition(this._targetPosition);
-        this._previousTargetPosition.set(this.target.worldPosition);
+        Vec3.add(this._targetPosition, this.target.position, this.offset);
+        this.node.setPosition(this._targetPosition);
+        this._previousTargetPosition.set(this.target.position);
     }
 
     /**
@@ -388,8 +377,8 @@ export class CameraController extends Component {
     } {
         return {
             mode: CameraFollowMode[this.followMode],
-            position: this.node.worldPosition.clone(),
-            targetDistance: this.target ? Vec3.distance(this.node.worldPosition, this.target.worldPosition) : 0,
+            position: this.node.position.clone(),
+            targetDistance: this.target ? Vec3.distance(this.node.position, this.target.position) : 0,
             isShaking: this._shakeTimer > 0
         };
     }
