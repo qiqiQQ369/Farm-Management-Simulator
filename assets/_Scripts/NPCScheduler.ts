@@ -418,7 +418,7 @@ export class NPCScheduler extends Component {
 
         while(true) {
             // this.dropCoins();
-            if(playerDetectionZone._isPlayerInZone && targetStoragePoint.amount > 0){
+            if(targetStoragePoint.amount > 0){
                 ResourceManager.MoveResource(targetStoragePoint, npcStoragePoint, false, 4, new Vec3(0, 0, 0));
 
                 fill.fillRange = npcStoragePoint.amount / npcStoragePoint.capacity;
