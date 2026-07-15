@@ -492,6 +492,7 @@ export class Tree extends Component {
         if(this._currentChopper.type == ChopperType.Player) {
             this._currentChopper.controller.chopAction.playChopAction(this.node.position);
             await new Promise(resolve => setTimeout(resolve, 500));
+            this._currentChopper.controller.refreshMovementAnimation?.();
         }
 
         this.playShakeAnimation();

@@ -429,6 +429,14 @@ export class PlayerController extends Component implements IJoystickInput {
     /**
      * 获取玩家是否在移动
      */
+    public refreshMovementAnimation(): void {
+        if (!this.skeletonAnimation) return;
+
+        const nextAnimation = this._isMoving ? AnimationName.Run : AnimationName.Idle;
+        this.skeletonAnimation.play(nextAnimation);
+        this._currentAnimation = nextAnimation;
+    }
+
     public isMoving(): boolean {
         return this._isMoving;
     }
