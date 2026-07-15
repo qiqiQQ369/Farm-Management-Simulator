@@ -136,9 +136,9 @@
     "_prefab": null,
     "_lpos": {
       "__type__": "cc.Vec3",
-      "x": 7.206,
-      "y": 17.022,
-      "z": 16.234
+      "x": -1.754,
+      "y": 4,
+      "z": 5.375
     },
     "_lrot": {
       "__type__": "cc.Quat",
@@ -229,17 +229,17 @@
     "followSpeed": 0.2,
     "offset": {
       "__type__": "cc.Vec3",
-      "x": 8,
-      "y": 16.8,
-      "z": 10
+      "x": 0,
+      "y": 0,
+      "z": 17
     },
     "lookAtOffset": {
       "__type__": "cc.Vec3",
       "x": 0,
       "y": 0,
-      "z": 4
+      "z": 0
     },
-    "enableSmoothRotation": true,
+    "enableSmoothRotation": false,
     "rotationSpeed": 0.65,
     "predictionFactor": 0,
     "deadZone": 1,

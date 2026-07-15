@@ -152,7 +152,6 @@ export class CameraController extends Component {
         // 设置初始位置
         Vec3.add(this._targetPosition, this.target.position, this.offset);
         this.node.setPosition(this._targetPosition);
-        this.updateLookAt(true);
         
         // 初始化前一帧位置
         this._previousTargetPosition.set(this.target.position);
@@ -234,8 +233,8 @@ export class CameraController extends Component {
     /**
      * 更新摄像机注视
      */
-    private updateLookAt(immediate: boolean = false): void {
-        if (!this.enableSmoothRotation || !this.target) return;
+    private updateLookAt(): void {
+        if (!this.enableSmoothRotation) return;
         
         // 计算注视目标
         Vec3.add(this._tempVec3, this.target.position, this.lookAtOffset);
@@ -254,11 +253,6 @@ export class CameraController extends Component {
             // 计算目标旋转
             const targetRotation = math.quat();
             math.Quat.fromViewUp(targetRotation, this._tempVec3_2, Vec3.UP);
-
-            if (immediate) {
-                this.node.setRotation(targetRotation);
-                return;
-            }
             
             // 平滑旋转
             const currentRotation = this.node.rotation;
