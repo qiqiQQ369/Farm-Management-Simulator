@@ -241,9 +241,17 @@ export class FinishNode extends Component {
         this._cameraMoveStarted = true;
         this._cameraMoveTimer = 0;
         
-        // 设置摄像机到起点位置
+        // 设置摄像机到起点位置和起始角度
         this.camera.node.setWorldPosition(this.cameraStartPoint.worldPosition);
-        //this.camera.node.setRotationFromEuler(this.cameraStartPoint.eulerAngles);
+        this.camera.node.setWorldRotation(this.cameraStartPoint.worldRotation);
+
+        // 终点摄像机始终朝向解锁区域中心，避免玉米田偏出画面。
+        const fieldCenter = this.getUnlockFieldCenter();
+        const lookAtNode = new Node('FinishCameraLookAt');
+        lookAtNode.setWorldPosition(this.cameraEndPoint.worldPosition);
+        lookAtNode.lookAt(fieldCenter, Vec3.UP);
+        const endRotation = lookAtNode.worldRotation.clone();
+        lookAtNode.destroy();
         
         // 触发事件
         this.onCameraMoveStarted?.();
@@ -254,7 +262,7 @@ export class FinishNode extends Component {
         tween(this.camera.node)
             .to(this.cameraMoveDuration, {
                 position: this.cameraEndPoint.worldPosition,
-                //eulerAngles: this.cameraEndPoint.eulerAngles
+                rotation: endRotation
             }, {
                 easing: 'sineInOut' // 使用正弦缓动效果
             })
@@ -262,6 +270,21 @@ export class FinishNode extends Component {
                 this.onCameraMoveComplete();
             })
             .start();
+    }
+
+    /** 计算当前解锁区域（玉米田）的世界坐标中心。 */
+    private getUnlockFieldCenter(): Vec3 {
+        const field = this.targetNodes?.[0];
+        if (!field || field.children.length === 0) {
+            return field ? field.worldPosition.clone() : this.cameraEndPoint.worldPosition.clone();
+        }
+
+        const center = new Vec3();
+        for (const child of field.children) {
+            center.add(child.worldPosition);
+        }
+        center.multiplyScalar(1 / field.children.length);
+        return center;
     }
 
     /**
