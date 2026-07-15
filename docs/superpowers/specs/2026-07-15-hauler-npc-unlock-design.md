@@ -1,39 +1,39 @@
-# Hauler NPC unlock design
+# 搬运工 NPC 解锁设计
 
-## Goal
+## 目标
 
-Add a worker NPC that moves wood from the collection point to the sell point after the player unlocks it.
+新增一个搬运工 NPC：玩家解锁后，它会自动把木材从收集点搬运到卖木点。
 
-## Unlock flow
+## 解锁流程
 
-1. The tractor unlock pad requires 155 currency.
-2. When the tractor unlock completes, the hauler NPC unlock pad becomes active.
-3. The player pays 170 currency at the hauler unlock pad.
-4. The hauler unlock pad is hidden and the hauler NPC becomes active.
+1. 拖拉机解锁地块需要支付 155 金币。
+2. 拖拉机解锁完成后，激活搬运工 NPC 解锁地块。
+3. 玩家在搬运工解锁地块支付 170 金币。
+4. 隐藏搬运工解锁地块，显示并启动搬运工 NPC。
 
-## Hauler behaviour
+## 搬运工行为
 
-- Reuse an existing NPC prefab with its current movement and idle animations.
-- When active, the hauler waits at the wood collection point until wood is available.
-- It loads up to its configured carrying capacity, moves to the sell point, and deposits all carried wood into that point's `StoragePoint`.
-- It then returns to the collection point and repeats.
-- If the collection point is empty or the sell point has no available capacity, it waits without creating, losing, or selling wood.
+- 复用现有 NPC 预制体及其移动、待机动画。
+- 启动后，搬运工在木材收集点等待；收集点有木材时开始装载。
+- 一次最多搬运到配置的容量，然后移动到卖木点，将携带的木材全部放入卖木点的 `StoragePoint`。
+- 卸货完成后返回收集点，进入下一轮循环。
+- 收集点没有木材或卖木点没有剩余容量时，搬运工原地等待；不生成、不丢失、不出售木材。
 
-## Economy boundary
+## 经济边界
 
-The hauler does not award currency. Existing buyer NPC logic remains the only system that consumes sell-point wood and spawns currency.
+搬运工本身不产出金币。现有买家 NPC 仍是唯一消耗卖木点木材并生成金币的系统。
 
-## Scope
+## 改动范围
 
-- Add a dedicated `HaulerNPC` component and configure one scene NPC plus its unlock pad.
-- Connect the two existing/new unlock pads through explicit completion events or node activation checks.
-- Reuse `StoragePoint`, `ResourceManager`, and existing NPC assets.
-- Do not alter player movement, buyer NPC purchase logic, vehicle operation, or resource prices other than the new 170 unlock cost.
+- 新增专用 `HaulerNPC` 组件，并在场景配置一个搬运工 NPC 及其解锁地块。
+- 通过明确的完成事件或节点激活状态串联拖拉机与搬运工两个解锁地块。
+- 复用 `StoragePoint`、`ResourceManager` 和现有 NPC 资源。
+- 不修改玩家移动、买家 NPC 的购买逻辑、车辆运行逻辑；除新增 170 金币的搬运工解锁费用外，不调整其他资源价格。
 
-## Verification
+## 验收
 
-1. Before the tractor is unlocked, the hauler unlock pad and hauler NPC are hidden.
-2. Paying 155 for the tractor reveals the hauler unlock pad.
-3. Paying 170 reveals and starts the hauler.
-4. The hauler transfers wood from the collection point to the sell point.
-5. Buyer NPCs can still buy deposited wood and generate currency.
+1. 拖拉机未解锁前，搬运工解锁地块和搬运工 NPC 均隐藏。
+2. 支付 155 解锁拖拉机后，搬运工解锁地块出现。
+3. 支付 170 后，搬运工出现并启动。
+4. 搬运工能将木材从收集点转移至卖木点。
+5. 现有买家 NPC 仍能购买已存入卖木点的木材并生成金币。
