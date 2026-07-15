@@ -1,5 +1,5 @@
 import { _decorator, Component, Node, Vec3, Camera, lerp, math } from 'cc';
-const { ccclass, property } = _decorator;
+const { ccclass, property, executionOrder } = _decorator;
 
 /**
  * 摄像机跟随模式枚举
@@ -14,6 +14,7 @@ export enum CameraFollowMode {
  * 摄像机跟随控制器
  * 实现摄像机跟随玩家移动的功能
  */
+@executionOrder(100)
 @ccclass('CameraController')
 export class CameraController extends Component {
     
@@ -171,20 +172,10 @@ export class CameraController extends Component {
     /**
      * 平滑跟随更新
      */
-    private updateSmoothFollow(deltaTime: number): void {
-        // 根据当前相机朝向计算目标位置，旋转由编辑器控制且不会被运行时改写。
+    private updateSmoothFollow(_deltaTime: number): void {
+        // 每帧直接同步，避免插值追赶与死区停顿造成的镜头卡顿。
         this.calculateFollowPosition(this._targetPosition, this.target.worldPosition);
-        
-        // 检查是否在死区内
-        const currentPos = this.node.worldPosition;
-        const distance = Vec3.distance(currentPos, this._targetPosition);
-        
-        if (distance > this.deadZone) {
-            // 平滑移动到目标位置
-            Vec3.lerp(this._tempVec3, currentPos, this._targetPosition, 
-                     Math.min(this.followSpeed * deltaTime * 60, 1.0));
-            this.node.setWorldPosition(this._tempVec3);
-        }
+        this.node.setWorldPosition(this._targetPosition);
     }
 
     /**
