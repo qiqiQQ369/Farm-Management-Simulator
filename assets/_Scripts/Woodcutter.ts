@@ -320,7 +320,9 @@ export class Woodcutter extends Component {
         const treeState = tree.getCurrentState();
         
         // 只有完整状态和半砍状态的树木可以砍伐
-        return treeState === TreeState.Full || treeState === TreeState.Half;
+        return treeState === TreeState.Full ||
+            treeState === TreeState.Half ||
+            treeState === TreeState.Half2;
     }
 
     /**
