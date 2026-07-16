@@ -3,6 +3,7 @@ import { PlayerDetectionZone } from './PlayerDetectionZone';
 import { StoragePoint } from './Resource/StoragePoint';
 import { ResourceManager } from './Resource/ResourceManager';
 import { AnimationLibrary } from './AnimationLibrary';
+import { AnimationController } from './AnimationController';
 import { WoodBackpack } from './WoodBackpack';
 import { CameraFacingUI } from './CameraFacingUI';
 const { ccclass, property } = _decorator;
@@ -12,6 +13,8 @@ export class NPCScheduler extends Component {
 
     @property({ type: Node})
     fillTip: Node = null!;
+    @property({ group: { name: '参数' }, tooltip: '购买提示框相对 NPC 头顶的高度偏移' })
+    fillTipHeadOffsetY: number = 2.1;
 
     @property({ type: Prefab, group: { name: '金币预制件' } })
     coinPrefab: Prefab = null!;
@@ -62,8 +65,12 @@ export class NPCScheduler extends Component {
     private bReserved: boolean = false; // 从A出发去B的占用预定（含在途与装货）
     private activeDeparted: Set<Node> = new Set(); // 已脱队执行A->B->C->D->Start链路
     private runningTweens: Map<Node, Tween<Node>> = new Map();
+    private _fillTipTargetNpc: Node | null = null;
+    private readonly _fillTipOffset: Vec3 = new Vec3();
+    private readonly _fillTipWorldPosition: Vec3 = new Vec3();
 
     protected onEnable(): void {
+        this.setupFillTipFacing();
         this.initializeQueue();
     }
 
@@ -73,6 +80,31 @@ export class NPCScheduler extends Component {
 
     protected start(): void {
         this.setupCollisionDetection();
+    }
+
+    private setupFillTipFacing(): void {
+        if (!this.fillTip) {
+            return;
+        }
+
+        if (!this.fillTip.getComponent(CameraFacingUI)) {
+            this.fillTip.addComponent(CameraFacingUI);
+        }
+
+        const floatingAnimation = this.fillTip.getComponent(AnimationController);
+        if (floatingAnimation) {
+            floatingAnimation.stopAnimation();
+            floatingAnimation.enabled = false;
+        }
+
+        this.fillTip.setPosition(0, 0.95, 10.307);
+        this.fillTip.setScale(0.42, 0.42, 0.42);
+        this.fillTip.active = false;
+        this._fillTipTargetNpc = null;
+
+        for (const child of this.fillTip.children) {
+            child.setRotationFromEuler(0, 0, 0);
+        }
     }
 
     // 初始化：将所有NPC放置到起点并按间距沿着 start->A 的方向排布
@@ -330,7 +362,49 @@ export class NPCScheduler extends Component {
     }
 
     protected update(dt: number): void {
+        this.updateFillTipPosition();
         this.checkEmojiUpdate(dt);
+    }
+
+    private updateFillTipPosition(): void {
+        if (!this.fillTip || !this.fillTip.active || !this._fillTipTargetNpc || !this._fillTipTargetNpc.isValid) {
+            return;
+        }
+
+        this._fillTipOffset.set(0, this.fillTipHeadOffsetY, 0);
+        Vec3.add(this._fillTipWorldPosition, this._fillTipTargetNpc.worldPosition, this._fillTipOffset);
+        this.fillTip.setWorldPosition(this._fillTipWorldPosition);
+    }
+
+    private showFillTipForNpc(npc: Node): void {
+        if (!this.fillTip) {
+            return;
+        }
+
+        this._fillTipTargetNpc = npc;
+        this.fillTip.active = true;
+        this.updateFillTipPosition();
+        AnimationLibrary.scaleFadeIn(this.fillTip, 0.1, 1, null).start();
+    }
+
+    private hideFillTip(resetContent: boolean = false): void {
+        if (!this.fillTip) {
+            return;
+        }
+
+        if (resetContent) {
+            const fill = this.fillTip.getChildByName('fill')?.getComponent(Sprite) ?? null;
+            const amount = this.fillTip.getChildByName('amount')?.getComponent(Label) ?? null;
+            if (fill) {
+                fill.fillRange = 0;
+            }
+            if (amount) {
+                amount.string = '4';
+            }
+        }
+
+        this._fillTipTargetNpc = null;
+        this.fillTip.active = false;
     }
 
     private checkEmojiUpdate(dt:number): void{
@@ -343,6 +417,7 @@ export class NPCScheduler extends Component {
 
     private resetEmoji(): void {
         this.checkTimer = 0;
+        this.hideFillTip();
         for(let i = 0; i < this.npcs.length; i++){
             var npc = this.npcs[i];
             const emoji = this.getNpcEmoji(npc);
@@ -420,7 +495,7 @@ export class NPCScheduler extends Component {
 
         var targetStoragePoint = playerDetectionZone.woodStackArea.getComponent(StoragePoint);
 
-        AnimationLibrary.scaleFadeIn(this.fillTip, 0.1, 1, null).start();
+        this.showFillTipForNpc(npc);
 
         const fill = this.fillTip.getChildByName('fill').getComponent(Sprite);
         const amount = this.fillTip.getChildByName('amount').getComponent(Label);
@@ -438,8 +513,7 @@ export class NPCScheduler extends Component {
                 if(npcStoragePoint.amount >= npcStoragePoint.capacity){
                     await new Promise((resolve) => setTimeout(resolve, 300));
                     AnimationLibrary.scaleFadeOut(this.fillTip, 0.1, 0, () => {
-                        fill.fillRange = 0;
-                        amount.string = '4';
+                        this.hideFillTip(true);
                     }).start();
                     await new Promise((resolve) => setTimeout(resolve, 200));
 
