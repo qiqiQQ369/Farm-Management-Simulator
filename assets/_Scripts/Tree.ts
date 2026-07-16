@@ -549,7 +549,7 @@ export class Tree extends Component {
 
         if (this._currentChopCount >= this._currentChopper.chopCount) {
             if(this._currentChopper.type == ChopperType.Player && this._isChopping) {
-                this._currentChopper.controller.chopAction.playIdleAnimation();
+                this._currentChopper.controller.onChopAnimationFinished?.();
             }
 
             // 砍伐完成

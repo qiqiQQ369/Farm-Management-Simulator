@@ -89,6 +89,10 @@ export class PlayerController extends Component implements IJoystickInput {
     @property({ type: WoodBackpack, tooltip: "木头背包组件" })
     public woodBackpack: WoodBackpack = null!;
 
+    private isPrimaryPlayer(): boolean {
+        return this.node.name === 'Player';
+    }
+
     protected onLoad(): void {
         // 如果没有指定玩家节点，使用当前节点
         if (!this.playerNode) {
@@ -104,12 +108,16 @@ export class PlayerController extends Component implements IJoystickInput {
         
         // 设置摇杆输入目标
         if (this.joystickController) {
-            this.joystickController.setInputTarget(this);
+            if (this.isPrimaryPlayer()) {
+                this.joystickController.setInputTarget(this);
+            }
         }
         
         // 设置摄像机跟随目标
         if (this.cameraController && this.playerNode) {
-            this.cameraController.setTarget(this.playerNode);
+            if (this.isPrimaryPlayer()) {
+                this.cameraController.setTarget(this.playerNode);
+            }
         }
         
         // 确保有背包组件
@@ -196,13 +204,6 @@ export class PlayerController extends Component implements IJoystickInput {
      */
     public setJoystickInput(direction: Vec3): void {
         this._joystickInput.set(direction);
-        if(this.skeletonAnimation == null) return;
-
-        var animationName = direction.x == 0 && direction.z == 0 ? AnimationName.Idle : AnimationName.Run;
-        if(this._currentAnimation != animationName){
-            this.skeletonAnimation.play(animationName);
-            this._currentAnimation = animationName;
-        }
     }
 
     /**
@@ -232,6 +233,7 @@ export class PlayerController extends Component implements IJoystickInput {
     protected update(deltaTime: number): void {
         this.handleMovement(deltaTime);
         this.handleRotation(deltaTime);
+        this.syncMovementAnimation();
 
         ArrowTipController.inst?.updateArrowTip(this.playerNode);
         //this.handleTreeInteraction();
@@ -352,7 +354,6 @@ export class PlayerController extends Component implements IJoystickInput {
             if (!this._isMoving) {
                 this.faceTarget(closestTree.node.position);
             }
-            console.log('playChopSound3');
             // 播放砍伐动作
             this.chopAction.playChopAction(closestTree.node.position);
             
@@ -413,32 +414,27 @@ export class PlayerController extends Component implements IJoystickInput {
      * 测试不同的角度计算方法（临时调试用）
      */
     private testRotationMethods(inputX: number, inputZ: number): void {
-        console.log(`=== 测试输入 x=${inputX}, z=${inputZ} ===`);
         
         const method1 = Math.atan2(inputX, -inputZ) * 180 / Math.PI;
         const method2 = Math.atan2(inputX, inputZ) * 180 / Math.PI;
         const method3 = Math.atan2(-inputX, -inputZ) * 180 / Math.PI;
         const method4 = (Math.atan2(inputX, -inputZ) * 180 / Math.PI + 180) % 360;
         
-        console.log(`方法1: ${method1.toFixed(1)}度`);
-        console.log(`方法2: ${method2.toFixed(1)}度`);
-        console.log(`方法3: ${method3.toFixed(1)}度`);
-        console.log(`方法4: ${method4.toFixed(1)}度`);
     }
 
     /**
      * 获取玩家是否在移动
      */
     public refreshMovementAnimation(): void {
-        if (!this.skeletonAnimation) return;
+        this.syncMovementAnimation(true);
+    }
 
-        const inputVector = this.getFinalInput();
-        const isMovingNow = inputVector.length() > this.inputThreshold;
-        this._isMoving = isMovingNow;
+    public onChopAnimationStarted(): void {
+        this._currentAnimation = AnimationName.Chop;
+    }
 
-        const nextAnimation = isMovingNow ? AnimationName.Run : AnimationName.Idle;
-        this.skeletonAnimation.play(nextAnimation);
-        this._currentAnimation = nextAnimation;
+    public onChopAnimationFinished(): void {
+        this.refreshMovementAnimation();
     }
 
     public isMoving(): boolean {
@@ -463,7 +459,6 @@ export class PlayerController extends Component implements IJoystickInput {
      * 设置玩家朝向（角度）- 修正版本
      */
     public setFacingAngle(angle: number): void {
-        console.log("setFacingAngle", angle);
         const currentEuler = this.playerNode.eulerAngles;
         currentEuler.y = this.normalizeAngle(angle);
         this.playerNode.setRotationFromEuler(currentEuler);
@@ -519,6 +514,24 @@ export class PlayerController extends Component implements IJoystickInput {
     public playAnimation(animationName: AnimationName): void {
         this.skeletonAnimation.play(animationName);
         this._currentAnimation = animationName;
+    }
+
+    private syncMovementAnimation(forceRefresh: boolean = false): void {
+        if (!this.skeletonAnimation) {
+            return;
+        }
+
+        if (this.chopAction?.isPlaying()) {
+            return;
+        }
+
+        const nextAnimation = this._isMoving ? AnimationName.Run : AnimationName.Idle;
+        if (!forceRefresh && this._currentAnimation === nextAnimation) {
+            return;
+        }
+
+        this.skeletonAnimation.play(nextAnimation);
+        this._currentAnimation = nextAnimation;
     }
     // private onAnimationFinished(type: AnimationStateEventType, state: AnimationState): void {
     //     console.log("onAnimationFinished", type);        
