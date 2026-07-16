@@ -431,16 +431,17 @@ export class CoinConsumer extends Component {
 
     /** 只复制员工解锁点外观，不修改员工原节点。 */
     private spawnHaulerUnlockPointAt(position: Vec3): void {
-        const employeeUnlockPad = this.findSceneNodeByName('unlockLevel1');
-        if (!employeeUnlockPad || this._haulerUnlockPointSpawned) return;
-        if (this.findSceneNodeByName('HaulerUnlockPad')) {
+        // 新点直接复制拖拉机解锁点，确保外观、碰撞体和位置基准一致。
+        const sourceUnlockPad = this.findSceneNodeByName('unlockLevel2') || this.findSceneNodeByName('unlockLevel1');
+        if (!sourceUnlockPad || this._haulerUnlockPointSpawned) return;
+        if (this.findSceneNodeByName('HaulerUnlockPad') || this.findSceneNodeByName('unlockLevel3')) {
             this._haulerUnlockPointSpawned = true;
             return;
         }
 
-        const haulerUnlockPad = instantiate(employeeUnlockPad);
-        haulerUnlockPad.name = 'HaulerUnlockPad';
-        haulerUnlockPad.setParent(employeeUnlockPad.parent);
+        const haulerUnlockPad = instantiate(sourceUnlockPad);
+        haulerUnlockPad.name = 'unlockLevel3';
+        haulerUnlockPad.setParent(sourceUnlockPad.parent);
         haulerUnlockPad.setWorldPosition(position);
         haulerUnlockPad.active = false;
         this.setupHaulerUnlock(haulerUnlockPad);
