@@ -127,9 +127,11 @@ export class CoinConsumer extends Component {
 
     protected update(deltaTime: number): void {
         // 员工解锁点保留原逻辑，同时兜底检测拖拉机是否已解锁。
+        const tractorNode = this.machineNode || find('LoggingTruck');
         if (this.targetLevel === UpgradeTarget.FACTORY && this.node.name === 'unlockLevel3L' &&
-            this.machineNode?.activeInHierarchy && !this._haulerUnlockPointSpawned) {
-            this.spawnHaulerUnlockPointAt(this.machineNode.worldPosition);
+            tractorNode?.activeInHierarchy && !this._haulerUnlockPointSpawned) {
+            const tractorUnlockPoint = find('LandObj/unlockLevel2') || find('unlockLevel2');
+            this.spawnHaulerUnlockPointAt(tractorUnlockPoint?.worldPosition || tractorNode.worldPosition);
         }
 
         if (this._isPlayerInArea && !this._isConsuming && !this._isCompleted) {
