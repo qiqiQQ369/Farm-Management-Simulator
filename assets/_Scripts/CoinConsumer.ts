@@ -1,149 +1,119 @@
-import { _decorator, Component, Node, Vec3, Collider, ITriggerEvent, Prefab, instantiate, Label, find, Material, Vec4, MeshRenderer, Animation, tween, AudioSource, director, SpriteFrame, Sprite, RigidBody } from 'cc';
-import { PlayerController } from './PlayerController';
-import { CoinBackpack } from './CoinBackpack';
-import { StoragePoint } from './Resource/StoragePoint';
-import { CameraController } from './CameraController';
-import { JoystickController } from './JoystickController';
-import { HaulerNPC } from './HaulerNPC';
-import { HaulerUnlockController } from './HaulerUnlockController';
-import { NPCScheduler } from './NPCScheduler';
+import { _decorator, AudioSource, Collider, Component, find, ITriggerEvent, instantiate, Label, Node, Prefab, Sprite, tween, Vec3 } from 'cc';
 import { ArrowTipController } from './ArrowTipController';
+import { CameraController } from './CameraController';
+import { CoinBackpack } from './CoinBackpack';
+import { HaulerNPC } from './HaulerNPC';
+import { JoystickController } from './JoystickController';
+import { NPCScheduler } from './NPCScheduler';
+import { PlayerController } from './PlayerController';
+import { StoragePoint } from './Resource/StoragePoint';
+
 const { ccclass, property } = _decorator;
 
-/**
- * 升级目标枚举
- */
 enum UpgradeTarget {
-    LOGGER = 1,     // 等级1：伐木工
-    MACHINE = 2,    // 等级2：伐木机
-    FACTORY = 3     // 等级3：工厂
+    LOGGER = 1,
+    MACHINE = 2,
+    FACTORY = 3,
+    HAULER = 4,
 }
 
-/**
- * 金币消耗器组件
- * 检测玩家，消耗金币进行升级，生成对应建筑物
- */
+type UpgradeConfig = {
+    requiredCoins: number;
+    prefab: Prefab | null;
+    name: string;
+    spawnCount: number;
+};
+
 @ccclass('CoinConsumer')
 export class CoinConsumer extends Component {
-    
-    @property({ type: CoinBackpack, tooltip: "玩家金币背包" })
+    @property({ type: CoinBackpack, tooltip: '玩家金币背包' })
     public playerCoinBackpack: CoinBackpack = null!;
-    
-    @property({ tooltip: "当前升级目标等级" })
+
+    @property({ tooltip: '当前升级目标等级' })
     public targetLevel: UpgradeTarget = UpgradeTarget.LOGGER;
-    
-    @property({ tooltip: "每次消耗金币数量" })
-    public coinsPerConsumption: number = 1;
-    
-    @property({ tooltip: "消耗间隔时间（秒）" })
-    public consumeInterval: number = 0.5;
-    
-    // 生成位置配置
-    @property({ type: Node, group: { name: "生成设置", id: "3" }, tooltip: "生成位置节点" })
-    public spawnPosition: Node = null;
 
-    @property({ type: Node, group: { name: "生成设置", id: "3" }, tooltip: "生成位置节点" })
-    public loggerNode: Node = null;
+    @property({ tooltip: '每次消耗金币数量' })
+    public coinsPerConsumption = 1;
 
-    @property({ type: Node, group: { name: "生成设置", id: "3" }, tooltip: "生成位置节点" })
-    public level2Node: Node = null;
+    @property({ tooltip: '消耗间隔时间（秒）' })
+    public consumeInterval = 0.5;
 
-    @property({ type: Node, group: { name: "生成设置", id: "3" }, tooltip: "生成位置节点" })
-    public machineNode: Node = null;
+    @property({ type: Node, group: { name: '生成设置', id: '3' }, tooltip: '生成位置节点' })
+    public spawnPosition: Node = null!;
 
-    @property({ type: Node, group: { name: "生成设置", id: "3" }, tooltip: "生成位置节点" })
-    public finishNode: Node = null;
-    
-    @property({ group: { name: "生成设置", id: "3" }, tooltip: "伐木工生成数量" })
-    public loggerSpawnCount: number = 3;
-    
-    @property({ group: { name: "生成设置", id: "3" }, tooltip: "生成间距" })
-    public spawnSpacing: number = 2.0;
-    
-    @property({ type: Label, group: { name: "UI设置", id: "4" }, tooltip: "剩余数量显示文本" })
+    @property({ type: Node, group: { name: '生成设置', id: '3' }, tooltip: '伐木工节点' })
+    public loggerNode: Node = null!;
+
+    @property({ type: Node, group: { name: '生成设置', id: '3' }, tooltip: '二级解锁点节点' })
+    public level2Node: Node = null!;
+
+    @property({ type: Node, group: { name: '生成设置', id: '3' }, tooltip: '拖拉机节点' })
+    public machineNode: Node = null!;
+
+    @property({ type: Node, group: { name: '生成设置', id: '3' }, tooltip: '完成后激活的节点' })
+    public finishNode: Node = null!;
+
+    @property({ group: { name: '生成设置', id: '3' }, tooltip: '伐木工生成数量' })
+    public loggerSpawnCount = 3;
+
+    @property({ group: { name: '生成设置', id: '3' }, tooltip: '生成间距' })
+    public spawnSpacing = 2.0;
+
+    @property({ type: Label, group: { name: 'UI设置', id: '4' }, tooltip: '剩余数量显示文本' })
     public remainingLabel: Label = null!;
-    
-    @property({ type: Sprite, group: { name: "UI设置", id: "4" } })
+
+    @property({ type: Sprite, group: { name: 'UI设置', id: '4' } })
     public fillSprite: Sprite = null!;
-    
-    @property({ tooltip: "是否显示调试信息" })
-    public showDebug: boolean = true;
 
-     // 预制件配置
-     @property({ type: Prefab, group: { name: "预制件设置", id: "2" }, tooltip: "伐木工预制件" })
-     public loggerPrefab: Prefab = null;
-     
-     @property({ type: Prefab, group: { name: "预制件设置", id: "2" }, tooltip: "伐木机预制件" })
-     public machinePrefab: Prefab = null;
-     
-     @property({ type: Prefab, group: { name: "预制件设置", id: "2" }, tooltip: "工厂预制件" })
-     public factoryPrefab: Prefab = null;
+    @property({ tooltip: '是否显示调试信息' })
+    public showDebug = true;
 
-    // 升级配置
-    @property({ group: { name: "升级配置", id: "1" }, tooltip: "伐木工所需金币数" })
-    public loggerRequiredCoins: number = 10;
-    
-    @property({ group: { name: "升级配置", id: "1" }, tooltip: "伐木机所需金币数" })
-    public machineRequiredCoins: number = 50;
-    
-    @property({ group: { name: "升级配置", id: "1" }, tooltip: "工厂所需金币数" })
-    public factoryRequiredCoins: number = 200;
-    
-    // 私有属性
-    private _isPlayerInArea: boolean = false;
+    @property({ type: Prefab, group: { name: '预制件设置', id: '2' }, tooltip: '伐木工预制件' })
+    public loggerPrefab: Prefab = null!;
+
+    @property({ type: Prefab, group: { name: '预制件设置', id: '2' }, tooltip: '拖拉机预制件' })
+    public machinePrefab: Prefab = null!;
+
+    @property({ type: Prefab, group: { name: '预制件设置', id: '2' }, tooltip: '工厂预制件' })
+    public factoryPrefab: Prefab = null!;
+
+    @property({ group: { name: '升级配置', id: '1' }, tooltip: '伐木工所需金币数' })
+    public loggerRequiredCoins = 10;
+
+    @property({ group: { name: '升级配置', id: '1' }, tooltip: '拖拉机所需金币数' })
+    public machineRequiredCoins = 50;
+
+    @property({ group: { name: '升级配置', id: '1' }, tooltip: '工厂所需金币数' })
+    public factoryRequiredCoins = 200;
+
+    @property({ group: { name: '升级配置', id: '1' }, tooltip: '搬运工所需金币数' })
+    public haulerRequiredCoins = 170;
+
+    private _isPlayerInArea = false;
     private _playerNode: Node | null = null;
     private _playerController: PlayerController | null = null;
-    private _consumeTimer: number = 0;
-    private _isConsuming: boolean = false;
-    private _currentProgress: number = 0;
-    private _isCompleted: boolean = false;
-    private _haulerUnlockPointSpawned: boolean = false;
+    private _consumeTimer = 0;
+    private _isConsuming = false;
+    private _currentProgress = 0;
+    private _isCompleted = false;
+    private _isAnimComplete = true;
+    private _needCoins = 100;
+    private _remainingAnimationTimer: ReturnType<typeof setInterval> | null = null;
+    private closed = false;
 
-    private _isAnimComplete: boolean = true;
-
-    private _needCoins: number = 100;
-
-    private _tilingOffset: Vec4 = new Vec4(1, 1, 0, 0);
-    
-    // 配置映射
-    private _upgradeConfigs = new Map<UpgradeTarget, {
-        requiredCoins: number;
-        prefab: Prefab;
-        name: string;
-        spawnCount: number;
-    }>();
+    private _upgradeConfigs = new Map<UpgradeTarget, UpgradeConfig>();
 
     protected onLoad(): void {
-        //this.setupCollisionDetection();
         this.validateComponents();
         this.initializeUpgradeConfigs();
         this.updateUI();
-        this.remainingLabel.node.active = true;
-        this.fillSprite.fillRange = 0;
 
-
-        // this.loggerNode.active = false;
-    }
-
-    protected update(deltaTime: number): void {
-        // 员工解锁点保留原逻辑，同时兜底检测拖拉机是否已解锁。
-        const tractorNode = this.machineNode || this.findSceneNodeByName('LoggingTruck');
-        if (this.node.name === 'unlockLevel1' &&
-            tractorNode?.activeInHierarchy && !this._haulerUnlockPointSpawned) {
-            const tractorUnlockPoint = this.findSceneNodeByName('unlockLevel2');
-            this.spawnHaulerUnlockPointAt(tractorUnlockPoint?.worldPosition || tractorNode.worldPosition);
+        if (this.remainingLabel) {
+            this.remainingLabel.node.active = true;
         }
 
-        if (this._isPlayerInArea && !this._isConsuming && !this._isCompleted) {
-            this._consumeTimer += deltaTime;
-            
-            if (this._consumeTimer >= this.consumeInterval) {
-                this._consumeTimer = 0;
-                this.tryConsumeCoins();
-            }
-        }
-        else if(!this._isCompleted && this._needCoins <= 0){
-            this.onUpgradeComplete();
+        if (this.fillSprite) {
+            this.fillSprite.fillRange = 0;
         }
     }
 
@@ -151,325 +121,308 @@ export class CoinConsumer extends Component {
         this.setupCollisionDetection();
     }
 
-    /**
-     * 设置碰撞检测
-     */
+    protected update(deltaTime: number): void {
+        if (this._isPlayerInArea && !this._isConsuming && !this._isCompleted) {
+            this._consumeTimer += deltaTime;
+
+            if (this._consumeTimer >= this.consumeInterval) {
+                this._consumeTimer = 0;
+                void this.tryConsumeCoins();
+            }
+        } else if (!this._isCompleted && this._needCoins <= 0) {
+            this.onUpgradeComplete();
+        }
+    }
+
     private setupCollisionDetection(): void {
         const collider = this.node.getComponent(Collider);
         if (collider) {
-            console.log('CoinConsumer: 节点上找到Collider组件');
             collider.on('onTriggerEnter', this.onPlayerEnter, this);
             collider.on('onTriggerExit', this.onPlayerExit, this);
         } else {
-            console.error('CoinConsumer: 节点上没有找到Collider组件');
+            console.error('CoinConsumer: node is missing Collider');
         }
     }
 
-    /**
-     * 验证必要组件
-     */
     private validateComponents(): void {
         if (!this.playerCoinBackpack) {
-            // 尝试自动查找
             this.playerCoinBackpack = this.node.scene.getComponentInChildren(CoinBackpack);
             if (!this.playerCoinBackpack) {
-                console.error('CoinConsumer: 玩家金币背包未设置且无法自动找到');
+                console.error('CoinConsumer: failed to resolve CoinBackpack');
             }
         }
-        
+
         if (!this.spawnPosition) {
             this.spawnPosition = this.node;
-            console.warn('CoinConsumer: 生成位置未设置，使用当前节点位置');
         }
     }
 
-    /**
-     * 初始化升级配置
-     */
     private initializeUpgradeConfigs(): void {
+        this._upgradeConfigs.clear();
         this._upgradeConfigs.set(UpgradeTarget.LOGGER, {
             requiredCoins: this.loggerRequiredCoins,
             prefab: this.loggerPrefab,
-            name: "伐木工",
-            spawnCount: this.loggerSpawnCount
+            name: 'Logger',
+            spawnCount: this.loggerSpawnCount,
         });
-        
+
         this._upgradeConfigs.set(UpgradeTarget.MACHINE, {
             requiredCoins: this.machineRequiredCoins,
             prefab: this.machinePrefab,
-            name: "伐木机",
-            spawnCount: 1
+            name: 'Machine',
+            spawnCount: 1,
         });
-        
+
         this._upgradeConfigs.set(UpgradeTarget.FACTORY, {
             requiredCoins: this.factoryRequiredCoins,
             prefab: this.factoryPrefab,
-            name: "工厂",
-            spawnCount: 1
+            name: 'Factory',
+            spawnCount: 1,
+        });
+
+        this._upgradeConfigs.set(UpgradeTarget.HAULER, {
+            requiredCoins: this.haulerRequiredCoins,
+            prefab: null,
+            name: 'Hauler',
+            spawnCount: 1,
         });
     }
 
-    /**
-     * 玩家进入区域
-     */
     private onPlayerEnter(event: ITriggerEvent): void {
-        console.log('CoinConsumer: 玩家进入区域');
-        if (this.isPlayerNode(event.otherCollider.node)) {
-            this._isPlayerInArea = true;
-            this._playerNode = event.otherCollider.node;
-            this._playerController = this._playerNode.getComponent(PlayerController);
-            this._consumeTimer = 0;
-            
-            if (this.showDebug) {
-                console.log('玩家进入金币消耗区域');
-            }
-            
-            this.updateUI();
+        if (!this.isPlayerNode(event.otherCollider.node)) {
+            return;
         }
+
+        this._isPlayerInArea = true;
+        this._playerNode = event.otherCollider.node;
+        this._playerController = this._playerNode.getComponent(PlayerController);
+        this._consumeTimer = 0;
+        this.updateUI();
     }
 
-    /**
-     * 玩家离开区域
-     */
     private onPlayerExit(event: ITriggerEvent): void {
-        if (this.isPlayerNode(event.otherCollider.node)) {
-            this._isPlayerInArea = false;
-            this._playerNode = null;
-            this._playerController = null;
-            this._consumeTimer = 0;
-            this._isConsuming = false;
-            
-            if (this.showDebug) {
-                console.log('玩家离开金币消耗区域');
-            }
+        if (!this.isPlayerNode(event.otherCollider.node)) {
+            return;
         }
+
+        this._isPlayerInArea = false;
+        this._playerNode = null;
+        this._playerController = null;
+        this._consumeTimer = 0;
+        this._isConsuming = false;
     }
 
-    /**
-     * 判断是否是玩家节点
-     */
     private isPlayerNode(node: Node): boolean {
-        return node.name === 'Player' || 
-               node.getComponent(PlayerController) !== null ||
-               node.parent?.name === 'Player';
+        return node.name === 'Player' ||
+            node.getComponent(PlayerController) !== null ||
+            node.parent?.name === 'Player';
     }
 
-    /**
-     * 尝试消耗金币
-     */
     private async tryConsumeCoins(): Promise<void> {
         if (!this.playerCoinBackpack || this._isCompleted) {
             return;
         }
 
-        // // 检查玩家是否有足够的金币
         const playerStoragePoint = this.playerCoinBackpack.coinBackpackMount.getComponent(StoragePoint);
-
         const currentConfig = this._upgradeConfigs.get(this.targetLevel);
-        if(this._currentProgress >= currentConfig.requiredCoins) {
+
+        if (!currentConfig) {
+            console.error(`CoinConsumer: missing config for level ${this.targetLevel}`);
+            return;
+        }
+
+        if (this._currentProgress >= currentConfig.requiredCoins) {
             this.onUpgradeComplete();
             this._isConsuming = false;
             return;
         }
 
         if (playerStoragePoint.amount <= 0) {
-            if (this.showDebug) {
-                console.log('玩家没有金币');
-            }
             return;
         }
 
-        // 计算本次消耗的数量
-        const consumeCount = Math.min(this.coinsPerConsumption, playerStoragePoint.amount);
-        
-        
-        if (!currentConfig) {
-            console.error(`未找到等级 ${this.targetLevel} 的配置`);
-            return;
-        }
+        const coinAmount = find('Canvas/CoinLabel/coinAmount');
+        const audioSource = this.node.getComponent(AudioSource);
 
-        // 检查是否还需要更多金币
-        const remainingNeeded = currentConfig.requiredCoins - this._currentProgress;
-        const actualConsume = Math.min(consumeCount, remainingNeeded);
-
-        var coinAmount = find('Canvas/CoinLabel/coinAmount');
-
-        var audioSource = this.node.getComponent(AudioSource);
-                
         for (let index = 0; index < playerStoragePoint.amount; index++) {
-            if(this._currentProgress >= currentConfig.requiredCoins) {
+            if (this._currentProgress >= currentConfig.requiredCoins) {
                 this.onUpgradeComplete();
                 this._isConsuming = false;
                 return;
             }
-            
-            if(audioSource != null) {
+
+            if (audioSource?.clip) {
                 audioSource.playOneShot(audioSource.clip);
             }
 
-            playerStoragePoint.removeResourceWithAnimation(this.node.getChildByName('pos').worldPosition, 'parabola');
-            var coinAmountLabel = coinAmount.getComponent(Label);
-            coinAmountLabel.string = (parseInt(coinAmountLabel.string) - 5).toString();
+            const targetNode = this.node.getChildByName('pos') ?? this.node;
+            playerStoragePoint.removeResourceWithAnimation(targetNode.worldPosition, 'parabola');
+
+            if (coinAmount) {
+                const coinAmountLabel = coinAmount.getComponent(Label);
+                if (coinAmountLabel) {
+                    coinAmountLabel.string = (parseInt(coinAmountLabel.string) - 5).toString();
+                }
+            }
 
             this._currentProgress += 5;
-            // 更新UI
             this.updateUI();
             await new Promise(resolve => setTimeout(resolve, 100));
         }
     }
 
-    /**
-     * 升级完成处理
-     */
     private onUpgradeComplete(): void {
         this._isCompleted = true;
         const currentConfig = this._upgradeConfigs.get(this.targetLevel);
-        
+
         if (!currentConfig) {
-            console.error(`未找到等级 ${this.targetLevel} 的配置`);
+            console.error(`CoinConsumer: missing config for level ${this.targetLevel}`);
             return;
         }
 
         if (this.showDebug) {
-            console.log(`升级完成！生成 ${currentConfig.name}`);
+            console.log(`Upgrade complete: ${currentConfig.name}`);
         }
-        
-         // 更新UI显示完成状态
-         this.updateUI();
 
-         this.schedule(() => {
-            if(this._isAnimComplete){
-                // 生成对应的建筑物
-                //this.remainingLabel.node.active = false;
+        this.updateUI();
+        this.schedule(() => {
+            if (this._isAnimComplete) {
                 this.spawnBuildings(currentConfig);
             }
-         }, 0.2);
+        }, 0.2);
     }
 
-    private closed: boolean = false;
-    /**
-     * 生成建筑物
-     */
-    private spawnBuildings(config: any): void {
-        if(this.closed) return;
+    private spawnBuildings(_config: UpgradeConfig): void {
+        if (this.closed) {
+            return;
+        }
 
         this.closed = true;
 
-        if(this.targetLevel == 1){
+        if (this.targetLevel === UpgradeTarget.LOGGER) {
             this.loggerNode.active = true;
-            //this.node.getComponentInChildren(Animation).play("animation_DiMianUI_Close");
             tween(this.node.children[0])
-            .to(0.5, { scale: new Vec3(0, 1, 0) }, { easing: 'linear' }).start();
-            
+                .to(0.5, { scale: new Vec3(0, 1, 0) }, { easing: 'linear' })
+                .start();
+
             this.scheduleOnce(() => {
                 this.level2Node.active = true;
 
-                tween(this.level2Node.getChildByName('view'))
-                .to(0.5, { scale: new Vec3(0.72, 0.72, 0.72) }, { easing: 'linear' }).start();
+                const level2View = this.level2Node.getChildByName('view');
+                if (level2View) {
+                    tween(level2View)
+                        .to(0.5, { scale: new Vec3(0.72, 0.72, 0.72) }, { easing: 'linear' })
+                        .start();
+                }
 
                 this.node.active = false;
             }, 1.5);
 
             const cameraController = find('Main Camera').getComponent(CameraController);
-            cameraController.target = this.loggerNode.getChildByName("Logger-003");
+            cameraController.target = this.loggerNode.getChildByName('Logger-003');
             const joystickController = find('Canvas/JoystickContainer').getComponent(JoystickController);
             joystickController._lock = true;
-            find("Player").getComponent(PlayerController).stopMovement();
-
-            // find("Player").getComponent(RigidBody).setLinearVelocity(new Vec3(0,0,0));
+            find('Player').getComponent(PlayerController).stopMovement();
 
             cameraController.scheduleOnce(() => {
                 cameraController.target = find('Player');
                 joystickController._lock = false;
-            }, 6)
-            
+            }, 6);
+
             return;
         }
 
-        if(this.targetLevel == 2){
+        if (this.targetLevel === UpgradeTarget.MACHINE) {
             this.machineNode.active = true;
-
-            // 复用员工解锁点作为搬运工解锁点，并放到当前拖拉机解锁点的位置。
             this.spawnHaulerUnlockPointAt(this.node.worldPosition);
-            
-            // this.node.getComponentInChildren(Animation).play("animation_DiMianUI_Close");
-            tween(this.node.getChildByName("view"))
-            .to(0.5, { scale: new Vec3(0,0,0) }, { easing: 'linear' }).start();
+
+            const view = this.node.getChildByName('view');
+            if (view) {
+                tween(view)
+                    .to(0.5, { scale: new Vec3(0, 0, 0) }, { easing: 'linear' })
+                    .start();
+            }
 
             this.scheduleOnce(() => {
                 this.node.active = false;
             }, 1);
+
             this.loggerNode.active = false;
 
             const cameraController = find('Main Camera').getComponent(CameraController);
-            cameraController.target = this.machineNode.getChildByName("Truck");
+            cameraController.target = this.machineNode.getChildByName('Truck');
             const joystickController = find('Canvas/JoystickContainer').getComponent(JoystickController);
             joystickController._lock = true;
-            find("Player").getComponent(PlayerController).stopMovement();
-            // find("Player").getComponent(RigidBody).setLinearVelocity(new Vec3(0,0,0));
+            find('Player').getComponent(PlayerController).stopMovement();
 
             cameraController.scheduleOnce(() => {
                 cameraController.target = find('Player');
                 find('Canvas/JoystickContainer').getComponent(JoystickController)._lock = false;
-            }, 4)
+            }, 4);
 
             return;
         }
 
-        if(this.targetLevel ==3){
-            this.finishNode.active = true;
-            tween(this.node.getChildByName("view"))
-            .to(0.5, { scale: new Vec3(0,0,0) }, { easing: 'linear' }).start();
-            //this.node.getComponentInChildren(Animation).play("animation_DiMianUI_Close");
+        if (this.targetLevel === UpgradeTarget.FACTORY || this.targetLevel === UpgradeTarget.HAULER) {
+            if (this.finishNode) {
+                this.finishNode.active = true;
+            }
+
+            const view = this.node.getChildByName('view');
+            if (view) {
+                tween(view)
+                    .to(0.5, { scale: new Vec3(0, 0, 0) }, { easing: 'linear' })
+                    .start();
+            }
+
             this.scheduleOnce(() => {
                 this.node.active = false;
-                //find('muweilan').active = false;
             }, 1);
-            return;
         }
     }
 
-    /** 只复制员工解锁点外观，不修改员工原节点。 */
     private spawnHaulerUnlockPointAt(position: Vec3): void {
-        // 直接使用场景中预先复制好的 unlockLevel3，不再运行时复制节点。
         const haulerUnlockPad = this.findSceneNodeByName('unlockLevel3');
-        if (!haulerUnlockPad || this._haulerUnlockPointSpawned) return;
-        if (haulerUnlockPad.activeInHierarchy) {
-            this._haulerUnlockPointSpawned = true;
+        if (!haulerUnlockPad) {
+            console.warn('Missing unlockLevel3');
             return;
         }
 
-        haulerUnlockPad.setWorldPosition(position);
-        this.setupHaulerUnlock(haulerUnlockPad);
-        this._haulerUnlockPointSpawned = true;
-    }
-
-    /** 将员工解锁点改造成拖拉机解锁后的搬运工解锁点。 */
-    private setupHaulerUnlock(unlockPad: Node): void {
-        const employeeConsumer = unlockPad.getComponent(CoinConsumer);
-        if (employeeConsumer) {
-            employeeConsumer.enabled = false;
+        const haulerUnlockConsumer = haulerUnlockPad.getComponent(CoinConsumer);
+        if (!haulerUnlockConsumer) {
+            console.warn('unlockLevel3 is missing CoinConsumer');
+            return;
         }
 
-        // 先保持节点关闭，避免动态添加组件时 onLoad 在属性绑定前访问空引用。
-        unlockPad.active = false;
-        const controller = unlockPad.getComponent(HaulerUnlockController) || unlockPad.addComponent(HaulerUnlockController);
-        controller.tractorNode = this.machineNode;
-        controller.unlockPad = unlockPad;
-        controller.playerCoinBackpack = this.playerCoinBackpack;
-        controller.remainingLabel = unlockPad.getComponentInChildren(Label);
-        controller.requiredCoins = 170;
-        controller.haulerNode = this.createHaulerNode(unlockPad);
-        unlockPad.active = true;
+        const haulerNode = this.createHaulerNode(haulerUnlockPad);
+        haulerUnlockPad.setWorldPosition(position);
+        haulerUnlockConsumer.prepareAsHaulerUnlock(haulerNode);
+
+        if (!haulerUnlockPad.active) {
+            haulerUnlockPad.active = true;
+        }
+
+        const view = haulerUnlockPad.getChildByName('view');
+        if (view) {
+            view.setScale(new Vec3(0, 0, 0));
+            tween(view)
+                .to(0.5, { scale: new Vec3(0.72, 0.72, 0.72) }, { easing: 'linear' })
+                .start();
+        }
     }
 
-    /** 复用现有买家 NPC 外观，创建一个独立的搬运工节点。 */
     private createHaulerNode(unlockPad: Node): Node {
+        const existingHauler = this.findSceneNodeByName('HaulerNPC');
+        if (existingHauler) {
+            existingHauler.active = false;
+            return existingHauler;
+        }
+
         const schedulerNode = this.findSceneNodeByName('NPCScheduler');
         const scheduler = schedulerNode?.getComponent(NPCScheduler);
         const template = scheduler?.npcs?.find(npc => npc && npc.activeInHierarchy) || scheduler?.npcs?.[0];
         if (!template) {
-            console.warn('未找到可复用的买家 NPC，搬运工节点暂不生成');
+            console.warn('No NPC template available for hauler');
             return new Node('HaulerNPC');
         }
 
@@ -479,7 +432,7 @@ export class CoinConsumer extends Component {
         hauler.setWorldPosition(unlockPad.worldPosition);
         hauler.active = false;
 
-        const behavior = hauler.addComponent(HaulerNPC);
+        const behavior = hauler.getComponent(HaulerNPC) ?? hauler.addComponent(HaulerNPC);
         const arrow = this.node.scene?.getComponentInChildren(ArrowTipController);
         const carryStorage = hauler.getComponentInChildren(StoragePoint);
         if (arrow?.cutterWoodStorageNode && arrow.sellWoodStorageNode && carryStorage) {
@@ -490,108 +443,129 @@ export class CoinConsumer extends Component {
             behavior.sellPoint = arrow.sellWoodStorageNode.node;
             behavior.idlePoint = unlockPad;
         }
+
         return hauler;
+    }
+
+    private prepareAsHaulerUnlock(haulerNode: Node): void {
+        this.targetLevel = UpgradeTarget.HAULER;
+        this.finishNode = haulerNode;
+        this.spawnPosition = this.node;
+        this._currentProgress = 0;
+        this._isCompleted = false;
+        this._isConsuming = false;
+        this._consumeTimer = 0;
+        this._needCoins = this.haulerRequiredCoins;
+        this.closed = false;
+
+        if (this._remainingAnimationTimer) {
+            clearInterval(this._remainingAnimationTimer);
+            this._remainingAnimationTimer = null;
+        }
+
+        if (this.finishNode) {
+            this.finishNode.active = false;
+        }
+
+        this.initializeUpgradeConfigs();
+
+        if (this.remainingLabel) {
+            this.remainingLabel.node.active = true;
+        }
+
+        if (this.fillSprite) {
+            this.fillSprite.fillRange = 0;
+        }
+
+        this.updateUI();
     }
 
     private findSceneNodeByName(name: string): Node | null {
         const scene = this.node.scene;
-        if (!scene) return null;
+        if (!scene) {
+            return null;
+        }
 
         const visit = (parent: Node): Node | null => {
-            if (parent.name === name) return parent;
+            if (parent.name === name) {
+                return parent;
+            }
+
             for (const child of parent.children) {
                 const result = visit(child);
-                if (result) return result;
+                if (result) {
+                    return result;
+                }
             }
+
             return null;
         };
 
         return visit(scene);
     }
 
-    /**
-     * 更新UI显示
-     */
     private updateUI(): void {
         const currentConfig = this._upgradeConfigs.get(this.targetLevel);
-        if (!currentConfig) return;
+        if (!currentConfig || !this.remainingLabel) {
+            return;
+        }
 
-        // 更新剩余数量 - 添加动态递减动画
-        if (this.remainingLabel) {
-            if (this._isCompleted) {
-                //this.remainingLabel.node.active = false;
-            } else {
-                this._isAnimComplete = false;
-                const remaining = currentConfig.requiredCoins - this._currentProgress;
-                this._needCoins = remaining;
-                this.animateRemainingCount(remaining);
-            }
+        if (!this._isCompleted) {
+            this._isAnimComplete = false;
+            const remaining = currentConfig.requiredCoins - this._currentProgress;
+            this._needCoins = remaining;
+            this.animateRemainingCount(remaining);
         }
     }
 
-    /**
-     * 动态显示剩余数量递减动画
-     */
     private animateRemainingCount(targetRemaining: number): void {
-        // 获取当前显示的剩余数量
         const currentConfig = this._upgradeConfigs.get(this.targetLevel);
-        // const currentText = this.remainingLabel.string;
-        this.remainingLabel.string = targetRemaining.toString();
-        //const currentRemaining = parseInt(currentText) || 0;
-        const currentRemaining = targetRemaining + 5;
-
-        if(currentRemaining > currentConfig.requiredCoins){
+        if (!currentConfig || !this.remainingLabel) {
             return;
         }
-        
-        // 如果当前显示的数量等于目标数量，不需要动画
+
+        this.remainingLabel.string = targetRemaining.toString();
+        const currentRemaining = targetRemaining + 5;
+
+        if (currentRemaining > currentConfig.requiredCoins) {
+            return;
+        }
+
         if (currentRemaining === targetRemaining) {
             this.remainingLabel.string = `${targetRemaining}`;
             this._isAnimComplete = true;
             return;
         }
 
-        // 计算需要递减的次数
         const decrementCount = currentRemaining - targetRemaining;
-
-        console.log("remain:" + decrementCount + " " + targetRemaining + " " + currentRemaining);
-
         if (decrementCount <= 0) {
             this.remainingLabel.string = `${targetRemaining}`;
             this._isAnimComplete = true;
             return;
         }
 
-        // 设置递减间隔时间（毫秒）
-        const decrementInterval = 1; // 每100毫秒减1
-        const totalDuration = decrementCount * decrementInterval;
-
-        // 清除之前的定时器
         if (this._remainingAnimationTimer) {
             clearInterval(this._remainingAnimationTimer);
         }
 
-        // 开始递减动画
         let currentCount = currentRemaining;
         this._remainingAnimationTimer = setInterval(() => {
             currentCount--;
-            // this._tilingOffset.w = 0.5 * (1 - currentCount / currentConfig.requiredCoins);
-            this.fillSprite.fillRange = 1 - currentCount / currentConfig.requiredCoins;
-            // this.meshRenderer.materials[0].setProperty('tilingOffset', this._tilingOffset, 0);
-            
+            if (this.fillSprite) {
+                this.fillSprite.fillRange = 1 - currentCount / currentConfig.requiredCoins;
+            }
+
             this.remainingLabel.string = `${currentCount}`;
-            
-            // 当达到目标值时停止动画
+
             if (currentCount <= targetRemaining) {
-                clearInterval(this._remainingAnimationTimer);
-                this._remainingAnimationTimer = null;
+                if (this._remainingAnimationTimer) {
+                    clearInterval(this._remainingAnimationTimer);
+                    this._remainingAnimationTimer = null;
+                }
+
                 this.remainingLabel.string = `${targetRemaining}`;
                 this._isAnimComplete = true;
             }
-        }, decrementInterval);
+        }, 1);
     }
-
-    // 在类的顶部添加这个属性
-    private _remainingAnimationTimer: any | null = null;
-
 }
