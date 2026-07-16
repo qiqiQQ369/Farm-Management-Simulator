@@ -127,10 +127,10 @@ export class CoinConsumer extends Component {
 
     protected update(deltaTime: number): void {
         // 员工解锁点保留原逻辑，同时兜底检测拖拉机是否已解锁。
-        const tractorNode = this.machineNode || find('LoggingTruck');
-        if (this.targetLevel === UpgradeTarget.FACTORY && this.node.name === 'unlockLevel3L' &&
+        const tractorNode = this.machineNode || this.findSceneNodeByName('LoggingTruck');
+        if (this.node.name === 'unlockLevel1' &&
             tractorNode?.activeInHierarchy && !this._haulerUnlockPointSpawned) {
-            const tractorUnlockPoint = find('LandObj/unlockLevel2') || find('unlockLevel2');
+            const tractorUnlockPoint = this.findSceneNodeByName('unlockLevel2');
             this.spawnHaulerUnlockPointAt(tractorUnlockPoint?.worldPosition || tractorNode.worldPosition);
         }
 
@@ -431,9 +431,9 @@ export class CoinConsumer extends Component {
 
     /** 只复制员工解锁点外观，不修改员工原节点。 */
     private spawnHaulerUnlockPointAt(position: Vec3): void {
-        const employeeUnlockPad = find('LandObj/unlockLevel3L') || find('unlockLevel3L');
+        const employeeUnlockPad = this.findSceneNodeByName('unlockLevel1');
         if (!employeeUnlockPad || this._haulerUnlockPointSpawned) return;
-        if (find('LandObj/HaulerUnlockPad') || find('HaulerUnlockPad')) {
+        if (this.findSceneNodeByName('HaulerUnlockPad')) {
             this._haulerUnlockPointSpawned = true;
             return;
         }
@@ -468,7 +468,7 @@ export class CoinConsumer extends Component {
 
     /** 复用现有买家 NPC 外观，创建一个独立的搬运工节点。 */
     private createHaulerNode(unlockPad: Node): Node {
-        const schedulerNode = find('NPCScheduler');
+        const schedulerNode = this.findSceneNodeByName('NPCScheduler');
         const scheduler = schedulerNode?.getComponent(NPCScheduler);
         const template = scheduler?.npcs?.find(npc => npc && npc.activeInHierarchy) || scheduler?.npcs?.[0];
         if (!template) {
@@ -494,6 +494,22 @@ export class CoinConsumer extends Component {
             behavior.idlePoint = unlockPad;
         }
         return hauler;
+    }
+
+    private findSceneNodeByName(name: string): Node | null {
+        const scene = this.node.scene;
+        if (!scene) return null;
+
+        const visit = (parent: Node): Node | null => {
+            if (parent.name === name) return parent;
+            for (const child of parent.children) {
+                const result = visit(child);
+                if (result) return result;
+            }
+            return null;
+        };
+
+        return visit(scene);
     }
 
     /**
