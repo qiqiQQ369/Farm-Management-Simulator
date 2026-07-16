@@ -374,11 +374,11 @@ export class NPCScheduler extends Component {
 
     private checkAllNpc(): void {
         if(this.waitingAtA == null) return;
-        var activeEmoji = this.checkEmoji();
+        // 排队等待中的 NPC 不显示表情；卖货提示由 fillTip 单独控制。
         for(let i = 0; i < this.queue.length; i++){
             var npc = this.queue[i];
             const emoji = this.getNpcEmoji(npc);
-            if (emoji) emoji.active = activeEmoji;
+            if (emoji) emoji.active = false;
         }
     }
 
