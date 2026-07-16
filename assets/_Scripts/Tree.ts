@@ -33,6 +33,7 @@ export interface ChopperInfo {
  */
 @ccclass('Tree')
 export class Tree extends Component {
+    private _interactionColliders: Collider[] = [];
     
     @property({ type: TreeData, tooltip: "树木数据配置" })
     public treeData: TreeData = null!;
@@ -201,10 +202,25 @@ export class Tree extends Component {
      * 设置碰撞检测
      */
     private setupCollisionDetection(): void {
-        const collider = this.node.getComponents(Collider)[1];
-        if (collider) {
+        this._interactionColliders = this.getInteractionColliders();
+        for (const collider of this._interactionColliders) {
             collider.on('onTriggerEnter', this.onChopperEnter, this);
             collider.on('onTriggerExit', this.onChopperExit, this);
+        }
+    }
+
+    private getInteractionColliders(): Collider[] {
+        const colliders = this.node.getComponents(Collider).filter((collider) => !!collider);
+        return colliders;
+    }
+
+    private setInteractionCollidersEnabled(enabled: boolean): void {
+        if (this._interactionColliders.length === 0) {
+            this._interactionColliders = this.getInteractionColliders();
+        }
+
+        for (const collider of this._interactionColliders) {
+            collider.enabled = enabled;
         }
     }
 
@@ -319,6 +335,8 @@ export class Tree extends Component {
      * 处理砍伐逻辑
      */
     private handleChoppingLogic(deltaTime: number): void {
+        this.pruneInactiveChoppers();
+
         if (this._choppersInRange.size === 0) {
             if (this._isChopping) {
                 this.stopChopping();
@@ -365,16 +383,36 @@ export class Tree extends Component {
         }
     }
 
+    private pruneInactiveChoppers(): void {
+        for (const [node] of this._choppersInRange) {
+            if (!node || !node.isValid || !node.activeInHierarchy) {
+                this._choppersInRange.delete(node);
+
+                if (this._currentChopper && this._currentChopper.node === node) {
+                    this._currentChopper = null;
+                }
+            }
+        }
+    }
+
     /**
      * 选择优先级最高的砍伐者
      */
     private selectPriorityChopper(): void {
         let selectedChopper: ChopperInfo | null = null;
+        const preferInteractiveTakeover =
+            this._currentState === TreeState.Half ||
+            this._currentState === TreeState.Half2;
+        const priorityOrder = preferInteractiveTakeover
+            ? [ChopperType.Vehicle, ChopperType.Player, ChopperType.Woodcutter]
+            : this._chopperPriority;
         
         // 按优先级选择砍伐者
-        for (const priorityType of this._chopperPriority) {
+        for (const priorityType of priorityOrder) {
             for (const [node, chopperInfo] of this._choppersInRange) {
-                if (chopperInfo.type === priorityType && chopperInfo.node.isValid) {
+                if (chopperInfo.type === priorityType &&
+                    chopperInfo.node.isValid &&
+                    chopperInfo.node.activeInHierarchy) {
                     selectedChopper = chopperInfo;
                     break;
                 }
@@ -483,7 +521,7 @@ export class Tree extends Component {
      * 完成一次砍伐
      */
     private async completeChop(): Promise<void> {
-        if (!this._currentChopper || this._isChopping == false || this._currentChopCount >= this._currentChopper.chopCount) return;
+        if (!this._currentChopper || this._isChopping == false) return;
         
         this._currentChopCount++;
         this._isChopping = false;
@@ -651,7 +689,7 @@ export class Tree extends Component {
         if (this.halfCrownNode) this.halfCrownNode.active = false;
         if (this.trunkNode) this.trunkNode.active = false;
 
-        this.node.getComponent(Collider).enabled = false;
+        this.setInteractionCollidersEnabled(false);
         
         // 播放消失动画
         //this.playDisappearAnimation();
@@ -686,7 +724,7 @@ export class Tree extends Component {
         if (this.halfCrownNode) this.halfCrownNode.active = true;
         if (this.trunkNode) this.trunkNode.active = true;
 
-        this.node.getComponent(Collider).enabled = true;
+        this.setInteractionCollidersEnabled(true);
 
         // this.node.setScale(1, 1, 1);
         

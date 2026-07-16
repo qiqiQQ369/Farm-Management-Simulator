@@ -432,7 +432,11 @@ export class PlayerController extends Component implements IJoystickInput {
     public refreshMovementAnimation(): void {
         if (!this.skeletonAnimation) return;
 
-        const nextAnimation = this._isMoving ? AnimationName.Run : AnimationName.Idle;
+        const inputVector = this.getFinalInput();
+        const isMovingNow = inputVector.length() > this.inputThreshold;
+        this._isMoving = isMovingNow;
+
+        const nextAnimation = isMovingNow ? AnimationName.Run : AnimationName.Idle;
         this.skeletonAnimation.play(nextAnimation);
         this._currentAnimation = nextAnimation;
     }

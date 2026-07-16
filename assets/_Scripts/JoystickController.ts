@@ -410,6 +410,9 @@ export class JoystickController extends Component {
     }
 
     protected update(deltaTime: number): void {
+        if (this._isDragging && this._inputTarget) {
+            this._inputTarget.setJoystickInput(this._outputDirection.clone());
+        }
         // 平滑回弹动画
         if (!this._isDragging && this.joystickHandle && this.returnSpeed > 0 && this._isVisible) {
             const currentPos = this.joystickHandle.position;
