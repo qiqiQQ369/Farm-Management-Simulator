@@ -1,4 +1,4 @@
-import { _decorator, Component, Node, SkeletalAnimation, Vec3 } from 'cc';
+import { _decorator, Component, math, Node, SkeletalAnimation, Vec3 } from 'cc';
 import { AnimationName } from './PlayerController';
 import { ResourceManager } from './Resource/ResourceManager';
 import { StoragePoint } from './Resource/StoragePoint';
@@ -43,6 +43,15 @@ export class HaulerNPC extends Component {
     @property({ tooltip: '单根木材转移间隔（秒）' })
     public transferInterval = 0.15;
 
+    @property
+    public collectionStopDistance = 1.1;
+
+    @property
+    public sellStopDistance = 0.2;
+
+    @property
+    public facingYawOffset = 180;
+
     private _state = HaulerState.WaitingForWood;
     private _transferTimer = 0;
     private _isMoving = false;
@@ -58,7 +67,9 @@ export class HaulerNPC extends Component {
         this._transferTimer = 0;
         this._isMoving = false;
         if (this.idlePoint) {
-            this.node.setWorldPosition(this.idlePoint.worldPosition);
+            const spawnPosition = this.idlePoint.worldPosition.clone();
+            spawnPosition.y = this.node.worldPosition.y;
+            this.node.setWorldPosition(spawnPosition);
         }
         this.playIdleAnimation();
     }
@@ -71,21 +82,30 @@ export class HaulerNPC extends Component {
         switch (this._state) {
             case HaulerState.WaitingForWood:
                 this.playIdleAnimation();
+                if (this.carryStorage.amount > 0 && this.sellStorage.hasSpace(1)) {
+                    this._state = HaulerState.Delivering;
+                    break;
+                }
                 if (this.collectionStorage.amount > 0 && this.sellStorage.hasSpace(1)) {
                     this._state = HaulerState.MovingToCollection;
                 }
                 break;
             case HaulerState.MovingToCollection:
-                if (this.moveTowards(this.collectionPoint.worldPosition, deltaTime)) {
+                if (this.moveTowards(this.collectionPoint.worldPosition, deltaTime, this.collectionStopDistance)) {
                     this._state = HaulerState.Loading;
                 }
                 break;
             case HaulerState.Loading:
                 this.playIdleAnimation();
-                this.transferWood(this.collectionStorage, this.carryStorage, HaulerState.Delivering, HaulerState.WaitingForWood, deltaTime);
+                if (this.carryStorage.amount > 0 && (!this.carryStorage.hasSpace(1) || this.collectionStorage.amount === 0)) {
+                    this._state = HaulerState.Delivering;
+                    break;
+                }
+                this.transferWood(this.collectionStorage, this.carryStorage, HaulerState.Delivering, HaulerState.Delivering, deltaTime);
                 break;
             case HaulerState.Delivering:
-                if (this.moveTowards(this.sellPoint.worldPosition, deltaTime)) {
+                if (this.moveTowards(this.sellPoint.worldPosition, deltaTime, this.sellStopDistance)) {
+                    this.playIdleAnimation();
                     this._state = HaulerState.Unloading;
                 }
                 break;
@@ -94,7 +114,7 @@ export class HaulerNPC extends Component {
                 this.transferWood(this.carryStorage, this.sellStorage, HaulerState.Returning, HaulerState.Unloading, deltaTime);
                 break;
             case HaulerState.Returning:
-                if (this.moveTowards(this.collectionPoint.worldPosition, deltaTime)) {
+                if (this.moveTowards(this.collectionPoint.worldPosition, deltaTime, this.collectionStopDistance)) {
                     this._state = HaulerState.WaitingForWood;
                 }
                 break;
@@ -103,7 +123,10 @@ export class HaulerNPC extends Component {
 
     private transferWood(from: StoragePoint, to: StoragePoint, completedState: HaulerState, blockedState: HaulerState, deltaTime: number): void {
         this._transferTimer += deltaTime;
-        if (this._transferTimer < this.transferInterval) return;
+        if (this._transferTimer < this.transferInterval) {
+            return;
+        }
+
         this._transferTimer = 0;
 
         if (from.amount === 0) {
@@ -119,19 +142,41 @@ export class HaulerNPC extends Component {
         void ResourceManager.MoveResource(from, to, false, 4, Vec3.ZERO);
     }
 
-    private moveTowards(target: Vec3, deltaTime: number): boolean {
-        const direction = target.clone().subtract(this.node.worldPosition);
-        if (direction.length() <= 0.05) {
-            this.node.setWorldPosition(target);
+    private moveTowards(target: Vec3, deltaTime: number, stopDistance = 0.05): boolean {
+        const currentPosition = this.node.worldPosition.clone();
+        const flattenedTarget = target.clone();
+        flattenedTarget.y = currentPosition.y;
+
+        const direction = flattenedTarget.subtract(currentPosition);
+        const distance = direction.length();
+        const clampedStopDistance = Math.max(stopDistance, 0.05);
+        if (distance <= clampedStopDistance) {
             this.playIdleAnimation();
+            this.faceTowardsDirection(direction);
             return true;
         }
 
         this.playRunAnimation();
         direction.normalize();
-        this.node.setWorldPosition(this.node.worldPosition.clone().add(direction.multiplyScalar(this.moveSpeed * deltaTime)));
-        this.node.lookAt(target);
+        const moveDistance = Math.min(this.moveSpeed * deltaTime, distance - clampedStopDistance);
+        if (moveDistance <= 0) {
+            this.playIdleAnimation();
+            this.faceTowardsDirection(direction);
+            return true;
+        }
+
+        this.node.setWorldPosition(currentPosition.add(direction.multiplyScalar(moveDistance)));
+        this.faceTowardsDirection(direction);
         return false;
+    }
+
+    private faceTowardsDirection(direction: Vec3): void {
+        if (direction.lengthSqr() <= 0.000001) {
+            return;
+        }
+
+        const yaw = math.toDegree(Math.atan2(direction.x, direction.z)) + this.facingYawOffset;
+        this.node.setRotationFromEuler(0, yaw, 0);
     }
 
     private playIdleAnimation(): void {

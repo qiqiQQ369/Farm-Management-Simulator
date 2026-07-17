@@ -461,7 +461,7 @@ export class CoinConsumer extends Component {
 
     private createHaulerNode(unlockPad: Node): Node {
         const spawnAnchor = this.getHaulerUnlockAnchor(unlockPad);
-        const spawnWorldPosition = spawnAnchor.worldPosition.clone();
+        const spawnWorldPosition = this.getHaulerSpawnWorldPosition(spawnAnchor);
         const existingHauler = this.findSceneNodeByName('HaulerNPC');
         if (existingHauler) {
             existingHauler.active = false;
@@ -530,6 +530,16 @@ export class CoinConsumer extends Component {
             ?? unlockPad;
     }
 
+    private getHaulerSpawnWorldPosition(spawnAnchor: Node): Vec3 {
+        const spawnWorldPosition = spawnAnchor.worldPosition.clone();
+        const playerTemplate = this.findPlayerTemplate();
+        if (playerTemplate) {
+            spawnWorldPosition.y = playerTemplate.worldPosition.y;
+        }
+
+        return spawnWorldPosition;
+    }
+
     private findPlayerTemplate(): Node | null {
         const playerNode = this.findSceneNodeByName('Player');
         if (playerNode) {
@@ -579,6 +589,9 @@ export class CoinConsumer extends Component {
         const behavior = hauler.getComponent(HaulerNPC) ?? hauler.addComponent(HaulerNPC);
         const arrow = this.node.scene?.getComponentInChildren(ArrowTipController);
         const carryStorage = this.ensureHaulerCarryStorage(hauler);
+        const collectionStorage = arrow?.cutterWoodStorageNode ?? null;
+        const sellStorage = this.resolveNearestSellStoragePoint(collectionStorage?.node.worldPosition ?? unlockPad.worldPosition);
+        const sellPoint = sellStorage?.node.parent ?? sellStorage?.node ?? null;
         if (!carryStorage) {
             console.error('HaulerNPC clone is missing carry StoragePoint');
             return;
@@ -593,12 +606,12 @@ export class CoinConsumer extends Component {
             carryStorageCapacity: carryStorage.capacity,
         });
 
-        if (arrow?.cutterWoodStorageNode && arrow.sellWoodStorageNode && carryStorage) {
-            behavior.collectionStorage = arrow.cutterWoodStorageNode;
-            behavior.sellStorage = arrow.sellWoodStorageNode;
+        if (collectionStorage && sellStorage && sellPoint && carryStorage) {
+            behavior.collectionStorage = collectionStorage;
+            behavior.sellStorage = sellStorage;
             behavior.carryStorage = carryStorage;
-            behavior.collectionPoint = arrow.cutterWoodStorageNode.node;
-            behavior.sellPoint = arrow.sellWoodGuideNode ?? arrow.sellWoodStorageNode.node;
+            behavior.collectionPoint = collectionStorage.node;
+            behavior.sellPoint = sellPoint;
             behavior.idlePoint = spawnAnchor;
 
             console.log('[HAULER-DEBUG] hauler bindings ready', {
@@ -609,20 +622,35 @@ export class CoinConsumer extends Component {
         } else {
             console.warn('[HAULER-DEBUG] missing arrow storage bindings', {
                 hasArrow: !!arrow,
-                hasCollectionStorage: !!arrow?.cutterWoodStorageNode,
-                hasSellStorage: !!arrow?.sellWoodStorageNode,
+                hasCollectionStorage: !!collectionStorage,
+                hasSellStorage: !!sellStorage,
             });
         }
     }
 
     private ensureHaulerCarryStorage(hauler: Node): StoragePoint | null {
-        const existingStorage = this.findComponentInHierarchy(hauler, StoragePoint);
-        if (existingStorage) {
-            existingStorage.capacity = Math.max(existingStorage.capacity, 4);
-            if (!existingStorage.stackAreaNode) {
-                existingStorage.stackAreaNode = existingStorage.node;
-            }
-            return existingStorage;
+        const playerStorage = this.findSceneNodeByName('Player')
+            ?.getComponent(WoodBackpack)
+            ?.backpackMount
+            ?.getComponent(StoragePoint) ?? null;
+
+        const backpackStorage = hauler.getComponent(WoodBackpack)
+            ?.backpackMount
+            ?.getComponent(StoragePoint) ?? null;
+        if (backpackStorage) {
+            this.copyStoragePointLayout(backpackStorage, playerStorage);
+            backpackStorage.storageName = '搬运工木材存储';
+            backpackStorage.clearStorage();
+            return backpackStorage;
+        }
+
+        const existingCarryNode = this.findNamedNode(hauler, 'HaulerCarryStorage');
+        const existingCarryStorage = existingCarryNode?.getComponent(StoragePoint) ?? null;
+        if (existingCarryStorage) {
+            this.copyStoragePointLayout(existingCarryStorage, playerStorage);
+            existingCarryStorage.storageName = '搬运工木材存储';
+            existingCarryStorage.clearStorage();
+            return existingCarryStorage;
         }
 
         const carryNode = new Node('HaulerCarryStorage');
@@ -631,21 +659,109 @@ export class CoinConsumer extends Component {
 
         const storage = carryNode.addComponent(StoragePoint);
         storage.storageName = '搬运工木材存储';
-        storage.capacity = 4;
-        storage.amount = 0;
-        storage.stackAreaNode = carryNode;
-        storage.layers = 4;
-        storage.layerHeight = 0.18;
-        storage.resourcePerRow = 2;
-        storage.resourcePerCol = 2;
-        storage.resourceRowSpacing = 0.18;
-        storage.resourceColSpacing = 0.18;
+        this.copyStoragePointLayout(storage, playerStorage);
+        storage.clearStorage();
         console.log('[HAULER-DEBUG] created fallback carry storage', {
             haulerName: hauler.name,
             carryNode: carryNode.name,
             localPosition: carryNode.position.clone(),
         });
         return storage;
+    }
+
+    private copyStoragePointLayout(target: StoragePoint, source: StoragePoint | null): void {
+        target.capacity = source?.capacity ?? 4;
+        target.layers = source?.layers ?? 4;
+        target.layerHeight = source?.layerHeight ?? 0.18;
+        target.resourcePerRow = source?.resourcePerRow ?? 2;
+        target.resourcePerCol = source?.resourcePerCol ?? 2;
+        target.resourceRowSpacing = source?.resourceRowSpacing ?? 0.18;
+        target.resourceColSpacing = source?.resourceColSpacing ?? 0.18;
+        target.autoStack = source?.autoStack ?? true;
+        target.showCapacityInfo = source?.showCapacityInfo ?? true;
+        target.moveAnimationDuration = source?.moveAnimationDuration ?? 1;
+        target.fadeAnimationDuration = source?.fadeAnimationDuration ?? 0.5;
+        target.moveEasing = source?.moveEasing ?? 'sineOut';
+        target.fadeEasing = source?.fadeEasing ?? 'sineIn';
+        target.checkOffset = false;
+        target.audioInterval = source?.audioInterval ?? 0.2;
+        target.stackAreaNode = target.node;
+        target.amount = 0;
+    }
+
+    private ensureSellStoragePoint(anchor: Node | null): StoragePoint | null {
+        if (!anchor) {
+            return null;
+        }
+
+        const existingStorage = this.findComponentInHierarchy(anchor, StoragePoint);
+        if (existingStorage) {
+            return existingStorage;
+        }
+
+        const storageNode = new Node('RuntimeSellStorage');
+        storageNode.setParent(anchor);
+        storageNode.setPosition(-3.58, 8.66, 15.3);
+        storageNode.setScale(9, 9, 9);
+
+        const storagePoint = storageNode.addComponent(StoragePoint);
+        storagePoint.storageName = `${anchor.name}木材仓库`;
+        storagePoint.autoStack = true;
+        storagePoint.showCapacityInfo = true;
+        storagePoint.capacity = 1000000;
+        storagePoint.amount = 0;
+        storagePoint.layers = 10000;
+        storagePoint.layerHeight = 0.2;
+        storagePoint.resourcePerRow = 5;
+        storagePoint.resourceRowSpacing = 0.2;
+        storagePoint.resourcePerCol = 2;
+        storagePoint.resourceColSpacing = 1;
+        storagePoint.stackAreaNode = storageNode;
+        storagePoint.moveAnimationDuration = 1;
+        storagePoint.fadeAnimationDuration = 0.5;
+        storagePoint.moveEasing = 'sineOut';
+        storagePoint.fadeEasing = 'sineIn';
+        storagePoint.checkOffset = false;
+        storagePoint.audioInterval = 0.2;
+
+        return storagePoint;
+    }
+
+    private resolveNearestSellStoragePoint(targetPosition: Vec3): StoragePoint | null {
+        const scene = this.node.scene;
+        if (!scene) {
+            return null;
+        }
+
+        const anchors: Node[] = [];
+        const visit = (node: Node): void => {
+            if (node.name === 'Sell' || node.name === 'Sell1') {
+                anchors.push(node);
+            }
+
+            for (const child of node.children) {
+                visit(child);
+            }
+        };
+
+        visit(scene);
+
+        let closestStorage: StoragePoint | null = null;
+        let closestDistance = Number.MAX_VALUE;
+        for (const anchor of anchors) {
+            const storagePoint = this.ensureSellStoragePoint(anchor);
+            if (!storagePoint) {
+                continue;
+            }
+
+            const distance = Vec3.distance(targetPosition, anchor.worldPosition);
+            if (distance < closestDistance) {
+                closestDistance = distance;
+                closestStorage = storagePoint;
+            }
+        }
+
+        return closestStorage;
     }
 
     private findHaulerTemplate(): Node | null {
