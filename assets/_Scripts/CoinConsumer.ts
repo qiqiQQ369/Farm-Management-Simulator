@@ -408,9 +408,13 @@ export class CoinConsumer extends Component {
                     .start();
             }
 
-            this.scheduleOnce(() => {
+            if (this.targetLevel === UpgradeTarget.HAULER) {
                 this.node.active = false;
-            }, 1);
+            } else {
+                this.scheduleOnce(() => {
+                    this.node.active = false;
+                }, 1);
+            }
         }
     }
 
