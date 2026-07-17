@@ -13,22 +13,34 @@ export class ResourceManager {
 
     public static tweenDicCoin: Map<Node, Tween<Node>> = new Map<Node, Tween<Node>>();
 
-    public static async MoveResource(fromPoint: StoragePoint, toPoint: StoragePoint, loop: boolean = false, animationType: number = 2, rotation: Vec3 = Vec3.ZERO): Promise<void> {
+    public static async MoveResource(fromPoint: StoragePoint, toPoint: StoragePoint, loop: boolean = false, animationType: number = 2, rotation: Vec3 = Vec3.ZERO): Promise<boolean> {
+        if (!fromPoint || !toPoint) {
+            return false;
+        }
+
         if (loop) {
+            let moved = false;
             while (fromPoint.amount > 0 && toPoint.hasSpace(1)) {
                 const resource = fromPoint.removeResource();
-                //const resource = fromPoint.removeResourceWithAnimation(toPoint.node.position, 'bounce');
-                // console.log('resource move', resource);
-                // await new Promise(resolve => setTimeout(resolve, 300));
-                toPoint.addResource(resource);
+                if (!resource || !toPoint.addResource(resource)) {
+                    break;
+                }
+                moved = true;
                 console.log(`从${fromPoint.storageName}移动到${toPoint.storageName}，剩余资源数量：${fromPoint.amount}`);
-                //等待1秒
                 await new Promise(resolve => setTimeout(resolve, 10));
             }
+            return moved;
         } else {
+            if (!toPoint.hasSpace(1)) {
+                return false;
+            }
+
             const resource = fromPoint.removeResource(animationType);
-            if(resource == null) return;
-            toPoint.addResource(resource, animationType, rotation);
+            if (resource == null) {
+                return false;
+            }
+
+            return toPoint.addResource(resource, animationType, rotation);
         }
     }
 

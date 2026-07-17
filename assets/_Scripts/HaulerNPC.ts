@@ -134,6 +134,11 @@ export class HaulerNPC extends Component {
             return;
         }
 
+        // 入库动画未完成时，StoragePoint 会暂时锁定木头；等待下一轮再尝试，避免卸货空转。
+        if (!from.hasMovableResource()) {
+            return;
+        }
+
         if (!to.hasSpace(1)) {
             this._state = blockedState;
             return;

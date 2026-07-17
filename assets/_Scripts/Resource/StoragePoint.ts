@@ -188,7 +188,10 @@ export class StoragePoint extends Component {
         }
         else if(animationType == 4) {
             ResourceManager.playAddAnimation4(resource, position, this.stackAreaNode, rotation, () => {
-                this.resourceDic.get(index).CanMove = true;
+                const posData = this.resourceDic.get(index);
+                if (posData) {
+                    posData.CanMove = true;
+                }
             });
         }
 
@@ -245,6 +248,23 @@ export class StoragePoint extends Component {
         }
         // console.log(`存放点 ${this.storageName} 移除资源: x1`);
         return resource;
+    }
+
+    /**
+     * 检查是否存在已经完成入库动画、可以被转移的资源。
+     */
+    public hasMovableResource(): boolean {
+        if (this.amount < 1 || this.resourceDic.size === 0) {
+            return false;
+        }
+
+        for (const posData of this.resourceDic.values()) {
+            if (posData.CanMove) {
+                return true;
+            }
+        }
+
+        return false;
     }
     
     /**
