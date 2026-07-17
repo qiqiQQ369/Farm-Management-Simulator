@@ -104,13 +104,17 @@ export class HaulerNPC extends Component {
                 this.transferWood(this.collectionStorage, this.carryStorage, HaulerState.Delivering, HaulerState.Delivering, deltaTime);
                 break;
             case HaulerState.Delivering:
-                if (this.moveTowards(this.sellPoint.worldPosition, deltaTime, this.sellStopDistance)) {
+                if (this.moveTowards(this.sellPoint.worldPosition, deltaTime, this.sellStopDistance) || this.isAtSellTarget()) {
                     this.playIdleAnimation();
                     this._state = HaulerState.Unloading;
                 }
                 break;
             case HaulerState.Unloading:
                 this.playIdleAnimation();
+                if (!this.isAtSellTarget()) {
+                    this._state = HaulerState.Delivering;
+                    break;
+                }
                 this.transferWood(this.carryStorage, this.sellStorage, HaulerState.Returning, HaulerState.Unloading, deltaTime);
                 break;
             case HaulerState.Returning:
@@ -134,7 +138,6 @@ export class HaulerNPC extends Component {
             return;
         }
 
-        // 入库动画未完成时，StoragePoint 会暂时锁定木头；等待下一轮再尝试，避免卸货空转。
         if (!from.hasMovableResource()) {
             return;
         }
@@ -145,6 +148,28 @@ export class HaulerNPC extends Component {
         }
 
         void ResourceManager.MoveResource(from, to, false, 4, Vec3.ZERO);
+    }
+
+    private isAtSellTarget(): boolean {
+        if (!this.sellStorage?.node) {
+            return false;
+        }
+
+        const currentPosition = this.node.worldPosition.clone();
+        const sellStoragePosition = this.sellStorage.node.worldPosition.clone();
+        sellStoragePosition.y = currentPosition.y;
+
+        if (Vec3.distance(currentPosition, sellStoragePosition) <= Math.max(this.sellStopDistance, 0.2) + 0.8) {
+            return true;
+        }
+
+        if (!this.sellPoint) {
+            return false;
+        }
+
+        const sellPointPosition = this.sellPoint.worldPosition.clone();
+        sellPointPosition.y = currentPosition.y;
+        return Vec3.distance(currentPosition, sellPointPosition) <= Math.max(this.sellStopDistance, 0.2) + 0.8;
     }
 
     private moveTowards(target: Vec3, deltaTime: number, stopDistance = 0.05): boolean {

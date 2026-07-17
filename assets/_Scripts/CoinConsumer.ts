@@ -590,8 +590,8 @@ export class CoinConsumer extends Component {
         const arrow = this.node.scene?.getComponentInChildren(ArrowTipController);
         const carryStorage = this.ensureHaulerCarryStorage(hauler);
         const collectionStorage = arrow?.cutterWoodStorageNode ?? null;
-        const sellStorage = this.resolveNearestSellStoragePoint(collectionStorage?.node.worldPosition ?? unlockPad.worldPosition);
-        const sellPoint = sellStorage?.node.parent ?? sellStorage?.node ?? null;
+        const sellStorage = arrow?.sellWoodStorageNode ?? this.resolveNearestSellStoragePoint(collectionStorage?.node.worldPosition ?? unlockPad.worldPosition);
+        const sellPoint = arrow?.sellWoodGuideNode ?? sellStorage?.node ?? null;
         if (!carryStorage) {
             console.error('HaulerNPC clone is missing carry StoragePoint');
             return;
@@ -617,6 +617,7 @@ export class CoinConsumer extends Component {
             console.log('[HAULER-DEBUG] hauler bindings ready', {
                 collectionPoint: behavior.collectionPoint?.name ?? 'null',
                 sellPoint: behavior.sellPoint?.name ?? 'null',
+                sellStorageNode: behavior.sellStorage?.node?.name ?? 'null',
                 idlePoint: behavior.idlePoint?.name ?? 'null',
             });
         } else {
