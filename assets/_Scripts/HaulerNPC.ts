@@ -1,4 +1,5 @@
-import { _decorator, Component, Node, Vec3 } from 'cc';
+import { _decorator, Component, Node, SkeletalAnimation, Vec3 } from 'cc';
+import { AnimationName } from './PlayerController';
 import { ResourceManager } from './Resource/ResourceManager';
 import { StoragePoint } from './Resource/StoragePoint';
 
@@ -15,6 +16,9 @@ enum HaulerState {
 
 @ccclass('HaulerNPC')
 export class HaulerNPC extends Component {
+    @property({ type: SkeletalAnimation, tooltip: '搬运工骨骼动画' })
+    public skeletonAnimation: SkeletalAnimation = null!;
+
     @property({ type: Node, tooltip: '木材收集点' })
     public collectionPoint: Node = null!;
 
@@ -41,13 +45,22 @@ export class HaulerNPC extends Component {
 
     private _state = HaulerState.WaitingForWood;
     private _transferTimer = 0;
+    private _isMoving = false;
+
+    protected onLoad(): void {
+        if (!this.skeletonAnimation) {
+            this.skeletonAnimation = this.node.getComponentInChildren(SkeletalAnimation);
+        }
+    }
 
     protected onEnable(): void {
         this._state = HaulerState.WaitingForWood;
         this._transferTimer = 0;
+        this._isMoving = false;
         if (this.idlePoint) {
             this.node.setWorldPosition(this.idlePoint.worldPosition);
         }
+        this.playIdleAnimation();
     }
 
     protected update(deltaTime: number): void {
@@ -57,6 +70,7 @@ export class HaulerNPC extends Component {
 
         switch (this._state) {
             case HaulerState.WaitingForWood:
+                this.playIdleAnimation();
                 if (this.collectionStorage.amount > 0 && this.sellStorage.hasSpace(1)) {
                     this._state = HaulerState.MovingToCollection;
                 }
@@ -67,6 +81,7 @@ export class HaulerNPC extends Component {
                 }
                 break;
             case HaulerState.Loading:
+                this.playIdleAnimation();
                 this.transferWood(this.collectionStorage, this.carryStorage, HaulerState.Delivering, HaulerState.WaitingForWood, deltaTime);
                 break;
             case HaulerState.Delivering:
@@ -75,6 +90,7 @@ export class HaulerNPC extends Component {
                 }
                 break;
             case HaulerState.Unloading:
+                this.playIdleAnimation();
                 this.transferWood(this.carryStorage, this.sellStorage, HaulerState.Returning, HaulerState.Unloading, deltaTime);
                 break;
             case HaulerState.Returning:
@@ -107,12 +123,40 @@ export class HaulerNPC extends Component {
         const direction = target.clone().subtract(this.node.worldPosition);
         if (direction.length() <= 0.05) {
             this.node.setWorldPosition(target);
+            this.playIdleAnimation();
             return true;
         }
 
+        this.playRunAnimation();
         direction.normalize();
         this.node.setWorldPosition(this.node.worldPosition.clone().add(direction.multiplyScalar(this.moveSpeed * deltaTime)));
         this.node.lookAt(target);
         return false;
+    }
+
+    private playIdleAnimation(): void {
+        if (!this.skeletonAnimation) {
+            return;
+        }
+
+        if (!this._isMoving && this.skeletonAnimation.getState(AnimationName.Idle)?.isPlaying) {
+            return;
+        }
+
+        this._isMoving = false;
+        this.skeletonAnimation.play(AnimationName.Idle);
+    }
+
+    private playRunAnimation(): void {
+        if (!this.skeletonAnimation) {
+            return;
+        }
+
+        if (this._isMoving && this.skeletonAnimation.getState(AnimationName.Run)?.isPlaying) {
+            return;
+        }
+
+        this._isMoving = true;
+        this.skeletonAnimation.play(AnimationName.Run);
     }
 }

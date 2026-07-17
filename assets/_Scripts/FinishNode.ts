@@ -343,18 +343,40 @@ export class FinishNode extends Component {
                 .start();
 
                 await new Promise(resolve => setTimeout(resolve, 300));
-                // this.camera.getComponent(CameraController).enabled = true;
-
-                //await new Promise(resolve => setTimeout(resolve, 1000));
-        
                 this.scheduleOnce(() => {
-                    find('Canvas').getChildByName('EndPanel').active = true;
+                    this.restoreGameplayAfterSequence(player, playerController);
                 }, 1.7);
         
             })
             .start();
         })
         .start();
+    }
+
+    private restoreGameplayAfterSequence(player: Node, playerController: PlayerController): void {
+        const joystickController = find('Canvas/JoystickContainer').getComponent(JoystickController);
+        joystickController._lock = false;
+        joystickController.node.active = true;
+
+        playerController.enabled = true;
+
+        if (MainUI.inst) {
+            MainUI.inst.isGameOver = false;
+        }
+
+        if (this.camera) {
+            const cameraController = this.camera.getComponent(CameraController);
+            if (cameraController) {
+                this.camera.node.setPosition(this._cameraOriginalPosition);
+                this.camera.node.eulerAngles = this._cameraOriginalRotation.clone();
+                cameraController.enabled = true;
+                cameraController.setTarget(player);
+                cameraController.snapToTarget();
+            }
+        }
+
+        this._isPlaying = false;
+        this.onAllCompleted?.();
     }
 
     /**

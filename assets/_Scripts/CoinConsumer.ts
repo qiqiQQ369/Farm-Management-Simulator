@@ -1,11 +1,13 @@
-import { _decorator, AudioSource, Collider, Component, find, ITriggerEvent, instantiate, Label, Node, Prefab, Sprite, SpriteFrame, tween, Vec3 } from 'cc';
+import { _decorator, AudioSource, CharacterController, Collider, Component, find, ITriggerEvent, instantiate, Label, Node, Prefab, RigidBody, Sprite, SpriteFrame, tween, Vec3 } from 'cc';
 import { ArrowTipController } from './ArrowTipController';
 import { CameraController } from './CameraController';
+import { ChopAction } from './ChopAction';
 import { CoinBackpack } from './CoinBackpack';
 import { HaulerNPC } from './HaulerNPC';
 import { JoystickController } from './JoystickController';
 import { PlayerController } from './PlayerController';
 import { StoragePoint } from './Resource/StoragePoint';
+import { WoodBackpack } from './WoodBackpack';
 
 const { ccclass, property } = _decorator;
 
@@ -86,7 +88,7 @@ export class CoinConsumer extends Component {
     public factoryRequiredCoins = 200;
 
     @property({ group: { name: '升级配置', id: '1' }, tooltip: '搬运工所需金币数' })
-    public haulerRequiredCoins = 170;
+    public haulerRequiredCoins = 260;
 
     private _isPlayerInArea = false;
     private _playerNode: Node | null = null;
@@ -101,7 +103,6 @@ export class CoinConsumer extends Component {
     private closed = false;
 
     private _upgradeConfigs = new Map<UpgradeTarget, UpgradeConfig>();
-
     protected onLoad(): void {
         this.validateComponents();
         this.initializeUpgradeConfigs();
@@ -382,7 +383,21 @@ export class CoinConsumer extends Component {
         }
 
         if (this.targetLevel === UpgradeTarget.FACTORY || this.targetLevel === UpgradeTarget.HAULER) {
+            if (this.targetLevel === UpgradeTarget.HAULER && !this.finishNode) {
+                console.log('[HAULER-DEBUG] unlock complete, creating hauler at unlockLevel3', {
+                    unlockNode: this.node.name,
+                    worldPosition: this.node.worldPosition.clone(),
+                });
+                this.finishNode = this.createHaulerNode(this.node);
+            }
+
             if (this.finishNode) {
+                console.log('[HAULER-DEBUG] activating hauler node', {
+                    name: this.finishNode.name,
+                    activeBefore: this.finishNode.active,
+                    worldPosition: this.finishNode.worldPosition.clone(),
+                    parent: this.finishNode.parent?.name ?? 'null',
+                });
                 this.finishNode.active = true;
             }
 
@@ -416,18 +431,19 @@ export class CoinConsumer extends Component {
             return;
         }
 
-        const haulerNode = this.createHaulerNode(haulerUnlockPad);
         if (position) {
             haulerUnlockPad.setWorldPosition(position);
         }
 
-        if (haulerUnlockConsumer.targetLevel !== UpgradeTarget.HAULER || haulerUnlockConsumer.finishNode !== haulerNode) {
-            haulerUnlockConsumer.prepareAsHaulerUnlock(haulerNode);
+        if (haulerUnlockConsumer.targetLevel !== UpgradeTarget.HAULER) {
+            haulerUnlockConsumer.prepareAsHaulerUnlock(null);
         }
 
         if (!haulerUnlockPad.active) {
             haulerUnlockPad.active = true;
         }
+
+        haulerUnlockConsumer.syncHaulerUnlockProgressUI();
 
         const view = haulerUnlockPad.getChildByName('view');
         if (view) {
@@ -436,40 +452,196 @@ export class CoinConsumer extends Component {
                 .to(0.5, { scale: new Vec3(0.72, 0.72, 0.72) }, { easing: 'linear' })
                 .start();
         }
+
     }
 
     private createHaulerNode(unlockPad: Node): Node {
+        const spawnAnchor = this.getHaulerUnlockAnchor(unlockPad);
+        const spawnWorldPosition = spawnAnchor.worldPosition.clone();
         const existingHauler = this.findSceneNodeByName('HaulerNPC');
         if (existingHauler) {
             existingHauler.active = false;
+            existingHauler.setWorldPosition(spawnWorldPosition);
+            console.log('[HAULER-DEBUG] reusing existing hauler node', {
+                worldPosition: existingHauler.worldPosition.clone(),
+                parent: existingHauler.parent?.name ?? 'null',
+                spawnAnchor: spawnAnchor.name,
+            });
+            this.configureHaulerNode(existingHauler, unlockPad, spawnAnchor);
             return existingHauler;
         }
 
-        const template = this.findHaulerTemplate();
-        if (!template) {
+        const template = this.findPlayerTemplate() ?? this.findHaulerTemplate();
+        if (template) {
+            console.log('[HAULER-DEBUG] using scene hauler template', {
+                templateName: template.name,
+                templateParent: template.parent?.name ?? 'null',
+                templateWorldPosition: template.worldPosition.clone(),
+            });
+            const hauler = instantiate(template);
+            hauler.name = 'HaulerNPC';
+            hauler.setParent(unlockPad.parent ?? this.loggerNode?.parent ?? this.node.scene!);
+            hauler.setWorldPosition(spawnWorldPosition);
+            hauler.active = false;
+            this.preparePlayerSkinHauler(hauler);
+
+            console.log('[HAULER-DEBUG] instantiated hauler from scene template', {
+                worldPosition: hauler.worldPosition.clone(),
+                localPosition: hauler.position.clone(),
+                parent: hauler.parent?.name ?? 'null',
+                spawnAnchor: spawnAnchor.name,
+            });
+
+            this.configureHaulerNode(hauler, unlockPad, spawnAnchor);
+            return hauler;
+        }
+
+        if (!this.loggerPrefab) {
             console.warn('No employee template available for hauler');
             return new Node('HaulerNPC');
         }
 
-        const hauler = instantiate(template);
+        console.log('[HAULER-DEBUG] using logger prefab fallback');
+        const hauler = instantiate(this.loggerPrefab);
         hauler.name = 'HaulerNPC';
-        hauler.setParent(template.parent);
-        hauler.setWorldPosition(unlockPad.worldPosition);
+        hauler.setParent(unlockPad.parent ?? this.loggerNode?.parent ?? this.node.scene!);
+        hauler.setWorldPosition(spawnWorldPosition);
         hauler.active = false;
 
+        console.log('[HAULER-DEBUG] instantiated hauler from prefab fallback', {
+            worldPosition: hauler.worldPosition.clone(),
+            localPosition: hauler.position.clone(),
+            parent: hauler.parent?.name ?? 'null',
+            spawnAnchor: spawnAnchor.name,
+        });
+
+        this.configureHaulerNode(hauler, unlockPad, spawnAnchor);
+
+        return hauler;
+    }
+
+    private getHaulerUnlockAnchor(unlockPad: Node): Node {
+        return unlockPad.getChildByName('pos')
+            ?? unlockPad.getChildByName('view')
+            ?? unlockPad;
+    }
+
+    private findPlayerTemplate(): Node | null {
+        const playerNode = this.findSceneNodeByName('Player');
+        if (playerNode) {
+            return playerNode;
+        }
+
+        const playerController = this.node.scene?.getComponentInChildren(PlayerController) ?? null;
+        return playerController?.node ?? null;
+    }
+
+    private preparePlayerSkinHauler(hauler: Node): void {
+        const woodBackpack = hauler.getComponent(WoodBackpack);
+        woodBackpack?.backpackMount?.getComponent(StoragePoint)?.clearStorage();
+
+        const coinBackpack = hauler.getComponent(CoinBackpack);
+        coinBackpack?.coinBackpackMount?.getComponent(StoragePoint)?.clearStorage();
+
+        hauler.getComponent(PlayerController)?.destroy();
+        hauler.getComponent(ChopAction)?.destroy();
+        coinBackpack?.destroy();
+        hauler.getComponent(CharacterController)?.destroy();
+        hauler.getComponent(RigidBody)?.destroy();
+        hauler.getComponent(Collider)?.destroy();
+
+        const stripPhysicsRecursively = (node: Node): void => {
+            node.getComponent(Collider)?.destroy();
+            node.getComponent(CharacterController)?.destroy();
+            node.getComponent(RigidBody)?.destroy();
+
+            for (const child of node.children) {
+                stripPhysicsRecursively(child);
+            }
+        };
+
+        stripPhysicsRecursively(hauler);
+
+        const joystickController = this.findSceneNodeByName('JoystickContainer')?.getComponent(JoystickController)
+            ?? find('Canvas/JoystickContainer')?.getComponent(JoystickController)
+            ?? null;
+        const playerController = this.findSceneNodeByName('Player')?.getComponent(PlayerController) ?? null;
+        if (joystickController && playerController) {
+            joystickController.setInputTarget(playerController);
+        }
+    }
+
+    private configureHaulerNode(hauler: Node, unlockPad: Node, spawnAnchor: Node): void {
         const behavior = hauler.getComponent(HaulerNPC) ?? hauler.addComponent(HaulerNPC);
         const arrow = this.node.scene?.getComponentInChildren(ArrowTipController);
-        const carryStorage = hauler.getComponentInChildren(StoragePoint);
+        const carryStorage = this.ensureHaulerCarryStorage(hauler);
+        if (!carryStorage) {
+            console.error('HaulerNPC clone is missing carry StoragePoint');
+            return;
+        }
+
+        console.log('[HAULER-DEBUG] configuring hauler node', {
+            haulerName: hauler.name,
+            haulerWorldPosition: hauler.worldPosition.clone(),
+            unlockWorldPosition: unlockPad.worldPosition.clone(),
+            spawnAnchorWorldPosition: spawnAnchor.worldPosition.clone(),
+            carryStorageNode: carryStorage.node.name,
+            carryStorageCapacity: carryStorage.capacity,
+        });
+
         if (arrow?.cutterWoodStorageNode && arrow.sellWoodStorageNode && carryStorage) {
             behavior.collectionStorage = arrow.cutterWoodStorageNode;
             behavior.sellStorage = arrow.sellWoodStorageNode;
             behavior.carryStorage = carryStorage;
             behavior.collectionPoint = arrow.cutterWoodStorageNode.node;
-            behavior.sellPoint = arrow.sellWoodStorageNode.node;
-            behavior.idlePoint = unlockPad;
+            behavior.sellPoint = arrow.sellWoodGuideNode ?? arrow.sellWoodStorageNode.node;
+            behavior.idlePoint = spawnAnchor;
+
+            console.log('[HAULER-DEBUG] hauler bindings ready', {
+                collectionPoint: behavior.collectionPoint?.name ?? 'null',
+                sellPoint: behavior.sellPoint?.name ?? 'null',
+                idlePoint: behavior.idlePoint?.name ?? 'null',
+            });
+        } else {
+            console.warn('[HAULER-DEBUG] missing arrow storage bindings', {
+                hasArrow: !!arrow,
+                hasCollectionStorage: !!arrow?.cutterWoodStorageNode,
+                hasSellStorage: !!arrow?.sellWoodStorageNode,
+            });
+        }
+    }
+
+    private ensureHaulerCarryStorage(hauler: Node): StoragePoint | null {
+        const existingStorage = this.findComponentInHierarchy(hauler, StoragePoint);
+        if (existingStorage) {
+            existingStorage.capacity = Math.max(existingStorage.capacity, 4);
+            if (!existingStorage.stackAreaNode) {
+                existingStorage.stackAreaNode = existingStorage.node;
+            }
+            return existingStorage;
         }
 
-        return hauler;
+        const carryNode = new Node('HaulerCarryStorage');
+        carryNode.setParent(hauler);
+        carryNode.setPosition(0, 1.2, -0.6);
+
+        const storage = carryNode.addComponent(StoragePoint);
+        storage.storageName = '搬运工木材存储';
+        storage.capacity = 4;
+        storage.amount = 0;
+        storage.stackAreaNode = carryNode;
+        storage.layers = 4;
+        storage.layerHeight = 0.18;
+        storage.resourcePerRow = 2;
+        storage.resourcePerCol = 2;
+        storage.resourceRowSpacing = 0.18;
+        storage.resourceColSpacing = 0.18;
+        console.log('[HAULER-DEBUG] created fallback carry storage', {
+            haulerName: hauler.name,
+            carryNode: carryNode.name,
+            localPosition: carryNode.position.clone(),
+        });
+        return storage;
     }
 
     private findHaulerTemplate(): Node | null {
@@ -480,6 +652,10 @@ export class CoinConsumer extends Component {
         const queue = [...this.loggerNode.children];
         while (queue.length > 0) {
             const current = queue.shift()!;
+            if (this.findComponentInHierarchy(current, StoragePoint)) {
+                return current;
+            }
+
             if (current.getComponent(PlayerController) || current.name.toLowerCase().includes('logger')) {
                 return current;
             }
@@ -490,7 +666,7 @@ export class CoinConsumer extends Component {
         return this.loggerNode.children[0] ?? null;
     }
 
-    private prepareAsHaulerUnlock(haulerNode: Node): void {
+    private prepareAsHaulerUnlock(haulerNode: Node | null): void {
         this.targetLevel = UpgradeTarget.HAULER;
         this.finishNode = haulerNode;
         this.spawnPosition = this.node;
@@ -516,19 +692,41 @@ export class CoinConsumer extends Component {
         this.updateUI();
     }
 
-    private bindHaulerUnlockUI(): void {
-        const view = this.node.getChildByName('view');
-        if (!view) {
+    private syncHaulerUnlockProgressUI(): void {
+        if (this.node.name !== 'unlockLevel3' || this.targetLevel !== UpgradeTarget.HAULER) {
             return;
         }
 
-        const labels = view.getComponentsInChildren(Label);
-        if (labels.length > 0) {
-            this.remainingLabel = labels[0];
+        this.bindHaulerUnlockUI();
+
+        const currentConfig = this._upgradeConfigs.get(this.targetLevel);
+        if (!currentConfig) {
+            return;
+        }
+
+        const expectedFillRange = Math.max(0, 1 - this._needCoins / currentConfig.requiredCoins);
+        this.applyUnlockLevel3FillRange(expectedFillRange);
+
+        if (this.remainingLabel) {
+            this.remainingLabel.string = `${Math.max(0, this._needCoins)}`;
+        }
+
+        this.updateUI();
+    }
+
+    private bindHaulerUnlockUI(): void {
+        const amountNode = this.node.name === 'unlockLevel3'
+            ? this.findFirstNamedNode(this.node, ['ShuZi', 'amount'])
+            : this.findNamedNode(this.node, 'amount');
+        const amountLabel = amountNode?.getComponent(Label) ?? null;
+        if (amountLabel) {
+            this.remainingLabel = amountLabel;
             this.remainingLabel.node.active = true;
         }
 
-        const fillNode = view.getChildByName('fill');
+        const fillNode = this.node.name === 'unlockLevel3'
+            ? this.findFirstNamedNode(this.node, ['JinDuTiao', 'fill'])
+            : this.node.getChildByName('fill') ?? this.findNamedNode(this.node, 'fill');
         const fillSprite = fillNode?.getComponent(Sprite) ?? null;
         if (fillSprite) {
             this.fillSprite = fillSprite;
@@ -537,36 +735,81 @@ export class CoinConsumer extends Component {
     }
 
     private applyHaulerUnlockVisuals(): void {
-        const sourceIconSprite = this.findNamedSprite(this.findSceneNodeByName('unlockLevel1'), 'icon');
-        const targetIconSprite = this.findNamedSprite(this.node, 'icon');
-        const sourceSpriteFrame = sourceIconSprite?.spriteFrame as SpriteFrame | null;
-
-        if (targetIconSprite && sourceSpriteFrame) {
-            targetIconSprite.spriteFrame = sourceSpriteFrame;
-        }
-
-        if (this.fillSprite) {
-            this.fillSprite.fillRange = 0;
-        }
+        this.applyUnlockLevel3FillRange(0);
     }
 
     private findNamedSprite(root: Node | null, targetName: string): Sprite | null {
+        const targetNode = this.findNamedNode(root, targetName);
+        return targetNode?.getComponent(Sprite) ?? null;
+    }
+
+    private findFirstNamedNode(root: Node | null, targetNames: string[]): Node | null {
+        for (const targetName of targetNames) {
+            const targetNode = this.findNamedNode(root, targetName);
+            if (targetNode) {
+                return targetNode;
+            }
+        }
+
+        return null;
+    }
+
+    private findNamedNode(root: Node | null, targetName: string): Node | null {
         if (!root) {
             return null;
         }
 
         if (root.name === targetName) {
-            return root.getComponent(Sprite);
+            return root;
         }
 
         for (const child of root.children) {
-            const result = this.findNamedSprite(child, targetName);
+            const result = this.findNamedNode(child, targetName);
             if (result) {
                 return result;
             }
         }
 
         return null;
+    }
+
+    private findComponentInHierarchy<T extends Component>(root: Node | null, componentType: new (...args: any[]) => T): T | null {
+        if (!root) {
+            return null;
+        }
+
+        const component = root.getComponent(componentType);
+        if (component) {
+            return component;
+        }
+
+        for (const child of root.children) {
+            const result = this.findComponentInHierarchy(child, componentType);
+            if (result) {
+                return result;
+            }
+        }
+
+        return null;
+    }
+
+    private applyUnlockLevel3FillRange(fillRange: number): void {
+        const clampedFillRange = Math.max(0, Math.min(1, fillRange));
+
+        if (this.fillSprite) {
+            this.fillSprite.fillRange = clampedFillRange;
+        }
+
+        if (this.node.name !== 'unlockLevel3') {
+            return;
+        }
+
+        const filledSprites = this.node.getComponentsInChildren(Sprite)
+            .filter(sprite => sprite.type === Sprite.Type.FILLED);
+
+        for (const sprite of filledSprites) {
+            sprite.fillRange = clampedFillRange;
+        }
     }
 
     private findSceneNodeByName(name: string): Node | null {
@@ -613,26 +856,28 @@ export class CoinConsumer extends Component {
             return;
         }
 
-        this.remainingLabel.string = targetRemaining.toString();
-        const currentRemaining = targetRemaining + 5;
+        const clampedTargetRemaining = Math.max(0, targetRemaining);
+        const initialRemaining = Math.max(0, currentConfig.requiredCoins - this._currentProgress + 5);
+        this.remainingLabel.string = clampedTargetRemaining.toString();
+        const currentRemaining = Math.min(currentConfig.requiredCoins, initialRemaining);
 
         if (currentRemaining > currentConfig.requiredCoins) {
-            if (this.fillSprite) {
-                this.fillSprite.fillRange = 1 - targetRemaining / currentConfig.requiredCoins;
-            }
+            this.applyUnlockLevel3FillRange(1 - clampedTargetRemaining / currentConfig.requiredCoins);
             this._isAnimComplete = true;
             return;
         }
 
-        if (currentRemaining === targetRemaining) {
-            this.remainingLabel.string = `${targetRemaining}`;
+        if (currentRemaining === clampedTargetRemaining) {
+            this.remainingLabel.string = `${clampedTargetRemaining}`;
+            this.applyUnlockLevel3FillRange(1 - clampedTargetRemaining / currentConfig.requiredCoins);
             this._isAnimComplete = true;
             return;
         }
 
-        const decrementCount = currentRemaining - targetRemaining;
+        const decrementCount = currentRemaining - clampedTargetRemaining;
         if (decrementCount <= 0) {
-            this.remainingLabel.string = `${targetRemaining}`;
+            this.remainingLabel.string = `${clampedTargetRemaining}`;
+            this.applyUnlockLevel3FillRange(1 - clampedTargetRemaining / currentConfig.requiredCoins);
             this._isAnimComplete = true;
             return;
         }
@@ -644,19 +889,18 @@ export class CoinConsumer extends Component {
         let currentCount = currentRemaining;
         this._remainingAnimationTimer = setInterval(() => {
             currentCount--;
-            if (this.fillSprite) {
-                this.fillSprite.fillRange = 1 - currentCount / currentConfig.requiredCoins;
-            }
+            this.applyUnlockLevel3FillRange(1 - currentCount / currentConfig.requiredCoins);
 
             this.remainingLabel.string = `${currentCount}`;
 
-            if (currentCount <= targetRemaining) {
+            if (currentCount <= clampedTargetRemaining) {
                 if (this._remainingAnimationTimer) {
                     clearInterval(this._remainingAnimationTimer);
                     this._remainingAnimationTimer = null;
                 }
 
-                this.remainingLabel.string = `${targetRemaining}`;
+                this.remainingLabel.string = `${clampedTargetRemaining}`;
+                this.applyUnlockLevel3FillRange(1 - clampedTargetRemaining / currentConfig.requiredCoins);
                 this._isAnimComplete = true;
             }
         }, 1);
