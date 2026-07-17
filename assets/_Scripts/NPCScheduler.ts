@@ -11,6 +11,9 @@ const { ccclass, property } = _decorator;
 @ccclass('NPCScheduler')
 export class NPCScheduler extends Component {
 
+    @property({ type: PlayerDetectionZone, group: { name: '区域' }, tooltip: '当前区对应的卖货检测区' })
+    sellZone: PlayerDetectionZone = null!;
+
     @property({ type: Node})
     fillTip: Node = null!;
     @property({ group: { name: '参数' }, tooltip: '购买提示框相对 NPC 头顶的高度偏移' })
@@ -425,13 +428,114 @@ export class NPCScheduler extends Component {
         }
     }
 
-    private checkEmoji(): boolean {
-        var tubiao = find('LandObj/Sell');
-        var playerBag = find("Player").getComponent(WoodBackpack).backpackMount.getComponent(StoragePoint);
-        var playerDetectionZone = tubiao.getComponent(PlayerDetectionZone);
-        var targetStoragePoint = playerDetectionZone.woodStackArea.getComponent(StoragePoint);
+    private findStoragePointInNode(root: Node | null): StoragePoint | null {
+        if (!root) {
+            return null;
+        }
 
-        if(playerDetectionZone._isPlayerInZone && (targetStoragePoint.amount > 0 || playerBag.amount > 0))
+        const storagePoint = root.getComponent(StoragePoint);
+        if (storagePoint) {
+            return storagePoint;
+        }
+
+        for (const child of root.children) {
+            const result = this.findStoragePointInNode(child);
+            if (result) {
+                return result;
+            }
+        }
+
+        return null;
+    }
+
+    private ensureSellStoragePoint(anchor: Node | null): StoragePoint | null {
+        if (!anchor) {
+            return null;
+        }
+
+        const existingStoragePoint = this.findStoragePointInNode(anchor);
+        if (existingStoragePoint) {
+            return existingStoragePoint;
+        }
+
+        const storageNode = new Node('RuntimeSellStorage');
+        storageNode.setParent(anchor);
+        storageNode.setPosition(-3.58, 8.66, 15.3);
+        storageNode.setScale(9, 9, 9);
+
+        const storagePoint = storageNode.addComponent(StoragePoint);
+        storagePoint.storageName = `${anchor.name}木材仓库`;
+        storagePoint.autoStack = true;
+        storagePoint.showCapacityInfo = true;
+        storagePoint.capacity = 1000000;
+        storagePoint.amount = 0;
+        storagePoint.layers = 10000;
+        storagePoint.layerHeight = 0.2;
+        storagePoint.resourcePerRow = 5;
+        storagePoint.resourceRowSpacing = 0.2;
+        storagePoint.resourcePerCol = 2;
+        storagePoint.resourceColSpacing = 1;
+        storagePoint.stackAreaNode = storageNode;
+        storagePoint.moveAnimationDuration = 1;
+        storagePoint.fadeAnimationDuration = 0.5;
+        storagePoint.moveEasing = 'sineOut';
+        storagePoint.fadeEasing = 'sineIn';
+        storagePoint.checkOffset = false;
+        storagePoint.audioInterval = 0.2;
+
+        return storagePoint;
+    }
+
+    private resolveSellAnchor(): Node | null {
+        const scene = this.node.scene;
+        if (!scene) {
+            return null;
+        }
+
+        const targetPosition = this.pointB?.worldPosition ?? this.node.worldPosition;
+        const anchors: Node[] = [];
+        const visit = (node: Node): void => {
+            if (node.name === 'Sell' || node.name === 'Sell1') {
+                anchors.push(node);
+            }
+
+            for (const child of node.children) {
+                visit(child);
+            }
+        };
+
+        visit(scene);
+
+        let closestAnchor: Node | null = null;
+        let closestDistance = Number.MAX_VALUE;
+        for (const anchor of anchors) {
+            const distance = Vec3.distance(targetPosition, anchor.worldPosition);
+            if (distance < closestDistance) {
+                closestDistance = distance;
+                closestAnchor = anchor;
+            }
+        }
+
+        return closestAnchor;
+    }
+
+    private resolveSellZone(): PlayerDetectionZone | null {
+        return this.sellZone;
+    }
+
+    private resolveSellStoragePoint(): StoragePoint | null {
+        return this.ensureSellStoragePoint(this.resolveSellAnchor());
+    }
+
+    private checkEmoji(): boolean {
+        var playerBag = find("Player").getComponent(WoodBackpack).backpackMount.getComponent(StoragePoint);
+        const targetStoragePoint = this.resolveSellStoragePoint();
+
+        if (!targetStoragePoint) {
+            return true;
+        }
+
+        if(targetStoragePoint.amount > 0 || playerBag.amount > 0)
             return false;
         return true;
     }
@@ -487,13 +591,15 @@ export class NPCScheduler extends Component {
      * 尝试收集物品
      */
     private async tryCollectItem(npc:Node): Promise<void> {
+        const targetStoragePoint = this.resolveSellStoragePoint();
+        if (!targetStoragePoint) {
+            return;
+        }
 
-        var tubiao = find('LandObj/Sell');
-        var playerDetectionZone = tubiao.getComponent(PlayerDetectionZone);
-        
         var npcStoragePoint = npc.getComponentInChildren(StoragePoint);
-
-        var targetStoragePoint = playerDetectionZone.woodStackArea.getComponent(StoragePoint);
+        if (!npcStoragePoint) {
+            return;
+        }
 
         this.showFillTipForNpc(npc);
 

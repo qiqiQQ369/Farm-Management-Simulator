@@ -832,6 +832,97 @@ export class Tree extends Component {
         this.node.setPosition(this._initialPosition);
     }
 
+    private findStoragePointInNode(root: Node | null): StoragePoint | null {
+        if (!root) {
+            return null;
+        }
+
+        const storagePoint = root.getComponent(StoragePoint);
+        if (storagePoint) {
+            return storagePoint;
+        }
+
+        for (const child of root.children) {
+            const result = this.findStoragePointInNode(child);
+            if (result) {
+                return result;
+            }
+        }
+
+        return null;
+    }
+
+    private ensureSellStorageNode(anchor: Node | null): Node | null {
+        if (!anchor) {
+            return null;
+        }
+
+        const existingStoragePoint = this.findStoragePointInNode(anchor);
+        if (existingStoragePoint) {
+            return existingStoragePoint.node;
+        }
+
+        const storageNode = new Node('RuntimeSellStorage');
+        storageNode.setParent(anchor);
+        storageNode.setPosition(-3.58, 8.66, 15.3);
+        storageNode.setScale(9, 9, 9);
+
+        const storagePoint = storageNode.addComponent(StoragePoint);
+        storagePoint.storageName = `${anchor.name}木材仓库`;
+        storagePoint.autoStack = true;
+        storagePoint.showCapacityInfo = true;
+        storagePoint.capacity = 1000000;
+        storagePoint.amount = 0;
+        storagePoint.layers = 10000;
+        storagePoint.layerHeight = 0.2;
+        storagePoint.resourcePerRow = 5;
+        storagePoint.resourceRowSpacing = 0.2;
+        storagePoint.resourcePerCol = 2;
+        storagePoint.resourceColSpacing = 1;
+        storagePoint.stackAreaNode = storageNode;
+        storagePoint.moveAnimationDuration = 1;
+        storagePoint.fadeAnimationDuration = 0.5;
+        storagePoint.moveEasing = 'sineOut';
+        storagePoint.fadeEasing = 'sineIn';
+        storagePoint.checkOffset = false;
+        storagePoint.audioInterval = 0.2;
+
+        return storageNode;
+    }
+
+    private resolveNearestSellStorageNode(): Node | null {
+        const scene = this.node.scene;
+        if (!scene) {
+            return find("woodStackArea");
+        }
+
+        const targetPosition = this.node.worldPosition;
+        const anchors: Node[] = [];
+        const visit = (node: Node): void => {
+            if (node.name === 'Sell' || node.name === 'Sell1') {
+                anchors.push(node);
+            }
+
+            for (const child of node.children) {
+                visit(child);
+            }
+        };
+
+        visit(scene);
+
+        let closestAnchor: Node | null = null;
+        let closestDistance = Number.MAX_VALUE;
+        for (const anchor of anchors) {
+            const distance = Vec3.distance(targetPosition, anchor.worldPosition);
+            if (distance < closestDistance) {
+                closestDistance = distance;
+                closestAnchor = anchor;
+            }
+        }
+
+        return this.ensureSellStorageNode(closestAnchor) ?? find("woodStackArea");
+    }
+
     /**
      * 初始化木材堆叠
      */
@@ -842,7 +933,7 @@ export class Tree extends Component {
         
         if (!this.woodStackPosition) {
             // 如果没有指定堆叠位置，使用树木位置
-            this.woodStackPosition = find("woodStackArea");
+            this.woodStackPosition = this.resolveNearestSellStorageNode();
         }
     }
 
@@ -896,7 +987,7 @@ export class Tree extends Component {
      */
     private async stackWoodAtPosition(woodCount: number): Promise<void> {
         if (!this.woodStackPosition) {
-            this.woodStackPosition = find("woodStackArea");
+            this.woodStackPosition = this.resolveNearestSellStorageNode();
             console.warn('木材堆叠位置未设置，使用:' + this.woodStackPosition.name);
             //this.spawnRandomWoodDrops(woodCount);
             //return;
@@ -1010,7 +1101,7 @@ export class Tree extends Component {
      * 重置木材堆叠位置
      */
     public resetWoodStackPosition(): void {
-        this.woodStackPosition = find("woodStackArea");
+        this.woodStackPosition = this.resolveNearestSellStorageNode();
         this.clearWoodStack();
     }
 }
