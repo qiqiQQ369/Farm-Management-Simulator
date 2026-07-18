@@ -3120,7 +3120,11 @@
       }
     ],
     "_active": true,
-    "_components": [],
+    "_components": [
+      {
+        "__id__": 2705
+      }
+    ],
     "_prefab": null,
     "_lpos": {
       "__type__": "cc.Vec3",
@@ -45866,5 +45870,95 @@
   {
     "__type__": "cc.PostSettingsInfo",
     "_toneMappingType": 0
+  },
+  {
+    "__type__": "a14d9U+BchP0KAMGo5z3yy1",
+    "_name": "",
+    "_objFlags": 0,
+    "__editorExtras__": {},
+    "node": {
+      "__id__": 171
+    },
+    "_enabled": true,
+    "__prefab": null,
+    "leftFieldRoot": {
+      "__id__": 1770
+    },
+    "rightFieldRoot": {
+      "__id__": 2044
+    },
+    "leftOpeningPad": {
+      "__id__": 1743
+    },
+    "rightOpeningPad": {
+      "__id__": 2015
+    },
+    "endPanel": {
+      "__id__": 105
+    },
+    "workerTemplate": {
+      "__id__": 217
+    },
+    "vehicleTemplate": {
+      "__id__": 1641
+    },
+    "haulerTemplate": {
+      "__id__": 5
+    },
+    "leftResourceId": "field_left_corn",
+    "leftResourcePrefab": {
+      "__uuid__": "affdf361-b280-4645-b7cd-dd242dbbdc9b",
+      "__expectedType__": "cc.Prefab"
+    },
+    "leftResourceIcon": {
+      "__uuid__": "2f15497b-c412-47bd-88ee-def839ebf5ea@f9941",
+      "__expectedType__": "cc.SpriteFrame"
+    },
+    "leftPlantVisualPrefab": null,
+    "leftWorkerPrefab": null,
+    "leftVehiclePrefab": null,
+    "leftHaulerPrefab": null,
+    "leftWorkerCost": 100,
+    "leftVehicleCost": 200,
+    "leftHaulerCost": 170,
+    "leftHitsPerPlant": 3,
+    "leftYieldPerPlant": 1,
+    "leftRespawnSeconds": 10,
+    "leftInventoryCapacity": 2000,
+    "leftWorkerSpeed": 2.6,
+    "leftVehicleSpeed": 4.5,
+    "leftHaulerSpeed": 3.2,
+    "leftWorkerActionInterval": 0.75,
+    "leftVehicleActionInterval": 0.42,
+    "rightResourceId": "field_right_corn",
+    "rightResourcePrefab": {
+      "__uuid__": "affdf361-b280-4645-b7cd-dd242dbbdc9b",
+      "__expectedType__": "cc.Prefab"
+    },
+    "rightResourceIcon": {
+      "__uuid__": "2f15497b-c412-47bd-88ee-def839ebf5ea@f9941",
+      "__expectedType__": "cc.SpriteFrame"
+    },
+    "rightPlantVisualPrefab": null,
+    "rightWorkerPrefab": null,
+    "rightVehiclePrefab": null,
+    "rightHaulerPrefab": null,
+    "rightWorkerCost": 100,
+    "rightVehicleCost": 200,
+    "rightHaulerCost": 170,
+    "rightHitsPerPlant": 3,
+    "rightYieldPerPlant": 1,
+    "rightRespawnSeconds": 10,
+    "rightInventoryCapacity": 2000,
+    "rightWorkerSpeed": 2.6,
+    "rightVehicleSpeed": 4.5,
+    "rightHaulerSpeed": 3.2,
+    "rightWorkerActionInterval": 0.75,
+    "rightVehicleActionInterval": 0.42,
+    "harvestRadius": 2.2,
+    "sellRadius": 2.6,
+    "coinsPerTick": 1,
+    "consumeInterval": 0.2,
+    "_id": "f3M8vVtK1E2ZcQpR5uW7nA"
   }
 ]

@@ -266,6 +266,80 @@ export class StoragePoint extends Component {
 
         return false;
     }
+
+    /**
+     * Completes resources left mid-transfer when the application was hidden.
+     * Browser requestAnimationFrame callbacks may be discarded while the tab
+     * is in the background, leaving CanMove false forever after returning.
+     */
+    public recoverInterruptedTransfers(): void {
+        const stackArea = this.stackAreaNode ?? this.node;
+        const resources = [...stackArea.children].filter(resource => resource?.isValid);
+
+        // Rebuild all three pieces of storage state together. Merely setting
+        // CanMove is insufficient when a backgrounded frame was lost between
+        // reparenting the node and updating amount/resourceDic.
+        this.resourceDic.clear();
+        this.removedDic.clear();
+
+        for (let index = 0; index < resources.length; index++) {
+            const resource = resources[index];
+            const position = this.calculateStackPosition(index, resource);
+            resource.setParent(stackArea);
+            resource.setPosition(position);
+            resource.setRotationFromEuler(Vec3.ZERO);
+            this.resourceDic.set(index, {
+                pos: position,
+                Node: resource,
+                CanMove: true,
+            });
+        }
+
+        this.amount = resources.length;
+    }
+
+    /**
+     * Releases one resource whose add/move animation never reported completion.
+     *
+     * This is intentionally separate from removeResource(): normal transfers
+     * still wait for CanMove. Callers may use this only after their own timeout
+     * so an interrupted animation cannot permanently deadlock a storage point.
+     */
+    public releaseStalledResource(): Node | null {
+        if (this.amount < 1) {
+            return null;
+        }
+
+        const keys = Array.from(this.resourceDic.keys()).sort((a, b) => b - a);
+        for (const key of keys) {
+            const posData = this.resourceDic.get(key);
+            if (!posData?.Node?.isValid) {
+                this.resourceDic.delete(key);
+                continue;
+            }
+
+            this.resourceDic.delete(key);
+            posData.CanMove = true;
+            this.removedDic.set(key, posData);
+            this.amount = Math.max(0, this.amount - 1);
+            return posData.Node;
+        }
+
+        // Recover an old count/dictionary desynchronization as well. Storage
+        // mounts used by the transport loop contain resource visuals only.
+        const fallbackIndex = Math.min(this.amount, this.stackAreaNode?.children.length ?? 0) - 1;
+        const fallbackResource = fallbackIndex >= 0 ? this.stackAreaNode.children[fallbackIndex] : null;
+        if (fallbackResource?.isValid) {
+            this.amount = Math.max(0, this.amount - 1);
+            return fallbackResource;
+        }
+
+        // No node exists for the serialized count. Clear the stale count so the
+        // hauler can leave Loading instead of waiting forever.
+        this.amount = 0;
+
+        return null;
+    }
     
     /**
      * 播放资源移动动画

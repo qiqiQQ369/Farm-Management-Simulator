@@ -3,6 +3,8 @@ import { CameraController } from './CameraController';
 import { MainUI } from './MainUI';
 import { AnimationName, PlayerController } from './PlayerController';
 import { JoystickController } from './JoystickController';
+import { ResourceFieldSystem } from './ResourceFieldSystem';
+import { HaulerNPC } from './HaulerNPC';
 const { ccclass, property } = _decorator;
 
 /**
@@ -354,6 +356,15 @@ export class FinishNode extends Component {
     }
 
     private restoreGameplayAfterSequence(player: Node, playerController: PlayerController): void {
+        this.recoverForestHaulerAfterReveal();
+
+        // The two side fields report completion here, after their existing reveal
+        // camera/activation sequence. The second report means the third total
+        // resource field is open and the existing EndPanel becomes authoritative.
+        if (ResourceFieldSystem.notifyFieldRevealCompleted(this.node.parent ?? this.node)) {
+            return;
+        }
+
         const joystickController = find('Canvas/JoystickContainer').getComponent(JoystickController);
         joystickController._lock = false;
         joystickController.node.active = true;
@@ -377,6 +388,18 @@ export class FinishNode extends Component {
 
         this._isPlaying = false;
         this.onAllCompleted?.();
+    }
+
+    /** Keep the original forest hauler state machine, but discard reveal-stale state. */
+    private recoverForestHaulerAfterReveal(): void {
+        const scene = this.node.scene;
+        if (!scene) {
+            return;
+        }
+
+        const forestHauler = scene.getComponentsInChildren(HaulerNPC)
+            .find(hauler => hauler.node.name === 'HaulerNPC');
+        forestHauler?.recoverAfterSceneTransition();
     }
 
     /**

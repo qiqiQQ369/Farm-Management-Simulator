@@ -52,9 +52,14 @@ export class HaulerNPC extends Component {
     @property
     public facingYawOffset = 180;
 
+    @property({ tooltip: 'Seconds without a movable resource before repairing an interrupted stack transfer.' })
+    public transferStallTimeout = 1.5;
+
     private _state = HaulerState.WaitingForWood;
     private _transferTimer = 0;
     private _isMoving = false;
+    private _blockedStorage: StoragePoint | null = null;
+    private _blockedSince = 0;
 
     protected onLoad(): void {
         if (!this.skeletonAnimation) {
@@ -66,6 +71,7 @@ export class HaulerNPC extends Component {
         this._state = HaulerState.WaitingForWood;
         this._transferTimer = 0;
         this._isMoving = false;
+        this.resetTransferWatchdog();
         if (this.idlePoint) {
             const spawnPosition = this.idlePoint.worldPosition.clone();
             spawnPosition.y = this.node.worldPosition.y;
@@ -125,6 +131,47 @@ export class HaulerNPC extends Component {
         }
     }
 
+    /**
+     * Reconcile the forest hauler after a field reveal/camera sequence.
+     *
+     * The reveal can suspend a resource transfer between marking a stack item
+     * immovable and completing its animation. Rebuild the three real stacks,
+     * then resume from inventory state instead of retaining a stale run state.
+     */
+    public recoverAfterSceneTransition(): void {
+        if (!this.collectionPoint || !this.collectionStorage || !this.sellStorage || !this.carryStorage) {
+            return;
+        }
+
+        this.collectionStorage.recoverInterruptedTransfers();
+        this.carryStorage.recoverInterruptedTransfers();
+        this.sellStorage.recoverInterruptedTransfers();
+        this._transferTimer = 0;
+        this.resetTransferWatchdog();
+
+        if (this.carryStorage.amount > 0) {
+            this._state = HaulerState.Delivering;
+            return;
+        }
+
+        if (this.collectionStorage.amount > 0 && this.sellStorage.hasSpace(1)) {
+            const currentPosition = this.node.worldPosition.clone();
+            const collectionPosition = this.collectionPoint.worldPosition.clone();
+            collectionPosition.y = currentPosition.y;
+
+            if (Vec3.distance(currentPosition, collectionPosition) <= Math.max(this.collectionStopDistance, 0.05) + 0.8) {
+                this._state = HaulerState.Loading;
+                this.playIdleAnimation();
+            } else {
+                this._state = HaulerState.MovingToCollection;
+            }
+            return;
+        }
+
+        this._state = HaulerState.WaitingForWood;
+        this.playIdleAnimation();
+    }
+
     private transferWood(from: StoragePoint, to: StoragePoint, completedState: HaulerState, blockedState: HaulerState, deltaTime: number): void {
         this._transferTimer += deltaTime;
         if (this._transferTimer < this.transferInterval) {
@@ -134,12 +181,28 @@ export class HaulerNPC extends Component {
         this._transferTimer = 0;
 
         if (from.amount === 0) {
+            this.resetTransferWatchdog();
             this._state = completedState;
             return;
         }
 
         if (!from.hasMovableResource()) {
-            return;
+            if (!this.tryRecoverBlockedStorage(from)) {
+                return;
+            }
+
+            // Recovery may discover that the serialized amount had no real
+            // resource node behind it. Let the state machine leave this phase.
+            if (from.amount === 0) {
+                this._state = completedState;
+                return;
+            }
+
+            if (!from.hasMovableResource()) {
+                return;
+            }
+        } else {
+            this.resetTransferWatchdog();
         }
 
         if (!to.hasSpace(1)) {
@@ -148,6 +211,35 @@ export class HaulerNPC extends Component {
         }
 
         void ResourceManager.MoveResource(from, to, false, 4, Vec3.ZERO);
+    }
+
+    /**
+     * A type-4 transfer normally unlocks its destination item in about 0.6s.
+     * If that completion callback is lost, amount remains positive while every
+     * entry is permanently immovable. Repair only after a conservative timeout
+     * so ordinary in-flight animations are never interrupted.
+     */
+    private tryRecoverBlockedStorage(storage: StoragePoint): boolean {
+        const now = Date.now();
+        if (this._blockedStorage !== storage) {
+            this._blockedStorage = storage;
+            this._blockedSince = now;
+            return false;
+        }
+
+        const timeoutMs = Math.max(this.transferStallTimeout, 0.7) * 1000;
+        if (now - this._blockedSince < timeoutMs) {
+            return false;
+        }
+
+        storage.recoverInterruptedTransfers();
+        this.resetTransferWatchdog();
+        return true;
+    }
+
+    private resetTransferWatchdog(): void {
+        this._blockedStorage = null;
+        this._blockedSince = 0;
     }
 
     private isAtSellTarget(): boolean {

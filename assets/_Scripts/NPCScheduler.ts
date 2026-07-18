@@ -69,10 +69,12 @@ export class NPCScheduler extends Component {
     private activeDeparted: Set<Node> = new Set(); // 已脱队执行A->B->C->D->Start链路
     private runningTweens: Map<Node, Tween<Node>> = new Map();
     private _fillTipTargetNpc: Node | null = null;
+    private _resolvedSellStoragePoint: StoragePoint | null = null;
     private readonly _fillTipOffset: Vec3 = new Vec3();
     private readonly _fillTipWorldPosition: Vec3 = new Vec3();
 
     protected onEnable(): void {
+        this._resolvedSellStoragePoint = null;
         this.setupFillTipFacing();
         this.initializeQueue();
     }
@@ -492,6 +494,26 @@ export class NPCScheduler extends Component {
             return null;
         }
 
+        // Side-field customers must never consume the forest or the other
+        // field's stock. Finish/Finish-001 are independent module roots.
+        let moduleRoot: Node | null = this.node.parent;
+        while (moduleRoot && moduleRoot !== scene) {
+            if (moduleRoot.name === 'Finish' || moduleRoot.name === 'Finish-001') {
+                const localSell = moduleRoot.getChildByName('Sell1');
+                if (localSell) {
+                    return localSell;
+                }
+                break;
+            }
+            moduleRoot = moduleRoot.parent;
+        }
+
+        // The original forest scheduler owns the unique central Sell node.
+        const centralSell = scene.getChildByName('LandObj')?.getChildByName('Sell') ?? null;
+        if (centralSell) {
+            return centralSell;
+        }
+
         const targetPosition = this.pointB?.worldPosition ?? this.node.worldPosition;
         const anchors: Node[] = [];
         const visit = (node: Node): void => {
@@ -524,7 +546,12 @@ export class NPCScheduler extends Component {
     }
 
     private resolveSellStoragePoint(): StoragePoint | null {
-        return this.ensureSellStoragePoint(this.resolveSellAnchor());
+        if (this._resolvedSellStoragePoint?.node?.isValid) {
+            return this._resolvedSellStoragePoint;
+        }
+
+        this._resolvedSellStoragePoint = this.ensureSellStoragePoint(this.resolveSellAnchor());
+        return this._resolvedSellStoragePoint;
     }
 
     private checkEmoji(): boolean {
@@ -605,11 +632,25 @@ export class NPCScheduler extends Component {
 
         const fill = this.fillTip.getChildByName('fill').getComponent(Sprite);
         const amount = this.fillTip.getChildByName('amount').getComponent(Label);
+        let stalledDuration = 0;
 
         while(true) {
             // this.dropCoins();
             if(targetStoragePoint.amount > 0){
-                ResourceManager.MoveResource(targetStoragePoint, npcStoragePoint, false, 4, new Vec3(0, 0, 0));
+                let moved = await ResourceManager.MoveResource(targetStoragePoint, npcStoragePoint, false, 4, new Vec3(0, 0, 0));
+
+                if (!moved) {
+                    stalledDuration += this.collectInterval * 0.5;
+                    if (stalledDuration >= 1 && npcStoragePoint.hasSpace(1)) {
+                        const stalledResource = targetStoragePoint.releaseStalledResource();
+                        moved = stalledResource
+                            ? npcStoragePoint.addResource(stalledResource, 4, Vec3.ZERO)
+                            : false;
+                        stalledDuration = 0;
+                    }
+                } else {
+                    stalledDuration = 0;
+                }
 
                 fill.fillRange = npcStoragePoint.amount / npcStoragePoint.capacity;
                 amount.string = (4 - npcStoragePoint.amount).toString();
