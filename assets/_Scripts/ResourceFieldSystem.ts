@@ -31,6 +31,7 @@ type PlantRuntime = {
 };
 
 type UnlockStage = 'worker' | 'vehicle' | 'hauler' | 'complete';
+type PurchasableUnlockStage = Exclude<UnlockStage, 'complete'>;
 
 type UnlockPadRuntime = {
     node: Node;
@@ -72,6 +73,7 @@ type FieldRuntime = {
     collectionStorage: StoragePoint;
     sellStorage: StoragePoint;
     sellNode: Node;
+    unlockNodes: Record<PurchasableUnlockStage, Node>;
     unlockPad: UnlockPadRuntime | null;
     workers: ActorRuntime[];
     vehicle: ActorRuntime | null;
@@ -101,6 +103,30 @@ export class ResourceFieldSystem extends Component {
 
     @property({ type: Node, group: 'Scene binding' })
     public rightOpeningPad: Node = null!;
+
+    @property({ type: Node, group: 'Left field scene nodes' })
+    public leftWorkerUnlockPoint: Node = null!;
+
+    @property({ type: Node, group: 'Left field scene nodes' })
+    public leftVehicleUnlockPoint: Node = null!;
+
+    @property({ type: Node, group: 'Left field scene nodes' })
+    public leftHaulerUnlockPoint: Node = null!;
+
+    @property({ type: StoragePoint, group: 'Left field scene nodes' })
+    public leftCollectionStorage: StoragePoint = null!;
+
+    @property({ type: Node, group: 'Right field scene nodes' })
+    public rightWorkerUnlockPoint: Node = null!;
+
+    @property({ type: Node, group: 'Right field scene nodes' })
+    public rightVehicleUnlockPoint: Node = null!;
+
+    @property({ type: Node, group: 'Right field scene nodes' })
+    public rightHaulerUnlockPoint: Node = null!;
+
+    @property({ type: StoragePoint, group: 'Right field scene nodes' })
+    public rightCollectionStorage: StoragePoint = null!;
 
     @property({ type: Node, group: 'Scene binding' })
     public endPanel: Node = null!;
@@ -234,10 +260,14 @@ export class ResourceFieldSystem extends Component {
         this._resourceBackpack.registerResource(this.leftResourceId, this.leftResourcePrefab, -0.42, this.leftInventoryCapacity, woodMount);
         this._resourceBackpack.registerResource(this.rightResourceId, this.rightResourcePrefab, 0.42, this.rightInventoryCapacity, woodMount);
 
-        this._fields.push(this.createField(
+        const leftField = this.createField(
             this.leftResourceId,
             this.leftFieldRoot,
             this.leftOpeningPad,
+            this.leftWorkerUnlockPoint,
+            this.leftVehicleUnlockPoint,
+            this.leftHaulerUnlockPoint,
+            this.leftCollectionStorage,
             this.leftResourcePrefab,
             this.leftResourceIcon,
             this.leftPlantVisualPrefab,
@@ -255,11 +285,17 @@ export class ResourceFieldSystem extends Component {
             this.leftHaulerSpeed,
             this.leftWorkerActionInterval,
             this.leftVehicleActionInterval,
-        ));
-        this._fields.push(this.createField(
+        );
+        if (leftField) this._fields.push(leftField);
+
+        const rightField = this.createField(
             this.rightResourceId,
             this.rightFieldRoot,
             this.rightOpeningPad,
+            this.rightWorkerUnlockPoint,
+            this.rightVehicleUnlockPoint,
+            this.rightHaulerUnlockPoint,
+            this.rightCollectionStorage,
             this.rightResourcePrefab,
             this.rightResourceIcon,
             this.rightPlantVisualPrefab,
@@ -277,7 +313,8 @@ export class ResourceFieldSystem extends Component {
             this.rightHaulerSpeed,
             this.rightWorkerActionInterval,
             this.rightVehicleActionInterval,
-        ));
+        );
+        if (rightField) this._fields.push(rightField);
     }
 
     protected update(deltaTime: number): void {
@@ -321,6 +358,7 @@ export class ResourceFieldSystem extends Component {
 
         field.unlocked = true;
         this._openedSideFields++;
+        field.collectionStorage.node.active = true;
         this.collectPlants(field);
         this.showUnlockStage(field, 'worker');
 
@@ -335,6 +373,10 @@ export class ResourceFieldSystem extends Component {
         id: string,
         root: Node,
         openingPad: Node,
+        workerUnlockPoint: Node,
+        vehicleUnlockPoint: Node,
+        haulerUnlockPoint: Node,
+        collectionStorage: StoragePoint,
         resourcePrefab: Prefab | null,
         icon: SpriteFrame | null,
         plantVisualPrefab: Prefab | null,
@@ -352,13 +394,26 @@ export class ResourceFieldSystem extends Component {
         haulerSpeed: number,
         workerActionInterval: number,
         vehicleActionInterval: number,
-    ): FieldRuntime {
-        const sellNode = root.getChildByName('Sell1') ?? root;
-        const collectionNode = new Node(`Collection_${id}`);
-        collectionNode.setParent(root);
-        collectionNode.setWorldPosition(openingPad.worldPosition.clone().add3f(0, 0, 3.2));
+    ): FieldRuntime | null {
+        const missingBindings = [
+            ['field root', root],
+            ['opening pad', openingPad],
+            ['worker unlock point', workerUnlockPoint],
+            ['vehicle unlock point', vehicleUnlockPoint],
+            ['hauler unlock point', haulerUnlockPoint],
+            ['collection storage', collectionStorage],
+        ].filter(([, binding]) => !binding).map(([name]) => name);
+        if (missingBindings.length > 0) {
+            console.error(`ResourceFieldSystem: ${id} disabled; missing scene bindings: ${missingBindings.join(', ')}.`);
+            return null;
+        }
 
-        const collectionStorage = this.configureStorage(collectionNode, `${id}_collection`, 1000000);
+        const sellNode = root.getChildByName('Sell1') ?? root;
+        collectionStorage.storageName = `${id}_collection`;
+        collectionStorage.node.active = false;
+        workerUnlockPoint.active = false;
+        vehicleUnlockPoint.active = false;
+        haulerUnlockPoint.active = false;
         const sellStorage = this.ensureSellStorage(sellNode, id);
 
         return {
@@ -387,6 +442,11 @@ export class ResourceFieldSystem extends Component {
             collectionStorage,
             sellStorage,
             sellNode,
+            unlockNodes: {
+                worker: workerUnlockPoint,
+                vehicle: vehicleUnlockPoint,
+                hauler: haulerUnlockPoint,
+            },
             unlockPad: null,
             workers: [],
             vehicle: null,
@@ -539,7 +599,9 @@ export class ResourceFieldSystem extends Component {
     }
 
     private completeUnlockStage(field: FieldRuntime, stage: UnlockStage): void {
-        field.unlockPad?.node.destroy();
+        if (field.unlockPad) {
+            field.unlockPad.node.active = false;
+        }
         field.unlockPad = null;
 
         if (stage === 'worker') {
@@ -556,21 +618,22 @@ export class ResourceFieldSystem extends Component {
         }
     }
 
-    private showUnlockStage(field: FieldRuntime, stage: UnlockStage): void {
-        const sourceName = stage === 'worker' ? 'unlockLevel1' : stage === 'vehicle' ? 'unlockLevel2' : 'unlockLevel3';
-        const source = this.findSceneNode(sourceName);
-        const visualSource = source?.getChildByName('view') ?? source?.children[0] ?? null;
-
-        const padNode = new Node(`${field.id}_${stage}_unlock`);
-        padNode.setParent(field.openingPad.parent ?? field.root);
-        padNode.setWorldPosition(field.openingPad.worldPosition);
-        if (visualSource) {
-            const visual = instantiate(visualSource);
-            visual.setParent(padNode);
-            visual.setPosition(Vec3.ZERO);
-            visual.setScale(0.72, 0.72, 0.72);
-            this.applyResourceIcon(visual, field.icon);
+    private showUnlockStage(field: FieldRuntime, stage: PurchasableUnlockStage): void {
+        for (const node of [field.unlockNodes.worker, field.unlockNodes.vehicle, field.unlockNodes.hauler]) {
+            node.active = false;
         }
+
+        const padNode = field.unlockNodes[stage];
+        padNode.setWorldPosition(field.openingPad.worldPosition);
+        padNode.active = true;
+        const visual = padNode.getChildByName('view') ?? padNode.children[0] ?? null;
+        if (!visual) {
+            console.error(`ResourceFieldSystem: scene visual missing from ${padNode.name}.`);
+        }
+        visual?.setPosition(Vec3.ZERO);
+        visual?.setScale(0.72, 0.72, 0.72);
+        if (visual) visual.active = true;
+        this.applyResourceIcon(padNode, field.icon);
 
         const cost = stage === 'worker' ? field.workerCost : stage === 'vehicle' ? field.vehicleCost : field.haulerCost;
         field.unlockPad = {
@@ -808,20 +871,6 @@ export class ResourceFieldSystem extends Component {
     private resolveFallbackResourcePrefab(): Prefab | null {
         const woodBackpack = this._player?.getComponent('WoodBackpack') as unknown as { woodDisplayPrefab?: Prefab } | null;
         return woodBackpack?.woodDisplayPrefab ?? null;
-    }
-
-    private findSceneNode(name: string): Node | null {
-        const scene = this.node.scene;
-        if (!scene) return null;
-        const visit = (node: Node): Node | null => {
-            if (node.name === name) return node;
-            for (const child of node.children) {
-                const found = visit(child);
-                if (found) return found;
-            }
-            return null;
-        };
-        return visit(scene);
     }
 
     private finishGame(): void {

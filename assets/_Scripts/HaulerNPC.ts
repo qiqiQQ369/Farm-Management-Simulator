@@ -60,6 +60,10 @@ export class HaulerNPC extends Component {
     private _isMoving = false;
     private _blockedStorage: StoragePoint | null = null;
     private _blockedSince = 0;
+    private _monitoredState: HaulerState | null = null;
+    private _monitoredFromAmount = -1;
+    private _monitoredToAmount = -1;
+    private _lastTransferProgressAt = 0;
 
     protected onLoad(): void {
         if (!this.skeletonAnimation) {
@@ -72,6 +76,7 @@ export class HaulerNPC extends Component {
         this._transferTimer = 0;
         this._isMoving = false;
         this.resetTransferWatchdog();
+        this.resetTransferProgressMonitor();
         if (this.idlePoint) {
             const spawnPosition = this.idlePoint.worldPosition.clone();
             spawnPosition.y = this.node.worldPosition.y;
@@ -84,6 +89,8 @@ export class HaulerNPC extends Component {
         if (!this.collectionPoint || !this.sellPoint || !this.collectionStorage || !this.sellStorage || !this.carryStorage) {
             return;
         }
+
+        this.monitorTransferProgress();
 
         switch (this._state) {
             case HaulerState.WaitingForWood:
@@ -148,6 +155,7 @@ export class HaulerNPC extends Component {
         this.sellStorage.recoverInterruptedTransfers();
         this._transferTimer = 0;
         this.resetTransferWatchdog();
+        this.resetTransferProgressMonitor();
 
         if (this.carryStorage.amount > 0) {
             this._state = HaulerState.Delivering;
@@ -240,6 +248,67 @@ export class HaulerNPC extends Component {
     private resetTransferWatchdog(): void {
         this._blockedStorage = null;
         this._blockedSince = 0;
+    }
+
+    /**
+     * Detects a transfer phase whose inventory counts stop changing even when
+     * stale dictionary entries still claim that a resource is movable.
+     */
+    private monitorTransferProgress(): void {
+        let from: StoragePoint | null = null;
+        let to: StoragePoint | null = null;
+        let completedState: HaulerState | null = null;
+
+        if (this._state === HaulerState.Loading) {
+            from = this.collectionStorage;
+            to = this.carryStorage;
+            completedState = HaulerState.Delivering;
+        } else if (this._state === HaulerState.Unloading) {
+            from = this.carryStorage;
+            to = this.sellStorage;
+            completedState = HaulerState.Returning;
+        } else {
+            this.resetTransferProgressMonitor();
+            return;
+        }
+
+        const now = Date.now();
+        if (this._monitoredState !== this._state) {
+            this._monitoredState = this._state;
+            this._monitoredFromAmount = from.amount;
+            this._monitoredToAmount = to.amount;
+            this._lastTransferProgressAt = now;
+            return;
+        }
+
+        if (from.amount !== this._monitoredFromAmount || to.amount !== this._monitoredToAmount) {
+            this._monitoredFromAmount = from.amount;
+            this._monitoredToAmount = to.amount;
+            this._lastTransferProgressAt = now;
+            return;
+        }
+
+        const timeoutMs = Math.max(this.transferStallTimeout, 0.7) * 1000;
+        if (now - this._lastTransferProgressAt < timeoutMs) {
+            return;
+        }
+
+        from.recoverInterruptedTransfers();
+        to.recoverInterruptedTransfers();
+        this._transferTimer = 0;
+        this.resetTransferWatchdog();
+
+        if (from.amount === 0 || (this._state === HaulerState.Loading && to.amount > 0)) {
+            this._state = completedState;
+        }
+        this.resetTransferProgressMonitor();
+    }
+
+    private resetTransferProgressMonitor(): void {
+        this._monitoredState = null;
+        this._monitoredFromAmount = -1;
+        this._monitoredToAmount = -1;
+        this._lastTransferProgressAt = 0;
     }
 
     private isAtSellTarget(): boolean {

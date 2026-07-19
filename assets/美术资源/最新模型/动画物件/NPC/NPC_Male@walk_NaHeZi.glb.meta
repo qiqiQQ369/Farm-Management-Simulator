@@ -1,10 +1,10 @@
 {
-  "ver": "2.3.14",
+  "ver": "2.3.13",
   "importer": "gltf",
   "imported": true,
   "uuid": "fda01f57-5156-4bd4-b4e1-9f54783212f6",
   "files": [
-    "__original-animation-0.bin"
+    "__original-animation-0.cconb"
   ],
   "subMetas": {
     "8fae4": {
@@ -29,10 +29,10 @@
         "speed": 1,
         "auxiliaryCurves": {}
       },
-      "ver": "1.0.18",
+      "ver": "1.0.17",
       "imported": true,
       "files": [
-        ".bin"
+        ".cconb"
       ],
       "subMetas": {}
     },
