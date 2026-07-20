@@ -161,3 +161,17 @@ test('玉米金币使用独立库存和收集逻辑', () => {
     assert.match(schedulerSource, /dropArea\.addComponent\(CornCoinCollector\)/);
     assert.match(schedulerSource, /storage\.addResource\(coin, 1\)/);
 });
+
+test('玉米金币堆对齐本地白色底板中心', () => {
+    const schedulerSource = readFileSync(scriptUrl, 'utf8');
+    const coinAreaMethod = schedulerSource.match(
+        /private ensureLocalCoinDropArea[\s\S]*?\n    private resolveSellStoragePoint/,
+    )?.[0] ?? '';
+
+    assert.match(coinAreaMethod, /const visualCenter = this\.resolveCoinVisualCenter\(anchor\)/);
+    assert.match(
+        coinAreaMethod,
+        /dropArea\.setPosition\(visualCenter\.x - 0\.017, 0\.03, visualCenter\.z \+ 0\.086\)/,
+    );
+    assert.match(coinAreaMethod, /stackArea\.setPosition\(0\.5, 0, 0\)/);
+});

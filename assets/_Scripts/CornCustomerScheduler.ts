@@ -217,6 +217,11 @@ export class CornCustomerScheduler extends Component {
         return this.resolveModuleRoot()?.getChildByName('CoinPlace') ?? null;
     }
 
+    private resolveCoinVisualCenter(anchor: Node): Vec3 {
+        const visual = anchor.getChildByName('tubiao_02_chaopiao-001') ?? anchor.children[0] ?? null;
+        return visual?.position.clone() ?? new Vec3();
+    }
+
     private ensureLocalCoinDropArea(): CornStoragePoint | null {
         const anchor = this.resolveLocalCoinAnchor();
         if (!anchor) {
@@ -229,7 +234,8 @@ export class CornCustomerScheduler extends Component {
 
         const dropArea = anchor.getChildByName('CornCoinDropArea') ?? new Node('CornCoinDropArea');
         if (!dropArea.parent) dropArea.setParent(anchor);
-        dropArea.setPosition(Vec3.ZERO);
+        const visualCenter = this.resolveCoinVisualCenter(anchor);
+        dropArea.setPosition(visualCenter.x - 0.017, 0.03, visualCenter.z + 0.086);
 
         const stackArea = dropArea.getChildByName('CoinStack') ?? new Node('CoinStack');
         if (!stackArea.parent) stackArea.setParent(dropArea);
