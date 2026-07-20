@@ -636,56 +636,17 @@ export class CoinConsumer extends Component {
             ?.backpackMount ?? null;
         const playerStorage = playerMount?.getComponent(StoragePoint) ?? null;
 
-        const haulerMount = hauler.getComponent(WoodBackpack)?.backpackMount ?? null;
-        const backpackStorage = this.isNodeOwnedBy(hauler, haulerMount)
-            ? haulerMount?.getComponent(StoragePoint) ?? null
-            : null;
-        if (backpackStorage) {
-            this.copyStoragePointLayout(backpackStorage, playerStorage);
-            backpackStorage.stackAreaNode = backpackStorage.node;
-            backpackStorage.storageName = '搬运工木材存储';
-            backpackStorage.clearStorage();
-            return backpackStorage;
-        }
-
-        const existingCarryNode = this.findNamedNode(hauler, 'HaulerCarryStorage');
-        const existingCarryStorage = existingCarryNode?.getComponent(StoragePoint) ?? null;
-        if (existingCarryStorage) {
-            this.copyCarryMountTransform(existingCarryNode ?? existingCarryStorage.node, playerMount, playerRoot);
-            this.copyStoragePointLayout(existingCarryStorage, playerStorage);
-            existingCarryStorage.stackAreaNode = existingCarryStorage.node;
-            existingCarryStorage.storageName = '搬运工木材存储';
-            existingCarryStorage.clearStorage();
-            return existingCarryStorage;
-        }
-
-        const carryNode = new Node('HaulerCarryStorage');
-        carryNode.setParent(hauler);
+        const carryNode = this.findNamedNode(hauler, 'HaulerCarryStorage') ?? new Node('HaulerCarryStorage');
+        if (carryNode.parent !== hauler) carryNode.setParent(hauler);
         carryNode.setPosition(0, 1.2, -0.6);
         this.copyCarryMountTransform(carryNode, playerMount, playerRoot);
 
-        const storage = carryNode.addComponent(StoragePoint);
-        storage.storageName = '搬运工木材存储';
-        this.copyStoragePointLayout(storage, playerStorage);
-        storage.stackAreaNode = storage.node;
-        storage.clearStorage();
-        console.log('[HAULER-DEBUG] created fallback carry storage', {
-            haulerName: hauler.name,
-            carryNode: carryNode.name,
-            localPosition: carryNode.position.clone(),
-        });
-        return storage;
-    }
-
-    /**
-     * Reject mounts outside the hauler hierarchy so a cloned actor never
-     * reads from or mutates the player's live backpack storage.
-     */
-    private isNodeOwnedBy(root: Node, candidate: Node | null): boolean {
-        for (let node = candidate; node; node = node.parent) {
-            if (node === root) return true;
-        }
-        return false;
+        const carryStorage = carryNode.getComponent(StoragePoint) ?? carryNode.addComponent(StoragePoint);
+        carryStorage.storageName = '搬运工木材存储';
+        this.copyStoragePointLayout(carryStorage, playerStorage);
+        carryStorage.stackAreaNode = carryStorage.node;
+        carryStorage.clearStorage();
+        return carryStorage;
     }
 
     /**
