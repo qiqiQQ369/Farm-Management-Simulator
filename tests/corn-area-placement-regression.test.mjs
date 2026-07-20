@@ -292,6 +292,17 @@ test('the first corn field stays playable and opening the second ends the game',
     );
 });
 
+test('corn products are centered inside each sell slot without changing shared storage math', () => {
+    const ensureSellStorage = resourceFieldSource.match(
+        /private ensureSellStorage[\s\S]*?\n    private finishGame/,
+    )?.[0] ?? '';
+
+    assert.match(ensureSellStorage, /new Node\('CornSellStack'\)/);
+    assert.match(ensureSellStorage, /stackArea\.setPosition\(-0\.2, 0, 0\.5\)/);
+    assert.match(ensureSellStorage, /storage\.stackAreaNode = stackArea/);
+    assert.doesNotMatch(ensureSellStorage, /calculateStackPosition/);
+});
+
 test('corn storage and unlock points activate before optional reveal decorations', () => {
     const cameraCompleteMethod = finishNodeSource.match(
         /private onCameraMoveComplete[\s\S]*?\n    private restoreGameplayAfterSequence/,

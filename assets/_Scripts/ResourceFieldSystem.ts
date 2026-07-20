@@ -876,6 +876,10 @@ export class ResourceFieldSystem extends Component {
         storage.resourceRowSpacing = 0.2;
         storage.resourceColSpacing = 1;
         storage.layerHeight = 0.2;
+        const stackArea = storageNode.getChildByName('CornSellStack') ?? new Node('CornSellStack');
+        if (!stackArea.parent) stackArea.setParent(storageNode);
+        stackArea.setPosition(-0.2, 0, 0.5);
+        storage.stackAreaNode = stackArea;
         return storage;
     }
 
