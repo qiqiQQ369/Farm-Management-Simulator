@@ -177,6 +177,14 @@ export class WoodDropManager extends Component {
                                 position: targetPosition1,
                                 scale: new Vec3(0, 0, 0) 
                             })
+                            // Do not expose the node to StoragePoint until its scale is stable.
+                            // PickupDetector may transfer movable resources immediately.
+                            .to(0.15, {
+                                scale: new Vec3(1.17, 1.17, 1.17)
+                            })
+                            .to(0.2, {
+                                scale: new Vec3(1, 1, 1)
+                            })
                             .call(() => {
                                 woodNode.rotation = new Quat(0, 0, 0, 1);
                                 
@@ -192,11 +200,6 @@ export class WoodDropManager extends Component {
                                     // 无存储点，直接回收
                                     this.recycleNode(woodNode, type);
                                 }
-                            }).to(0.15, {
-                                scale: new Vec3(1.17, 1.17, 1.17) 
-                            })
-                            .to(0.2, {
-                                scale: new Vec3(1, 1, 1) 
                             })
                             .start();
                     })
