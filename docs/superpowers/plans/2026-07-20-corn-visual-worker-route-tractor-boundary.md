@@ -43,7 +43,7 @@ private restorePlantVisual(plant: CornPlantRuntime): void {
 - 修改：assets/_Scripts/Woodcutter.ts
 - 修改：tests/corn-worker-parity-regression.test.mjs
 
-**实现：** 以玉米局部坐标的 Z 值分行、X 值排列同一行；按连续区间把顺序目标分给三名工人。Woodcutter 的外部目标列表在首尾翻转方向，扫描范围不离开自己的列表。森林 assignedTrees、Tree 状态判断和 setAssignedTrees 分支不改变。
+**实现：** 以玉米局部坐标的 X 值划分田垄，并为每名工人分配一条完整田垄。Woodcutter 的外部目标列表在首尾翻转方向，扫描范围不离开自己的列表。森林 assignedTrees、Tree 状态判断和 setAssignedTrees 分支不改变。
 
 **先写失败检查：**
 
