@@ -3,6 +3,7 @@ import { existsSync, readFileSync } from 'node:fs';
 import test from 'node:test';
 
 const scriptUrl = new URL('../assets/_Scripts/CornCustomerScheduler.ts', import.meta.url);
+const cornCollectorUrl = new URL('../assets/_Scripts/CornCoinCollector.ts', import.meta.url);
 const scene = JSON.parse(readFileSync(
     new URL('../assets/Scenes/DevScene.scene', import.meta.url),
     'utf8',
@@ -36,7 +37,7 @@ test('玉米顾客使用独立调度器且只读取所属玉米田的 Sell1', ()
     assert.doesNotMatch(source, /from\s*'\.\/WoodBackpack'/);
 
     const resolveMethod = source.match(
-        /private resolveSellAnchor[\s\S]*?\n    private resolveSellStoragePoint/,
+        /private resolveSellAnchor[\s\S]*?\n    private resolveModuleRoot/,
     )?.[0] ?? '';
     assert.match(resolveMethod, /moduleRoot\.name === 'Finish' \|\| moduleRoot\.name === 'Finish-001'/);
     assert.match(resolveMethod, /moduleRoot\.getChildByName\('Sell1'\)/);
@@ -60,9 +61,10 @@ test('玉米顾客买满四个玉米后生成三枚金币', () => {
     assert.match(collectMethod, /this\.dropCoins\(\)/);
     assert.match(dropMethod, /for\s*\(let i = 0; i < this\.coinReward; i\+\+\)/);
     assert.match(dropMethod, /i \* 0\.1/);
-    assert.match(dropMethod, /coinStorage\.amount >= coinStorage\.capacity/);
-    assert.match(dropMethod, /this\.createCoin\(coinStorage\.amount\)/);
-    assert.match(dropMethod, /coinStorage\.amount\+\+/);
+    assert.match(dropMethod, /const coinStorage = this\.ensureLocalCoinDropArea\(\)/);
+    assert.match(dropMethod, /coinStorage\.hasSpace\(1\)/);
+    assert.match(dropMethod, /this\.createCoin\(coinStorage\)/);
+    assert.doesNotMatch(dropMethod, /coinStorage\.amount\+\+/);
 });
 
 test('CornStoragePoint 独立实现四种入槽动画', () => {
@@ -117,4 +119,45 @@ test('场景中仅玉米区迁移为 CornCustomerScheduler 且奖励为三枚金
     );
     assert.ok(forestNode, 'central forest scheduler must exist');
     assert.equal(componentOf(forestNode).__type__, forestSchedulerType);
+});
+
+test('左右玉米顾客只把金币生成到所属玉米区', () => {
+    const cornRoots = ['Finish', 'Finish-001'].map((name) =>
+        scene.find((entry) => entry?.__type__ === 'cc.Node' && entry._name === name),
+    );
+
+    for (const root of cornRoots) {
+        assert.ok(root, 'corn field root must exist');
+        const schedulerNode = childNamed(root, 'NPCScheduler-001');
+        const scheduler = componentOf(schedulerNode);
+        const coinAnchor = nodeAt(scheduler.coinDropArea);
+        assert.equal(nodeAt(coinAnchor._parent), root);
+        assert.equal(coinAnchor._name, 'CoinPlace');
+    }
+
+    const [leftScheduler, rightScheduler] = cornRoots.map((root) =>
+        componentOf(childNamed(root, 'NPCScheduler-001')),
+    );
+    assert.notEqual(leftScheduler.coinDropArea.__id__, rightScheduler.coinDropArea.__id__);
+
+    const forestNode = scene.find((entry) =>
+        entry?.__type__ === 'cc.Node' && entry._name === 'NPCScheduler' && entry._active,
+    );
+    assert.equal(componentOf(forestNode).coinDropArea.__id__, 170);
+});
+
+test('玉米金币使用独立库存和收集逻辑', () => {
+    assert.ok(existsSync(cornCollectorUrl), 'CornCoinCollector.ts must exist');
+    const collectorSource = readFileSync(cornCollectorUrl, 'utf8');
+    const schedulerSource = readFileSync(scriptUrl, 'utf8');
+
+    assert.match(collectorSource, /@ccclass\('CornCoinCollector'\)/);
+    assert.doesNotMatch(collectorSource, /from\s*'\.\/CoinCollector'/);
+    assert.doesNotMatch(collectorSource, /Resource\/StoragePoint|ResourceManager/);
+    assert.match(collectorSource, /sourceStorage\.removeResource\(4\)/);
+    assert.match(collectorSource, /currentAmount \+ 5/);
+
+    assert.match(schedulerSource, /storage\.capacity = 54/);
+    assert.match(schedulerSource, /dropArea\.addComponent\(CornCoinCollector\)/);
+    assert.match(schedulerSource, /storage\.addResource\(coin, 1\)/);
 });

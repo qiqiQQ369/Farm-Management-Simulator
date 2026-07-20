@@ -30730,7 +30730,7 @@
       "__expectedType__": "cc.Prefab"
     },
     "coinDropArea": {
-      "__id__": 170
+      "__id__": 1986
     },
     "coinReward": 3,
     "startPoint": {
@@ -37084,7 +37084,7 @@
       "__expectedType__": "cc.Prefab"
     },
     "coinDropArea": {
-      "__id__": 170
+      "__id__": 2307
     },
     "coinReward": 3,
     "startPoint": {

@@ -1,6 +1,7 @@
 import {
     _decorator,
     Animation,
+    BoxCollider,
     Component,
     Label,
     Node,
@@ -14,6 +15,7 @@ import {
 import { AnimationLibrary } from './AnimationLibrary';
 import { AnimationController } from './AnimationController';
 import { CameraFacingUI } from './CameraFacingUI';
+import { CornCoinCollector } from './CornCoinCollector';
 import { CornStoragePoint } from './CornStoragePoint';
 
 const { ccclass, property } = _decorator;
@@ -83,6 +85,7 @@ export class CornCustomerScheduler extends Component {
 
     protected onEnable(): void {
         this._resolvedSellStoragePoint = null;
+        this.ensureLocalCoinDropArea();
         this.prepareNpcCarryStorages();
         this.setupFillTipFacing();
         this.initializeQueue();
@@ -196,6 +199,62 @@ export class CornCustomerScheduler extends Component {
             moduleRoot = moduleRoot.parent;
         }
         return null;
+    }
+
+    private resolveModuleRoot(): Node | null {
+        const scene = this.node.scene;
+        let moduleRoot: Node | null = this.node.parent;
+        while (moduleRoot && moduleRoot !== scene) {
+            if (moduleRoot.name === 'Finish' || moduleRoot.name === 'Finish-001') {
+                return moduleRoot;
+            }
+            moduleRoot = moduleRoot.parent;
+        }
+        return null;
+    }
+
+    private resolveLocalCoinAnchor(): Node | null {
+        return this.resolveModuleRoot()?.getChildByName('CoinPlace') ?? null;
+    }
+
+    private ensureLocalCoinDropArea(): CornStoragePoint | null {
+        const anchor = this.resolveLocalCoinAnchor();
+        if (!anchor) {
+            if (!this._reportedMissingCoinStorage) {
+                console.error('CornCustomerScheduler: local CoinPlace is missing.');
+                this._reportedMissingCoinStorage = true;
+            }
+            return null;
+        }
+
+        const dropArea = anchor.getChildByName('CornCoinDropArea') ?? new Node('CornCoinDropArea');
+        if (!dropArea.parent) dropArea.setParent(anchor);
+        dropArea.setPosition(Vec3.ZERO);
+
+        const stackArea = dropArea.getChildByName('CoinStack') ?? new Node('CoinStack');
+        if (!stackArea.parent) stackArea.setParent(dropArea);
+        stackArea.setPosition(0.5, 0, 0);
+
+        const storage = dropArea.getComponent(CornStoragePoint) ?? dropArea.addComponent(CornStoragePoint);
+        storage.storageName = `${this.resolveModuleRoot()?.name ?? 'corn'}_coins`;
+        storage.capacity = 54;
+        storage.layers = 10;
+        storage.layerHeight = 0.2;
+        storage.resourcePerRow = 2;
+        storage.resourceRowSpacing = 1;
+        storage.resourcePerCol = 3;
+        storage.resourceColSpacing = 0.5;
+        storage.stackAreaNode = stackArea;
+
+        const collider = dropArea.getComponent(BoxCollider) ?? dropArea.addComponent(BoxCollider);
+        collider.isTrigger = true;
+        collider.center.set(0.1, 0, -0.2);
+        collider.size.set(2.3, 1, 2.4);
+
+        const collector = dropArea.getComponent(CornCoinCollector) ?? dropArea.addComponent(CornCoinCollector);
+        collector.configure(storage, stackArea);
+        this.coinDropArea = dropArea;
+        return storage;
     }
 
     private resolveSellStoragePoint(): CornStoragePoint | null {
@@ -399,69 +458,30 @@ export class CornCustomerScheduler extends Component {
         return npc?.isValid ? npc.getChildByName('emoji') : null;
     }
 
-    private resolveCoinStorage(): StorageLike | null {
-        if (!this.coinDropArea) return null;
-        for (const component of this.coinDropArea.components) {
-            const candidate = component as StorageLike;
-            if (typeof candidate.amount === 'number' && typeof candidate.capacity === 'number') return candidate;
-        }
-        if (!this._reportedMissingCoinStorage) {
-            console.error('CornCustomerScheduler: coin storage is missing.');
-            this._reportedMissingCoinStorage = true;
-        }
-        return null;
-    }
-
     private dropCoins(): void {
-        if (!this.coinPrefab || !this.coinDropArea) {
-            console.error('CornCustomerScheduler: coin prefab or drop area is missing.');
-            return;
-        }
-        const coinStorage = this.resolveCoinStorage();
-        if (!coinStorage) return;
+        const coinStorage = this.ensureLocalCoinDropArea();
+        if (!coinStorage || !this.coinPrefab) return;
         for (let i = 0; i < this.coinReward; i++) {
             this.scheduleOnce(() => {
-                if (coinStorage.amount >= coinStorage.capacity) return;
-                this.createCoin(coinStorage.amount);
-                coinStorage.amount++;
+                if (!coinStorage.hasSpace(1)) return;
+                this.createCoin(coinStorage);
             }, i * 0.1);
         }
     }
 
-    private createCoin(coinStackCount: number): void {
-        if (!this.coinPrefab || !this.coinDropArea) return;
+    private createCoin(storage: CornStoragePoint): boolean {
+        if (!this.coinPrefab) return false;
         const coin = instantiate(this.coinPrefab);
-        const stackPosition = this.calculateCoinStackPosition(coinStackCount);
-        coin.setParent(this.coinDropArea);
-        coin.setPosition(stackPosition);
-        this.animateCoinDrop(coin, stackPosition);
-    }
-
-    private calculateCoinStackPosition(index: number): Vec3 {
-        const rows = 3;
-        const columns = 2;
-        const rowSpacing = 0.5;
-        const columnSpacing = 1;
-        const layerHeight = 0.2;
-        const perLayer = rows * columns;
-        const layer = Math.floor(index / perLayer);
-        const indexInLayer = index % perLayer;
-        const row = Math.floor(indexInLayer / columns);
-        const column = indexInLayer % columns;
-        return new Vec3(
-            column * columnSpacing - (columns - 1) * columnSpacing * 0.5,
-            layer * layerHeight,
-            row * rowSpacing - (rows - 1) * rowSpacing * 0.5,
-        );
-    }
-
-    private animateCoinDrop(coin: Node, targetPosition: Vec3): void {
-        coin.setPosition(targetPosition);
         coin.setScale(Vec3.ZERO);
+        if (!storage.addResource(coin, 1)) {
+            coin.destroy();
+            return false;
+        }
         tween(coin)
             .to(0.3, { scale: new Vec3(1.17, 1.17, 1.17) }, { easing: 'bounceOut' })
             .to(0.2, { scale: Vec3.ONE }, { easing: 'bounceOut' })
             .start();
+        return true;
     }
 
     private moveTo(npc: Node, targetNode: Node | null, onComplete?: () => void): void {
