@@ -1,0 +1,130 @@
+import { _decorator, Component, instantiate, Node, Prefab, tween, Vec3 } from 'cc';
+import {
+    getCornHaulerStackPosition,
+    planCornHaulerAdd,
+    planCornHaulerRemove,
+} from './CornHaulerBackpackInventory';
+
+const { ccclass, property } = _decorator;
+
+/** 玉米搬运工独立随身背包，显示规则与主角携带玉米一致。 */
+@ccclass('CornHaulerBackpack')
+export class CornHaulerBackpack extends Component {
+    @property({ type: Prefab }) public resourcePrefab: Prefab = null!;
+    @property({ type: Node }) public stackAreaNode: Node = null!;
+    @property public capacity = 42;
+    @property public amount = 0;
+    @property public maxVisibleItems = 42;
+    @property public rowSpacing = 0.2;
+    @property public columnSpacing = 0.2;
+    @property public layerHeight = 0.2;
+    @property public moveAnimationDuration = 0.32;
+    @property public moveEasing = 'sineOut' as const;
+
+    private readonly _items: Node[] = [];
+
+    protected onLoad(): void {
+        if (!this.stackAreaNode) this.stackAreaNode = this.node;
+    }
+
+    public hasSpace(requiredCapacity: number): boolean {
+        return this.amount + requiredCapacity <= this.capacity;
+    }
+
+    public getAvailableSpace(): number {
+        return this.capacity - this.amount;
+    }
+
+    public addResource(resource: Node, animationType = 1, rotation: Vec3 = Vec3.ZERO): boolean {
+        if (!resource?.isValid) return false;
+
+        const plan = planCornHaulerAdd(this.amount, this.capacity, this.maxVisibleItems);
+        if (!plan.accepted || (!plan.displayIncomingNode && !this.resourcePrefab)) return false;
+
+        this.amount = plan.nextAmount;
+        if (!plan.displayIncomingNode) {
+            resource.active = false;
+            resource.destroy();
+            return true;
+        }
+
+        const stackArea = this.stackAreaNode ?? this.node;
+        const startWorldPosition = resource.worldPosition.clone();
+        resource.setParent(stackArea);
+        resource.setWorldPosition(startWorldPosition);
+        const position = this.getStackPosition(this._items.length);
+        tween(resource)
+            .to(this.moveAnimationDuration, { position }, { easing: this.moveEasing })
+            .start();
+        this._items.push(resource);
+        return true;
+    }
+
+    public removeResource(animationType = 1): Node | null {
+        const plan = planCornHaulerRemove(this.amount, this.maxVisibleItems);
+        if (!plan.removed || (plan.createTransferNode && !this.resourcePrefab)) return null;
+
+        this.amount = plan.nextAmount;
+        if (!plan.createTransferNode) {
+            while (this._items.length > 0) {
+                const item = this._items.pop() ?? null;
+                if (item?.isValid) return item;
+            }
+            return null;
+        }
+
+        const item = instantiate(this.resourcePrefab);
+        this.disableLegacyGameplayComponents(item);
+        item.setParent(this.stackAreaNode ?? this.node);
+        item.setPosition(this.getStackPosition(Math.max(0, this.maxVisibleItems - 1)));
+        return item;
+    }
+
+    public hasMovableResource(): boolean {
+        return this.amount > 0 && (this._items.some(item => item?.isValid) || !!this.resourcePrefab);
+    }
+
+    public recoverInterruptedTransfers(): void {
+        const stackArea = this.stackAreaNode ?? this.node;
+        this._items.length = 0;
+        for (const child of [...stackArea.children].slice(0, this.maxVisibleItems)) {
+            if (!child?.isValid) continue;
+            child.setPosition(this.getStackPosition(this._items.length));
+            child.setRotationFromEuler(Vec3.ZERO);
+            this._items.push(child);
+        }
+        this.amount = Math.max(this.amount, this._items.length);
+    }
+
+    public clearStorage(): void {
+        const stackArea = this.stackAreaNode ?? this.node;
+        for (const item of [...stackArea.children]) {
+            item.active = false;
+            item.destroy();
+        }
+        this._items.length = 0;
+        this.amount = 0;
+    }
+
+    private getStackPosition(index: number): Vec3 {
+        const position = getCornHaulerStackPosition(
+            index,
+            this.rowSpacing,
+            this.columnSpacing,
+            this.layerHeight,
+        );
+        return new Vec3(position.x, position.y, position.z);
+    }
+
+    private disableLegacyGameplayComponents(root: Node): void {
+        const visit = (node: Node): void => {
+            for (const component of node.components) {
+                const className = component.constructor.name;
+                const keepEnabled = className.includes('Animation') || className.includes('Renderer');
+                if (!keepEnabled) component.enabled = false;
+            }
+            for (const child of node.children) visit(child);
+        };
+        visit(root);
+    }
+}

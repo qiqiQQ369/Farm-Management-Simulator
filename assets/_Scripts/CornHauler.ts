@@ -1,5 +1,6 @@
 import { _decorator, Component, game, Game, math, Node, SkeletalAnimation, Vec3 } from 'cc';
 import { AnimationName } from './PlayerController';
+import { CornHaulerBackpack } from './CornHaulerBackpack';
 import { CornStoragePoint } from './CornStoragePoint';
 
 const { ccclass, property } = _decorator;
@@ -13,6 +14,8 @@ enum CornHaulerState {
     Returning,
 }
 
+type CornTransferStorage = CornStoragePoint | CornHaulerBackpack;
+
 /** Independent corn-area equivalent of the forest transport state machine. */
 @ccclass('CornHauler')
 export class CornHauler extends Component {
@@ -22,7 +25,7 @@ export class CornHauler extends Component {
     @property({ type: Node }) public idlePoint: Node = null!;
     @property({ type: CornStoragePoint }) public collectionStorage: CornStoragePoint = null!;
     @property({ type: CornStoragePoint }) public sellStorage: CornStoragePoint = null!;
-    @property({ type: CornStoragePoint }) public carryStorage: CornStoragePoint = null!;
+    @property({ type: CornHaulerBackpack }) public carryStorage: CornHaulerBackpack = null!;
     @property public moveSpeed = 3;
     @property public transferInterval = 0.15;
     @property public collectionStopDistance = 1.1;
@@ -33,7 +36,7 @@ export class CornHauler extends Component {
     private _state = CornHaulerState.WaitingForCorn;
     private _transferTimer = 0;
     private _isMoving = false;
-    private _blockedStorage: CornStoragePoint | null = null;
+    private _blockedStorage: CornTransferStorage | null = null;
     private _blockedSince = 0;
     private _monitoredState: CornHaulerState | null = null;
     private _monitoredFromAmount = -1;
@@ -117,7 +120,7 @@ export class CornHauler extends Component {
         }
     }
 
-    private transferCorn(from: CornStoragePoint, to: CornStoragePoint, completedState: CornHaulerState, blockedState: CornHaulerState, deltaTime: number): void {
+    private transferCorn(from: CornTransferStorage, to: CornTransferStorage, completedState: CornHaulerState, blockedState: CornHaulerState, deltaTime: number): void {
         this._transferTimer += deltaTime;
         if (this._transferTimer < this.transferInterval) return;
         this._transferTimer = 0;
@@ -144,7 +147,7 @@ export class CornHauler extends Component {
         }
     }
 
-    private tryRecoverBlockedStorage(storage: CornStoragePoint): boolean {
+    private tryRecoverBlockedStorage(storage: CornTransferStorage): boolean {
         const now = Date.now();
         if (this._blockedStorage !== storage) {
             this._blockedStorage = storage;
@@ -158,8 +161,8 @@ export class CornHauler extends Component {
     }
 
     private monitorTransferProgress(): void {
-        let from: CornStoragePoint | null = null;
-        let to: CornStoragePoint | null = null;
+        let from: CornTransferStorage | null = null;
+        let to: CornTransferStorage | null = null;
         let completedState: CornHaulerState | null = null;
         if (this._state === CornHaulerState.Loading) {
             from = this.collectionStorage;

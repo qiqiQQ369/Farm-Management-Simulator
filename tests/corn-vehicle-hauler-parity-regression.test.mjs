@@ -2,16 +2,27 @@ import assert from 'node:assert/strict';
 import { existsSync, readFileSync } from 'node:fs';
 import test from 'node:test';
 
+import {
+    getCornHaulerStackPosition,
+    getCornHaulerVisibleCount,
+    planCornHaulerAdd,
+    planCornHaulerRemove,
+} from '../assets/_Scripts/CornHaulerBackpackInventory.ts';
+
 const source = readFileSync(
     new URL('../assets/_Scripts/ResourceFieldSystem.ts', import.meta.url),
     'utf8',
 );
 const cornTractorPath = new URL('../assets/_Scripts/CornTractor.ts', import.meta.url);
 const cornHaulerPath = new URL('../assets/_Scripts/CornHauler.ts', import.meta.url);
+const cornHaulerBackpackPath = new URL('../assets/_Scripts/CornHaulerBackpack.ts', import.meta.url);
 const cornStoragePath = new URL('../assets/_Scripts/CornStoragePoint.ts', import.meta.url);
 const cornUnlockPath = new URL('../assets/_Scripts/CornUnlockPad.ts', import.meta.url);
 const cornTractorSource = existsSync(cornTractorPath) ? readFileSync(cornTractorPath, 'utf8') : '';
 const cornHaulerSource = existsSync(cornHaulerPath) ? readFileSync(cornHaulerPath, 'utf8') : '';
+const cornHaulerBackpackSource = existsSync(cornHaulerBackpackPath)
+    ? readFileSync(cornHaulerBackpackPath, 'utf8')
+    : '';
 const cornStorageSource = existsSync(cornStoragePath) ? readFileSync(cornStoragePath, 'utf8') : '';
 const cornUnlockSource = existsSync(cornUnlockPath) ? readFileSync(cornUnlockPath, 'utf8') : '';
 const cornProductionSource = readFileSync(
@@ -30,6 +41,63 @@ const fieldSystem = scene.find((entry) =>
     entry?.leftFieldRoot && entry?.rightFieldRoot && entry?.leftWorkerUnlockPoint,
 );
 assert.ok(fieldSystem, 'ResourceFieldSystem scene binding must exist');
+
+test('corn hauler backpack matches the player corn capacity and visible stack rules', () => {
+    assert.deepEqual(planCornHaulerAdd(0), {
+        accepted: true,
+        nextAmount: 1,
+        displayIncomingNode: true,
+    });
+    assert.deepEqual(planCornHaulerAdd(42), {
+        accepted: false,
+        nextAmount: 42,
+        displayIncomingNode: false,
+    });
+    assert.equal(getCornHaulerVisibleCount(42), 42);
+    assert.deepEqual(planCornHaulerRemove(42), {
+        removed: true,
+        nextAmount: 41,
+        createTransferNode: false,
+    });
+    assert.deepEqual(getCornHaulerStackPosition(0), { x: -0.2, y: 0, z: -0.2 });
+    assert.deepEqual(getCornHaulerStackPosition(1), { x: -0.2, y: 0.2, z: -0.2 });
+});
+
+test('corn hauler uses its own player-style backpack component', () => {
+    assert.ok(existsSync(cornHaulerBackpackPath));
+    assert.match(cornHaulerBackpackSource, /public capacity = 42/);
+    assert.match(cornHaulerBackpackSource, /public maxVisibleItems = 42/);
+    assert.match(cornHaulerBackpackSource, /public layerHeight = 0\.2/);
+    assert.match(cornHaulerBackpackSource, /public moveAnimationDuration = 0\.32/);
+    assert.match(cornHaulerBackpackSource, /public moveEasing = 'sineOut'/);
+    assert.doesNotMatch(cornHaulerBackpackSource, /MultiResourceBackpack|WoodBackpack|CoinBackpack/);
+    assert.match(cornHaulerSource, /type: CornHaulerBackpack/);
+});
+
+test('corn hauler is empty before activation and mounts corn like the player', () => {
+    const spawnMethod = source.match(
+        /private spawnHauler[\s\S]*?\n    private createActor/,
+    )?.[0] ?? '';
+
+    assert.match(source, /private clearInheritedHaulerCargo\(actor: Node\): Node \| null/);
+    assert.match(source, /\.name\.startsWith\('ResourceBackpack_'\)/);
+    const clearMethod = source.match(
+        /private clearInheritedHaulerCargo[\s\S]*?\n    private createActor/,
+    )?.[0] ?? '';
+    assert.match(clearMethod, /child\.active = false/);
+    assert.match(clearMethod, /item\.active = false/);
+    assert.match(spawnMethod, /const mountTemplate = this\.clearInheritedHaulerCargo\(actor\)/);
+    assert.ok(spawnMethod.indexOf('clearInheritedHaulerCargo') < spawnMethod.indexOf('actor.active = true'));
+    assert.match(spawnMethod, /new Node\('CornHaulerCarryMount'\)/);
+    assert.match(spawnMethod, /carryNode\.setParent\(mountTemplate\.parent\)/);
+    assert.match(spawnMethod, /carryNode\.setRotation\(mountTemplate\.rotation\)/);
+    assert.match(spawnMethod, /carryNode\.setScale\(mountTemplate\.scale\)/);
+    assert.match(spawnMethod, /actor\.getComponent\(CornHaulerBackpack\) \?\? actor\.addComponent\(CornHaulerBackpack\)/);
+    assert.match(spawnMethod, /carryStorage\.capacity = 42/);
+    assert.match(spawnMethod, /carryStorage\.maxVisibleItems = 42/);
+    assert.match(spawnMethod, /carryStorage\.clearStorage\(\)/);
+    assert.doesNotMatch(spawnMethod, /new Node\('CornCarryStorage'\)|resourcePerRow = 2|resourcePerCol = 2/);
+});
 
 test('corn tractor owns a copy of the forest path loop and contact harvest settings', () => {
     const vehicleSpawn = source.match(

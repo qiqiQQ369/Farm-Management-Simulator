@@ -22,6 +22,7 @@ import { CameraController } from './CameraController';
 import { CoinBackpack } from './CoinBackpack';
 import { CornFieldProduction } from './CornFieldProduction';
 import { CornHauler } from './CornHauler';
+import { CornHaulerBackpack } from './CornHaulerBackpack';
 import { CornStoragePoint } from './CornStoragePoint';
 import { CornTractor } from './CornTractor';
 import { CornUnlockPad } from './CornUnlockPad';
@@ -39,6 +40,11 @@ type PurchasableUnlockStage = Exclude<UnlockStage, 'complete'>;
 type VehiclePath = {
     start: Node;
     end: Node;
+};
+
+type CarryMountOwner = {
+    backpackMount?: Node;
+    coinBackpackMount?: Node;
 };
 
 type FieldRuntime = {
@@ -794,16 +800,30 @@ export class ResourceFieldSystem extends Component {
         this.disableActorGameplayComponents(actor);
         for (const storage of actor.getComponentsInChildren(CornStoragePoint)) storage.clearStorage();
 
-        const carryNode = new Node('CornCarryStorage');
-        carryNode.setParent(actor);
-        carryNode.setPosition(0, 1.2, -0.6);
-        const carryStorage = this.configureStorage(carryNode, `${field.id}_hauler_carry`, 4);
-        carryStorage.resourcePerRow = 2;
-        carryStorage.resourcePerCol = 2;
-        carryStorage.layerHeight = 0.18;
-        carryStorage.resourceRowSpacing = 0.18;
-        carryStorage.resourceColSpacing = 0.18;
+        const mountTemplate = this.clearInheritedHaulerCargo(actor);
+        const carryNode = new Node('CornHaulerCarryMount');
+        if (mountTemplate?.parent) {
+            carryNode.setParent(mountTemplate.parent);
+            carryNode.setPosition(mountTemplate.position);
+            carryNode.setRotation(mountTemplate.rotation);
+            carryNode.setScale(mountTemplate.scale);
+        } else {
+            carryNode.setParent(actor);
+            carryNode.setPosition(0, 1.45, -0.48);
+        }
+
+        const carryStorage = actor.getComponent(CornHaulerBackpack) ?? actor.addComponent(CornHaulerBackpack);
+        carryStorage.enabled = true;
+        carryStorage.resourcePrefab = field.resourcePrefab;
         carryStorage.stackAreaNode = carryNode;
+        carryStorage.capacity = 42;
+        carryStorage.maxVisibleItems = 42;
+        carryStorage.rowSpacing = 0.2;
+        carryStorage.columnSpacing = 0.2;
+        carryStorage.layerHeight = 0.2;
+        carryStorage.moveAnimationDuration = 0.32;
+        carryStorage.moveEasing = 'sineOut';
+        carryStorage.clearStorage();
 
         const behavior = actor.getComponent(CornHauler) ?? actor.addComponent(CornHauler);
         behavior.enabled = true;
@@ -821,6 +841,41 @@ export class ResourceFieldSystem extends Component {
         actor.active = true;
         field.hauler = actor;
         field.haulerBehavior = behavior;
+    }
+
+    private clearInheritedHaulerCargo(actor: Node): Node | null {
+        let mountTemplate: Node | null = null;
+        const inheritedMounts = new Set<Node>();
+        const visit = (node: Node): void => {
+            for (const component of node.components) {
+                const owner = component as unknown as CarryMountOwner;
+                if (owner.backpackMount?.isValid) {
+                    mountTemplate ??= owner.backpackMount;
+                    inheritedMounts.add(owner.backpackMount);
+                }
+                if (owner.coinBackpackMount?.isValid) {
+                    inheritedMounts.add(owner.coinBackpackMount);
+                }
+            }
+
+            for (const child of [...node.children]) {
+                if (child.name.startsWith('ResourceBackpack_')) {
+                    child.active = false;
+                    child.destroy();
+                } else {
+                    visit(child);
+                }
+            }
+        };
+
+        visit(actor);
+        for (const mount of inheritedMounts) {
+            for (const item of [...mount.children]) {
+                item.active = false;
+                item.destroy();
+            }
+        }
+        return mountTemplate;
     }
 
     private createActor(prefab: Prefab | null, fallback: Node | null, preserveChopAction = false): Node | null {
