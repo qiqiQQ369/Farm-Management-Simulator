@@ -630,16 +630,17 @@ export class CoinConsumer extends Component {
     }
 
     private ensureHaulerCarryStorage(hauler: Node): StoragePoint | null {
-        const playerStorage = this.findSceneNodeByName('Player')
+        const playerMount = this.findSceneNodeByName('Player')
             ?.getComponent(WoodBackpack)
-            ?.backpackMount
-            ?.getComponent(StoragePoint) ?? null;
+            ?.backpackMount ?? null;
+        const playerStorage = playerMount?.getComponent(StoragePoint) ?? null;
 
-        const backpackStorage = hauler.getComponent(WoodBackpack)
-            ?.backpackMount
-            ?.getComponent(StoragePoint) ?? null;
+        const haulerMount = hauler.getComponent(WoodBackpack)?.backpackMount ?? null;
+        const backpackStorage = haulerMount?.getComponent(StoragePoint) ?? null;
         if (backpackStorage) {
+            this.copyCarryMountTransform(haulerMount ?? backpackStorage.node, playerMount);
             this.copyStoragePointLayout(backpackStorage, playerStorage);
+            backpackStorage.stackAreaNode = backpackStorage.node;
             backpackStorage.storageName = '搬运工木材存储';
             backpackStorage.clearStorage();
             return backpackStorage;
@@ -648,7 +649,9 @@ export class CoinConsumer extends Component {
         const existingCarryNode = this.findNamedNode(hauler, 'HaulerCarryStorage');
         const existingCarryStorage = existingCarryNode?.getComponent(StoragePoint) ?? null;
         if (existingCarryStorage) {
+            this.copyCarryMountTransform(existingCarryNode ?? existingCarryStorage.node, playerMount);
             this.copyStoragePointLayout(existingCarryStorage, playerStorage);
+            existingCarryStorage.stackAreaNode = existingCarryStorage.node;
             existingCarryStorage.storageName = '搬运工木材存储';
             existingCarryStorage.clearStorage();
             return existingCarryStorage;
@@ -657,10 +660,12 @@ export class CoinConsumer extends Component {
         const carryNode = new Node('HaulerCarryStorage');
         carryNode.setParent(hauler);
         carryNode.setPosition(0, 1.2, -0.6);
+        this.copyCarryMountTransform(carryNode, playerMount);
 
         const storage = carryNode.addComponent(StoragePoint);
         storage.storageName = '搬运工木材存储';
         this.copyStoragePointLayout(storage, playerStorage);
+        storage.stackAreaNode = storage.node;
         storage.clearStorage();
         console.log('[HAULER-DEBUG] created fallback carry storage', {
             haulerName: hauler.name,
@@ -668,6 +673,17 @@ export class CoinConsumer extends Component {
             localPosition: carryNode.position.clone(),
         });
         return storage;
+    }
+
+    /**
+     * The player mount is a visual template only. The hauler keeps its own
+     * node and StoragePoint so carrying resources remain independent.
+     */
+    private copyCarryMountTransform(target: Node, source: Node | null): void {
+        if (!source) return;
+        target.setPosition(source.position);
+        target.setRotation(source.rotation);
+        target.setScale(source.scale);
     }
 
     private copyStoragePointLayout(target: StoragePoint, source: StoragePoint | null): void {
