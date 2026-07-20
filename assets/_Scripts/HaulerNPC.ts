@@ -1,4 +1,4 @@
-import { _decorator, Component, math, Node, SkeletalAnimation, Vec3 } from 'cc';
+import { _decorator, Component, game, Game, math, Node, SkeletalAnimation, Vec3 } from 'cc';
 import { AnimationName } from './PlayerController';
 import { ResourceManager } from './Resource/ResourceManager';
 import { StoragePoint } from './Resource/StoragePoint';
@@ -72,6 +72,7 @@ export class HaulerNPC extends Component {
     }
 
     protected onEnable(): void {
+        game.on(Game.EVENT_SHOW, this.onApplicationShow, this);
         this._state = HaulerState.WaitingForWood;
         this._transferTimer = 0;
         this._isMoving = false;
@@ -83,6 +84,14 @@ export class HaulerNPC extends Component {
             this.node.setWorldPosition(spawnPosition);
         }
         this.playIdleAnimation();
+    }
+
+    protected onDisable(): void {
+        game.off(Game.EVENT_SHOW, this.onApplicationShow, this);
+    }
+
+    private onApplicationShow(): void {
+        this.recoverAfterSceneTransition();
     }
 
     protected update(deltaTime: number): void {
@@ -139,10 +148,10 @@ export class HaulerNPC extends Component {
     }
 
     /**
-     * Reconcile the forest hauler after a field reveal/camera sequence.
+     * Reconcile the forest hauler after the game resumes or a reveal sequence.
      *
-     * The reveal can suspend a resource transfer between marking a stack item
-     * immovable and completing its animation. Rebuild the three real stacks,
+     * Either interruption can pause a resource transfer between marking a stack
+     * item immovable and completing its animation. Rebuild the three real stacks,
      * then resume from inventory state instead of retaining a stale run state.
      */
     public recoverAfterSceneTransition(): void {
