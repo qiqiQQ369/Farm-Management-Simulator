@@ -267,6 +267,7 @@ export class ResourceFieldSystem extends Component {
     private _resourceBackpack: MultiResourceBackpack | null = null;
     private _openedSideFields = 0;
     private _finished = false;
+    private _reportedMissingPlayerForHaulerSpawn = false;
 
     protected onLoad(): void {
         ResourceFieldSystem.inst = this;
@@ -789,6 +790,17 @@ export class ResourceFieldSystem extends Component {
         return point;
     }
 
+    private getCornHaulerSpawnWorldPosition(padNode: Node): Vec3 {
+        const spawnPosition = padNode.worldPosition.clone();
+        if (this._player?.isValid) {
+            spawnPosition.y = this._player.worldPosition.y;
+        } else if (!this._reportedMissingPlayerForHaulerSpawn) {
+            console.warn('ResourceFieldSystem: player is missing; corn hauler uses unlock-pad height.');
+            this._reportedMissingPlayerForHaulerSpawn = true;
+        }
+        return spawnPosition;
+    }
+
     private spawnHauler(field: FieldRuntime, padNode: Node): void {
         const fallback = this.haulerTemplate ?? this.workerTemplate?.children[0] ?? this.workerTemplate;
         const actor = field.haulerPrefab ? instantiate(field.haulerPrefab) : fallback ? instantiate(fallback) : null;
@@ -796,7 +808,7 @@ export class ResourceFieldSystem extends Component {
         actor.name = `${field.id}_Hauler`;
         actor.active = false;
         actor.setParent(field.root);
-        actor.setWorldPosition(padNode.worldPosition);
+        actor.setWorldPosition(this.getCornHaulerSpawnWorldPosition(padNode));
         this.disableActorGameplayComponents(actor);
         for (const storage of actor.getComponentsInChildren(CornStoragePoint)) storage.clearStorage();
 

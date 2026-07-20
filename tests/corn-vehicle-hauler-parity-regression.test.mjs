@@ -99,6 +99,21 @@ test('corn hauler is empty before activation and mounts corn like the player', (
     assert.doesNotMatch(spawnMethod, /new Node\('CornCarryStorage'\)|resourcePerRow = 2|resourcePerCol = 2/);
 });
 
+test('corn hauler spawns at the player ground height instead of the unlock pad height', () => {
+    const spawnMethod = source.match(
+        /private spawnHauler[\s\S]*?\n    private clearInheritedHaulerCargo/,
+    )?.[0] ?? '';
+    const spawnPositionMethod = source.match(
+        /private getCornHaulerSpawnWorldPosition[\s\S]*?\n    private spawnHauler/,
+    )?.[0] ?? '';
+
+    assert.match(spawnMethod, /actor\.setWorldPosition\(this\.getCornHaulerSpawnWorldPosition\(padNode\)\)/);
+    assert.match(spawnPositionMethod, /const spawnPosition = padNode\.worldPosition\.clone\(\)/);
+    assert.match(spawnPositionMethod, /spawnPosition\.y = this\._player\.worldPosition\.y/);
+    assert.match(spawnPositionMethod, /return spawnPosition/);
+    assert.doesNotMatch(spawnMethod, /actor\.setWorldPosition\(padNode\.worldPosition\)/);
+});
+
 test('corn tractor owns a copy of the forest path loop and contact harvest settings', () => {
     const vehicleSpawn = source.match(
         /private spawnVehicle[\s\S]*?\n    private spawnHauler/,
