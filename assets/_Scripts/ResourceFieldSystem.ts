@@ -624,7 +624,6 @@ export class ResourceFieldSystem extends Component {
         }
 
         const padNode = field.unlockNodes[stage];
-        padNode.setWorldPosition(field.openingPad.worldPosition);
         padNode.active = true;
         const visual = padNode.getChildByName('view') ?? padNode.children[0] ?? null;
         if (!visual) {
