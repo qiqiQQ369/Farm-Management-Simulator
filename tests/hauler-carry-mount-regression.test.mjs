@@ -15,20 +15,23 @@ const haulerSource = readFileSync(
     'utf8',
 );
 
-test('forest hauler copies the player mount transform into a private carry storage', () => {
+test('forest hauler keeps its own socket or derives a root-relative private carry mount', () => {
     const method = source.match(
         /private ensureHaulerCarryStorage[\s\S]*?\n    private copyStoragePointLayout/,
     )?.[0] ?? '';
 
-    assert.match(method, /const playerMount = [\s\S]*?WoodBackpack\)[\s\S]*?\.backpackMount/);
-    assert.match(method, /this\.copyCarryMountTransform\([\s\S]*?playerMount\)/);
+    assert.match(method, /const playerRoot = this\.findSceneNodeByName\('Player'\)/);
+    assert.match(method, /const playerMount = playerRoot[\s\S]*?WoodBackpack\)[\s\S]*?\.backpackMount/);
+    assert.match(method, /this\.isNodeOwnedBy\(hauler, haulerMount\)/);
+    assert.match(method, /this\.copyCarryMountTransform\([\s\S]*?playerMount, playerRoot\)/);
     assert.match(method, /stackAreaNode = [a-zA-Z]+Storage\.node/);
     assert.doesNotMatch(method, /stackAreaNode = playerMount/);
     assert.doesNotMatch(method, /return playerStorage/);
-    assert.match(source, /private copyCarryMountTransform\(target: Node, source: Node \| null\): void/);
-    assert.match(source, /target\.setPosition\(source\.position\)/);
-    assert.match(source, /target\.setRotation\(source\.rotation\)/);
-    assert.match(source, /target\.setScale\(source\.scale\)/);
+    assert.match(source, /private isNodeOwnedBy\(root: Node, candidate: Node \| null\): boolean/);
+    assert.match(source, /private copyCarryMountTransform\(target: Node, source: Node \| null, sourceRoot: Node \| null\): void/);
+    assert.match(source, /sourceRoot\.inverseTransformPoint\(relativePosition, source\.worldPosition\)/);
+    assert.match(source, /Quat\.invert\(parentInverseRotation, sourceRoot\.worldRotation\)/);
+    assert.match(source, /Quat\.multiply\(relativeRotation, parentInverseRotation, source\.worldRotation\)/);
     assert.match(backpackSource, /public backpackMount: Node/);
     assert.match(haulerSource, /public carryStorage: StoragePoint/);
 });

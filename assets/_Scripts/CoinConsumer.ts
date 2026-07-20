@@ -1,4 +1,4 @@
-import { _decorator, AudioSource, CharacterController, Collider, Component, find, ITriggerEvent, instantiate, Label, Node, Prefab, RigidBody, Sprite, SpriteFrame, tween, Vec3 } from 'cc';
+import { _decorator, AudioSource, CharacterController, Collider, Component, find, ITriggerEvent, instantiate, Label, Node, Prefab, Quat, RigidBody, Sprite, SpriteFrame, tween, Vec3 } from 'cc';
 import { ArrowTipController } from './ArrowTipController';
 import { CameraController } from './CameraController';
 import { ChopAction } from './ChopAction';
@@ -630,15 +630,17 @@ export class CoinConsumer extends Component {
     }
 
     private ensureHaulerCarryStorage(hauler: Node): StoragePoint | null {
-        const playerMount = this.findSceneNodeByName('Player')
+        const playerRoot = this.findSceneNodeByName('Player');
+        const playerMount = playerRoot
             ?.getComponent(WoodBackpack)
             ?.backpackMount ?? null;
         const playerStorage = playerMount?.getComponent(StoragePoint) ?? null;
 
         const haulerMount = hauler.getComponent(WoodBackpack)?.backpackMount ?? null;
-        const backpackStorage = haulerMount?.getComponent(StoragePoint) ?? null;
+        const backpackStorage = this.isNodeOwnedBy(hauler, haulerMount)
+            ? haulerMount?.getComponent(StoragePoint) ?? null
+            : null;
         if (backpackStorage) {
-            this.copyCarryMountTransform(haulerMount ?? backpackStorage.node, playerMount);
             this.copyStoragePointLayout(backpackStorage, playerStorage);
             backpackStorage.stackAreaNode = backpackStorage.node;
             backpackStorage.storageName = '搬运工木材存储';
@@ -649,7 +651,7 @@ export class CoinConsumer extends Component {
         const existingCarryNode = this.findNamedNode(hauler, 'HaulerCarryStorage');
         const existingCarryStorage = existingCarryNode?.getComponent(StoragePoint) ?? null;
         if (existingCarryStorage) {
-            this.copyCarryMountTransform(existingCarryNode ?? existingCarryStorage.node, playerMount);
+            this.copyCarryMountTransform(existingCarryNode ?? existingCarryStorage.node, playerMount, playerRoot);
             this.copyStoragePointLayout(existingCarryStorage, playerStorage);
             existingCarryStorage.stackAreaNode = existingCarryStorage.node;
             existingCarryStorage.storageName = '搬运工木材存储';
@@ -660,7 +662,7 @@ export class CoinConsumer extends Component {
         const carryNode = new Node('HaulerCarryStorage');
         carryNode.setParent(hauler);
         carryNode.setPosition(0, 1.2, -0.6);
-        this.copyCarryMountTransform(carryNode, playerMount);
+        this.copyCarryMountTransform(carryNode, playerMount, playerRoot);
 
         const storage = carryNode.addComponent(StoragePoint);
         storage.storageName = '搬运工木材存储';
@@ -676,14 +678,40 @@ export class CoinConsumer extends Component {
     }
 
     /**
-     * The player mount is a visual template only. The hauler keeps its own
-     * node and StoragePoint so carrying resources remain independent.
+     * Reject mounts outside the hauler hierarchy so a cloned actor never
+     * reads from or mutates the player's live backpack storage.
      */
-    private copyCarryMountTransform(target: Node, source: Node | null): void {
-        if (!source) return;
-        target.setPosition(source.position);
-        target.setRotation(source.rotation);
-        target.setScale(source.scale);
+    private isNodeOwnedBy(root: Node, candidate: Node | null): boolean {
+        for (let node = candidate; node; node = node.parent) {
+            if (node === root) return true;
+        }
+        return false;
+    }
+
+    /**
+     * The player mount is a visual template only. Convert its full bone-chain
+     * transform into the player-root coordinate system for a private fallback.
+     */
+    private copyCarryMountTransform(target: Node, source: Node | null, sourceRoot: Node | null): void {
+        if (!source || !sourceRoot) return;
+
+        const relativePosition = new Vec3();
+        sourceRoot.inverseTransformPoint(relativePosition, source.worldPosition);
+        target.setPosition(relativePosition);
+
+        const parentInverseRotation = new Quat();
+        const relativeRotation = new Quat();
+        Quat.invert(parentInverseRotation, sourceRoot.worldRotation);
+        Quat.multiply(relativeRotation, parentInverseRotation, source.worldRotation);
+        target.setRotation(relativeRotation);
+
+        const sourceScale = source.worldScale;
+        const rootScale = sourceRoot.worldScale;
+        target.setScale(
+            rootScale.x === 0 ? sourceScale.x : sourceScale.x / rootScale.x,
+            rootScale.y === 0 ? sourceScale.y : sourceScale.y / rootScale.y,
+            rootScale.z === 0 ? sourceScale.z : sourceScale.z / rootScale.z,
+        );
     }
 
     private copyStoragePointLayout(target: StoragePoint, source: StoragePoint | null): void {
