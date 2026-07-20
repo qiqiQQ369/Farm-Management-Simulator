@@ -226,6 +226,9 @@ export class ResourceFieldSystem extends Component {
     @property({ tooltip: 'Visual scale of side-field stock inside its sell slot, matching the forest wood slot.', group: 'Shared gameplay' })
     public sellStorageScale = 0.9;
 
+    @property({ tooltip: 'Local rotation of side-field stock inside its sell slot, matching the forest wood slot.', group: 'Shared gameplay' })
+    public sellStorageRotation = new Vec3(0, -90, 0);
+
     private readonly _fields: FieldRuntime[] = [];
     private _player: Node | null = null;
     private _playerController: PlayerController | null = null;
@@ -853,11 +856,11 @@ export class ResourceFieldSystem extends Component {
             storageNode.setParent(sellNode);
         }
 
-        // The central forest slot uses (-3.58, 8.66, 15.3) under a 0.1
-        // scaled Sell node. These values are its equivalent transform under
-        // the side Sell1 nodes, whose revealed scale is 1.
+        // Match the central forest slot's effective position, scale and
+        // orientation under the side Sell1 nodes, whose revealed scale is 1.
         storageNode.setPosition(this.sellStoragePosition);
         storageNode.setScale(this.sellStorageScale, this.sellStorageScale, this.sellStorageScale);
+        storageNode.setRotationFromEuler(this.sellStorageRotation);
         const storage = this.configureStorage(storageNode, `${resourceId}_sell`, 1000000);
         storage.resourcePerRow = 5;
         storage.resourcePerCol = 2;
