@@ -15,8 +15,10 @@ import {
 import { AnimationLibrary } from './AnimationLibrary';
 import { AnimationController } from './AnimationController';
 import { CameraFacingUI } from './CameraFacingUI';
+import { CoinBackpack } from './CoinBackpack';
 import { CornCoinCollector } from './CornCoinCollector';
 import { CornStoragePoint } from './CornStoragePoint';
+import { PlayerController } from './PlayerController';
 
 const { ccclass, property } = _decorator;
 
@@ -258,7 +260,9 @@ export class CornCustomerScheduler extends Component {
         collider.size.set(2.3, 1, 2.4);
 
         const collector = dropArea.getComponent(CornCoinCollector) ?? dropArea.addComponent(CornCoinCollector);
-        collector.configure(storage, stackArea);
+        const playerController = this.node.scene?.getComponentInChildren(PlayerController) ?? null;
+        const playerCoinBackpack = playerController?.node.getComponent(CoinBackpack) ?? null;
+        collector.configure(storage, stackArea, playerController?.node ?? null, playerCoinBackpack);
         this.coinDropArea = dropArea;
         return storage;
     }

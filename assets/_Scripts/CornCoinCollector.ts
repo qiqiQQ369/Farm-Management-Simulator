@@ -1,5 +1,6 @@
 import {
     _decorator,
+    BoxCollider,
     Collider,
     Component,
     find,
@@ -34,12 +35,15 @@ export class CornCoinCollector extends Component {
     @property public coinFlyHeight = 2;
 
     private _sourceStorage: CornStoragePoint | null = null;
+    private _playerNode: Node | null = null;
     private _playerCoinBackpack: CoinBackpack | null = null;
-    private _isPlayerInArea = false;
+    private _isPlayerInTrigger = false;
+    private _isPlayerWithinBounds = false;
+    private readonly _localPlayerPosition = new Vec3();
     private _collectTimer = 0;
 
     protected onLoad(): void {
-        this.resolvePlayerCoinBackpack();
+        this.resolvePlayerBindings();
     }
 
     protected onEnable(): void {
@@ -52,38 +56,69 @@ export class CornCoinCollector extends Component {
         const collider = this.node.getComponent(Collider);
         collider?.off('onTriggerEnter', this.onPlayerEnter, this);
         collider?.off('onTriggerExit', this.onPlayerExit, this);
-        this._isPlayerInArea = false;
+        this._isPlayerInTrigger = false;
+        this._isPlayerWithinBounds = false;
         this._collectTimer = 0;
     }
 
     protected update(deltaTime: number): void {
-        if (!this._isPlayerInArea) return;
+        this.refreshPlayerProximity();
+        if (!this._isPlayerInTrigger && !this._isPlayerWithinBounds) return;
         this._collectTimer += deltaTime;
         if (this._collectTimer < this.collectInterval) return;
         this._collectTimer = 0;
         this.collectCoin();
     }
 
-    public configure(sourceStorage: CornStoragePoint, coinLoadArea: Node): void {
+    public configure(
+        sourceStorage: CornStoragePoint,
+        coinLoadArea: Node,
+        playerNode: Node | null,
+        playerCoinBackpack: CoinBackpack | null,
+    ): void {
         this._sourceStorage = sourceStorage;
         this.coinLoadArea = coinLoadArea;
-        this.resolvePlayerCoinBackpack();
+        this._playerNode = playerNode;
+        this._playerCoinBackpack = playerCoinBackpack;
+        this.resolvePlayerBindings();
     }
 
-    private resolvePlayerCoinBackpack(): void {
-        if (this._playerCoinBackpack?.node?.isValid) return;
-        this._playerCoinBackpack = this.node.scene?.getComponentInChildren(CoinBackpack) ?? null;
+    private resolvePlayerBindings(): void {
+        if (!this._playerNode?.isValid) {
+            this._playerNode = this.node.scene?.getComponentInChildren(PlayerController)?.node ?? null;
+        }
+        if (!this._playerCoinBackpack?.node?.isValid) {
+            this._playerCoinBackpack = this._playerNode?.getComponent(CoinBackpack) ?? null;
+        }
+    }
+
+    private refreshPlayerProximity(): void {
+        this.resolvePlayerBindings();
+        const player = this._playerNode;
+        const collider = this.node.getComponent(BoxCollider);
+        if (!player?.isValid || !collider) {
+            this._isPlayerWithinBounds = false;
+            return;
+        }
+
+        const localPlayerPosition = this._localPlayerPosition;
+        this.node.inverseTransformPoint(localPlayerPosition, player.worldPosition);
+        const center = collider.center;
+        const size = collider.size;
+        this._isPlayerWithinBounds =
+            Math.abs(localPlayerPosition.x - center.x) <= size.x * 0.5
+            && Math.abs(localPlayerPosition.z - center.z) <= size.z * 0.5;
     }
 
     private onPlayerEnter(event: ITriggerEvent): void {
         if (!this.isPlayerNode(event.otherCollider.node)) return;
-        this._isPlayerInArea = true;
+        this._isPlayerInTrigger = true;
         this._collectTimer = 0;
     }
 
     private onPlayerExit(event: ITriggerEvent): void {
         if (!this.isPlayerNode(event.otherCollider.node)) return;
-        this._isPlayerInArea = false;
+        this._isPlayerInTrigger = false;
         this._collectTimer = 0;
     }
 
@@ -94,7 +129,7 @@ export class CornCoinCollector extends Component {
     }
 
     private findPlayerStorage(): StorageLike | null {
-        this.resolvePlayerCoinBackpack();
+        this.resolvePlayerBindings();
         const backpackMount = this._playerCoinBackpack?.coinBackpackMount ?? null;
         if (!backpackMount) return null;
 

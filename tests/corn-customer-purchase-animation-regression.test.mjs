@@ -160,6 +160,39 @@ test('玉米金币使用独立库存和收集逻辑', () => {
     assert.match(schedulerSource, /storage\.capacity = 54/);
     assert.match(schedulerSource, /dropArea\.addComponent\(CornCoinCollector\)/);
     assert.match(schedulerSource, /storage\.addResource\(coin, 1\)/);
+    assert.match(
+        collectorSource,
+        /public configure\([\s\S]*playerNode: Node \| null,[\s\S]*playerCoinBackpack: CoinBackpack \| null/,
+    );
+    assert.match(collectorSource, /this\._playerNode = playerNode/);
+    assert.match(collectorSource, /this\._playerCoinBackpack = playerCoinBackpack/);
+    assert.match(
+        schedulerSource,
+        /const playerController = this\.node\.scene\?\.getComponentInChildren\(PlayerController\)/,
+    );
+    assert.match(
+        schedulerSource,
+        /collector\.configure\(storage, stackArea, playerController\?\.node \?\? null, playerCoinBackpack\)/,
+    );
+    assert.match(collectorSource, /private _isPlayerInTrigger = false/);
+    assert.match(collectorSource, /private _isPlayerWithinBounds = false/);
+    assert.match(collectorSource, /this\.refreshPlayerProximity\(\)/);
+    assert.match(
+        collectorSource,
+        /if \(!this\._isPlayerInTrigger && !this\._isPlayerWithinBounds\) return/,
+    );
+    assert.match(
+        collectorSource,
+        /this\.node\.inverseTransformPoint\(localPlayerPosition, player\.worldPosition\)/,
+    );
+    assert.match(
+        collectorSource,
+        /Math\.abs\(localPlayerPosition\.x - center\.x\) <= size\.x \* 0\.5/,
+    );
+    assert.match(
+        collectorSource,
+        /Math\.abs\(localPlayerPosition\.z - center\.z\) <= size\.z \* 0\.5/,
+    );
 });
 
 test('玉米金币堆对齐本地白色底板中心', () => {
