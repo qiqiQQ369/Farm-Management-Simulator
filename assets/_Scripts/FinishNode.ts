@@ -305,6 +305,12 @@ export class FinishNode extends Component {
 
         this.node2.active = true;
 
+        // Gameplay nodes must appear before optional reveal decorations run.
+        if (ResourceFieldSystem.notifyFieldRevealCompleted(this.node.parent ?? this.node)) {
+            this._isPlaying = false;
+            return;
+        }
+
         tween(this.node1)
         .to(0.2, { scale: new Vec3(1, 1, 1) })
         .call(() => {

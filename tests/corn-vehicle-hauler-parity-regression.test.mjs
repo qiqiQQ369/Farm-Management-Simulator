@@ -1,0 +1,164 @@
+import assert from 'node:assert/strict';
+import { existsSync, readFileSync } from 'node:fs';
+import test from 'node:test';
+
+const source = readFileSync(
+    new URL('../assets/_Scripts/ResourceFieldSystem.ts', import.meta.url),
+    'utf8',
+);
+const cornTractorPath = new URL('../assets/_Scripts/CornTractor.ts', import.meta.url);
+const cornHaulerPath = new URL('../assets/_Scripts/CornHauler.ts', import.meta.url);
+const cornStoragePath = new URL('../assets/_Scripts/CornStoragePoint.ts', import.meta.url);
+const cornUnlockPath = new URL('../assets/_Scripts/CornUnlockPad.ts', import.meta.url);
+const cornTractorSource = existsSync(cornTractorPath) ? readFileSync(cornTractorPath, 'utf8') : '';
+const cornHaulerSource = existsSync(cornHaulerPath) ? readFileSync(cornHaulerPath, 'utf8') : '';
+const cornStorageSource = existsSync(cornStoragePath) ? readFileSync(cornStoragePath, 'utf8') : '';
+const cornUnlockSource = existsSync(cornUnlockPath) ? readFileSync(cornUnlockPath, 'utf8') : '';
+const cornProductionSource = readFileSync(
+    new URL('../assets/_Scripts/CornFieldProduction.ts', import.meta.url),
+    'utf8',
+);
+const scene = JSON.parse(readFileSync(
+    new URL('../assets/Scenes/DevScene.scene', import.meta.url),
+    'utf8',
+));
+const unlockPrefab = JSON.parse(readFileSync(
+    new URL('../assets/_Assets/icon/Prefabs/new_icon.prefab', import.meta.url),
+    'utf8',
+));
+const fieldSystem = scene.find((entry) =>
+    entry?.leftFieldRoot && entry?.rightFieldRoot && entry?.leftWorkerUnlockPoint,
+);
+assert.ok(fieldSystem, 'ResourceFieldSystem scene binding must exist');
+
+test('corn tractor owns a copy of the forest path loop and contact harvest settings', () => {
+    const vehicleSpawn = source.match(
+        /private spawnVehicle[\s\S]*?\n    private spawnHauler/,
+    )?.[0] ?? '';
+    assert.ok(existsSync(cornTractorPath), 'corn tractor must have a dedicated component');
+    assert.doesNotMatch(source, /LoggingTruck/);
+    assert.doesNotMatch(source, /Woodcutter|WoodBackpack/);
+    assert.match(vehicleSpawn, /actor\.getComponent\(CornTractor\) \?\? actor\.addComponent\(CornTractor\)/);
+    assert.match(vehicleSpawn, /this\.disableActorGameplayComponents\(actor\)/);
+    assert.ok(
+        vehicleSpawn.indexOf('this.disableActorGameplayComponents(actor)') <
+            vehicleSpawn.indexOf('actor.getComponent(CornTractor)'),
+        'the cloned forest vehicle gameplay must be disabled before CornTractor starts',
+    );
+    assert.match(cornProductionSource, /public getVehiclePathBounds\(\): VehiclePathBounds \| null/);
+    assert.match(source, /private clampVehiclePath\(field: FieldRuntime, actor: Node\): VehiclePath \| null/);
+    assert.match(vehicleSpawn, /const path = this\.clampVehiclePath\(field, actor\)/);
+    assert.match(vehicleSpawn, /behavior\.startPoint = path\.start/);
+    assert.match(vehicleSpawn, /behavior\.endPoint = path\.end/);
+    assert.match(source, /Math\.min\(Math\.max\(value, min\), max\)/);
+    assert.match(vehicleSpawn, /field\.production\.setVehicle\(actor\)/);
+    assert.doesNotMatch(source, /private updateVehicle|type VehicleState|createVehiclePath/);
+
+    for (const state of ['Idle', 'MovingToStart', 'MovingToEnd', 'Turning', 'Waiting']) {
+        assert.match(cornTractorSource, new RegExp(`CornTractorState\\.${state}`));
+    }
+    assert.match(cornProductionSource, /private harvestVehicleContacts/);
+    assert.match(cornProductionSource, /public vehicleReward = 3/);
+
+    assert.match(cornTractorSource, /public moveSpeed(?:\s*:\s*number)?\s*=\s*5\.0/);
+    assert.equal(fieldSystem.leftVehicleSpeed, 2);
+    assert.equal(fieldSystem.rightVehicleSpeed, 2);
+    assert.equal(fieldSystem.vehicleChopRange, 3);
+    assert.equal(fieldSystem.vehicleStartDelay, 1);
+    assert.equal(fieldSystem.vehicleEndpointWait, 0.1);
+
+    for (const side of ['left', 'right']) {
+        assert.ok(fieldSystem[`${side}VehicleStartPoint`]);
+        assert.ok(fieldSystem[`${side}VehicleEndPoint`]);
+        assert.notEqual(
+            fieldSystem[`${side}VehicleStartPoint`].__id__,
+            fieldSystem[`${side}VehicleEndPoint`].__id__,
+        );
+    }
+});
+
+test('each corn tractor path stays inside its own field production side', () => {
+    for (const side of ['left', 'right']) {
+        const rootId = fieldSystem[`${side}FieldRoot`].__id__;
+        const storageComponent = scene[fieldSystem[`${side}CollectionStorage`].__id__];
+        const storage = scene[storageComponent.node.__id__];
+        const start = scene[fieldSystem[`${side}VehicleStartPoint`].__id__];
+        const end = scene[fieldSystem[`${side}VehicleEndPoint`].__id__];
+
+        assert.equal(start._parent.__id__, rootId);
+        assert.equal(end._parent.__id__, rootId);
+        assert.ok(
+            Math.abs(start._lpos.x - storage._lpos.x) < 5,
+            `${side} tractor must spawn beside its own corn storage`,
+        );
+        assert.ok(
+            Math.abs(end._lpos.x - storage._lpos.x) < 5,
+            `${side} tractor route must remain on its own corn side`,
+        );
+    }
+});
+
+test('corn tractor unlock uses the forest MACHINE presentation', () => {
+    const method = source.match(
+        /private completeVehicleUnlock[\s\S]*?\n    private completeHaulerUnlock/,
+    )?.[0] ?? '';
+    assert.match(method, /scale: new Vec3\(0, 0, 0\)/);
+    assert.match(method, /this\.showUnlockStage\(field, 'hauler', true(?:, padNode)?\)/);
+    assert.match(method, /cameraController\.target = field\.vehicle\.node/);
+    assert.match(method, /joystickController\._lock = true/);
+    assert.match(method, /}, 4\)/);
+});
+
+test('corn hauler, storage, and unlock pad are dedicated copies of forest behavior', () => {
+    assert.ok(existsSync(cornHaulerPath), 'corn hauler must have a dedicated component');
+    assert.ok(existsSync(cornStoragePath), 'corn storage must have a dedicated component');
+    assert.ok(existsSync(cornUnlockPath), 'corn unlock pad must have a dedicated component');
+    assert.doesNotMatch(source, /from '\.\/HaulerNPC'|from '\.\/Resource\/StoragePoint'/);
+    assert.match(cornHaulerSource, /enum CornHaulerState \{[\s\S]*WaitingForCorn[\s\S]*Loading[\s\S]*Delivering[\s\S]*Unloading[\s\S]*Returning/);
+    assert.match(cornStorageSource, /public hasMovableResource\(\)/);
+    assert.match(cornStorageSource, /public recoverInterruptedTransfers\(\)/);
+    assert.match(cornUnlockSource, /public configure\(config: CornUnlockPadConfig\)/);
+    const authoredFillSprite = unlockPrefab.find(entry =>
+        entry?.__type__ === 'cc.Sprite' && entry._type === 3,
+    );
+    assert.ok(authoredFillSprite, 'corn unlock prefab must contain a FILLED progress sprite');
+    assert.equal(
+        unlockPrefab[authoredFillSprite.node.__id__]._name,
+        'splash2',
+        'regression fixture must cover the authored fill sprite whose name does not include fill',
+    );
+    assert.match(cornUnlockSource, /sprite\.type === Sprite\.Type\.FILLED/);
+    assert.doesNotMatch(source, /collectionStorageBinding\.enabled = false/);
+    for (const storageBinding of [
+        fieldSystem.leftCollectionStorage,
+        fieldSystem.rightCollectionStorage,
+    ]) {
+        assert.equal(
+            scene[storageBinding.__id__].__type__,
+            '548f0yQrgFOlZ7XOImfQyZC',
+            'corn collection storage must serialize CornStoragePoint instead of forest StoragePoint',
+        );
+        assert.equal(
+            scene[storageBinding.__id__]._enabled,
+            true,
+            'serialized CornStoragePoint must be the active storage behavior',
+        );
+    }
+
+    const method = source.match(
+        /private completeHaulerUnlock[\s\S]*?\n    private showUnlockStage/,
+    )?.[0] ?? '';
+    assert.match(method, /scale: new Vec3\(0, 0, 0\)/);
+    assert.match(method, /this\.spawnHauler\(field, padNode\)/);
+
+    const spawnMethod = source.match(
+        /private spawnHauler[\s\S]*?\n    private createActor/,
+    )?.[0] ?? '';
+    assert.match(spawnMethod, /addComponent\(CornHauler\)/);
+    assert.match(spawnMethod, /behavior\.collectionStorage = field\.collectionStorage/);
+    assert.match(spawnMethod, /behavior\.sellStorage = field\.sellStorage/);
+    assert.match(spawnMethod, /behavior\.carryStorage = carryStorage/);
+    assert.match(spawnMethod, /behavior\.transferInterval = 0\.15/);
+
+    assert.doesNotMatch(source, /private updateHauler|haulerState|haulerTimer/);
+});

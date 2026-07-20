@@ -1,12 +1,16 @@
 import {
     _decorator,
     Animation,
+    BoxCollider,
+    CapsuleCollider,
     Component,
+    ERigidBodyType,
     find,
     instantiate,
     Label,
     Node,
     Prefab,
+    RigidBody,
     SkeletalAnimation,
     Sprite,
     SpriteFrame,
@@ -14,37 +18,27 @@ import {
     Vec3,
 } from 'cc';
 import { ChopAction } from './ChopAction';
+import { CameraController } from './CameraController';
 import { CoinBackpack } from './CoinBackpack';
+import { CornFieldProduction } from './CornFieldProduction';
+import { CornHauler } from './CornHauler';
+import { CornStoragePoint } from './CornStoragePoint';
+import { CornTractor } from './CornTractor';
+import { CornUnlockPad } from './CornUnlockPad';
+import { CornWorker } from './CornWorker';
 import { JoystickController } from './JoystickController';
 import { MainUI } from './MainUI';
 import { MultiResourceBackpack } from './MultiResourceBackpack';
 import { PlayerController } from './PlayerController';
-import { StoragePoint } from './Resource/StoragePoint';
-import { WoodBackpack } from './WoodBackpack';
 
 const { ccclass, property } = _decorator;
-
-type PlantRuntime = {
-    node: Node;
-    hitPoints: number;
-    respawnAt: number;
-};
 
 type UnlockStage = 'worker' | 'vehicle' | 'hauler' | 'complete';
 type PurchasableUnlockStage = Exclude<UnlockStage, 'complete'>;
 
-type UnlockPadRuntime = {
-    node: Node;
-    cost: number;
-    progress: number;
-    stage: UnlockStage;
-    timer: number;
-};
-
-type ActorRuntime = {
-    node: Node;
-    target: PlantRuntime | null;
-    actionTimer: number;
+type VehiclePath = {
+    start: Node;
+    end: Node;
 };
 
 type FieldRuntime = {
@@ -54,9 +48,6 @@ type FieldRuntime = {
     resourcePrefab: Prefab | null;
     plantVisualPrefab: Prefab | null;
     icon: SpriteFrame | null;
-    hitsPerPlant: number;
-    yieldPerPlant: number;
-    respawnSeconds: number;
     workerCost: number;
     vehicleCost: number;
     haulerCost: number;
@@ -67,26 +58,29 @@ type FieldRuntime = {
     vehicleSpeed: number;
     haulerSpeed: number;
     workerActionInterval: number;
-    vehicleActionInterval: number;
+    workerChopRange: number;
+    workerWaitAfterChop: number;
+    workerStartDelay: number;
     unlocked: boolean;
-    plants: PlantRuntime[];
-    collectionStorage: StoragePoint;
-    sellStorage: StoragePoint;
+    production: CornFieldProduction;
+    vehicleStartPoint: Node;
+    vehicleEndPoint: Node;
+    collectionStorage: CornStoragePoint;
+    sellStorage: CornStoragePoint;
     sellNode: Node;
     unlockNodes: Record<PurchasableUnlockStage, Node>;
-    unlockPad: UnlockPadRuntime | null;
-    workers: ActorRuntime[];
-    vehicle: ActorRuntime | null;
+    unlockPad: CornUnlockPad | null;
+    workers: CornWorker[];
+    vehicle: { node: Node; behavior: CornTractor } | null;
     hauler: Node | null;
-    haulerState: 'waiting' | 'toCollection' | 'toSell' | 'returning';
-    haulerTimer: number;
+    haulerBehavior: CornHauler | null;
     depositTimer: number;
 };
 
 /**
  * Additive, resource-id based gameplay for the two side fields in DevScene.
  * It deliberately does not register crops as Trees and never writes to the
- * WoodBackpack, so the existing forest loop remains isolated.
+ * forest production scripts, so the existing forest loop remains isolated.
  */
 @ccclass('ResourceFieldSystem')
 export class ResourceFieldSystem extends Component {
@@ -113,8 +107,14 @@ export class ResourceFieldSystem extends Component {
     @property({ type: Node, group: 'Left field scene nodes' })
     public leftHaulerUnlockPoint: Node = null!;
 
-    @property({ type: StoragePoint, group: 'Left field scene nodes' })
-    public leftCollectionStorage: StoragePoint = null!;
+    @property({ type: CornStoragePoint, group: 'Left field scene nodes' })
+    public leftCollectionStorage: CornStoragePoint = null!;
+
+    @property({ type: Node, group: 'Left field scene nodes' })
+    public leftVehicleStartPoint: Node = null!;
+
+    @property({ type: Node, group: 'Left field scene nodes' })
+    public leftVehicleEndPoint: Node = null!;
 
     @property({ type: Node, group: 'Right field scene nodes' })
     public rightWorkerUnlockPoint: Node = null!;
@@ -125,8 +125,14 @@ export class ResourceFieldSystem extends Component {
     @property({ type: Node, group: 'Right field scene nodes' })
     public rightHaulerUnlockPoint: Node = null!;
 
-    @property({ type: StoragePoint, group: 'Right field scene nodes' })
-    public rightCollectionStorage: StoragePoint = null!;
+    @property({ type: CornStoragePoint, group: 'Right field scene nodes' })
+    public rightCollectionStorage: CornStoragePoint = null!;
+
+    @property({ type: Node, group: 'Right field scene nodes' })
+    public rightVehicleStartPoint: Node = null!;
+
+    @property({ type: Node, group: 'Right field scene nodes' })
+    public rightVehicleEndPoint: Node = null!;
 
     @property({ type: Node, group: 'Scene binding' })
     public endPanel: Node = null!;
@@ -143,7 +149,7 @@ export class ResourceFieldSystem extends Component {
     @property({ tooltip: 'Stable inventory id. Change the id when replacing the left resource.', group: 'Left field' })
     public leftResourceId = 'field_left_corn';
 
-    @property({ type: Prefab, tooltip: 'Drop/backpack/stock visual. Wood is used as the current placeholder.', group: 'Left field' })
+    @property({ type: Prefab, tooltip: 'Corn drop, backpack, and storage visual.', group: 'Left field' })
     public leftResourcePrefab: Prefab = null!;
 
     @property({ type: SpriteFrame, tooltip: 'Resource icon used by generated unlock pads.', group: 'Left field' })
@@ -164,20 +170,20 @@ export class ResourceFieldSystem extends Component {
     @property({ group: 'Left field' }) public leftWorkerCost = 100;
     @property({ group: 'Left field' }) public leftVehicleCost = 200;
     @property({ group: 'Left field' }) public leftHaulerCost = 170;
-    @property({ group: 'Left field' }) public leftHitsPerPlant = 3;
-    @property({ group: 'Left field' }) public leftYieldPerPlant = 1;
+    @property({ group: 'Left field' }) public leftHitsPerPlant = 1;
+    @property({ group: 'Left field' }) public leftYieldPerPlant = 3;
     @property({ group: 'Left field' }) public leftRespawnSeconds = 10;
-    @property({ group: 'Left field' }) public leftInventoryCapacity = 2000;
-    @property({ group: 'Left field' }) public leftWorkerSpeed = 2.6;
-    @property({ group: 'Left field' }) public leftVehicleSpeed = 4.5;
-    @property({ group: 'Left field' }) public leftHaulerSpeed = 3.2;
-    @property({ group: 'Left field' }) public leftWorkerActionInterval = 0.75;
+    @property({ group: 'Left field' }) public leftInventoryCapacity = Number.MAX_SAFE_INTEGER;
+    @property({ group: 'Left field' }) public leftWorkerSpeed = 2;
+    @property({ group: 'Left field' }) public leftVehicleSpeed = 2;
+    @property({ group: 'Left field' }) public leftHaulerSpeed = 3;
+    @property({ group: 'Left field' }) public leftWorkerActionInterval = 0.8;
     @property({ group: 'Left field' }) public leftVehicleActionInterval = 0.42;
 
     @property({ tooltip: 'Stable inventory id. Change the id when replacing the right resource.', group: 'Right field' })
     public rightResourceId = 'field_right_corn';
 
-    @property({ type: Prefab, tooltip: 'Drop/backpack/stock visual. Wood is used as the current placeholder.', group: 'Right field' })
+    @property({ type: Prefab, tooltip: 'Corn drop, backpack, and storage visual.', group: 'Right field' })
     public rightResourcePrefab: Prefab = null!;
 
     @property({ type: SpriteFrame, tooltip: 'Resource icon used by generated unlock pads.', group: 'Right field' })
@@ -198,14 +204,14 @@ export class ResourceFieldSystem extends Component {
     @property({ group: 'Right field' }) public rightWorkerCost = 100;
     @property({ group: 'Right field' }) public rightVehicleCost = 200;
     @property({ group: 'Right field' }) public rightHaulerCost = 170;
-    @property({ group: 'Right field' }) public rightHitsPerPlant = 3;
-    @property({ group: 'Right field' }) public rightYieldPerPlant = 1;
+    @property({ group: 'Right field' }) public rightHitsPerPlant = 1;
+    @property({ group: 'Right field' }) public rightYieldPerPlant = 3;
     @property({ group: 'Right field' }) public rightRespawnSeconds = 10;
-    @property({ group: 'Right field' }) public rightInventoryCapacity = 2000;
-    @property({ group: 'Right field' }) public rightWorkerSpeed = 2.6;
-    @property({ group: 'Right field' }) public rightVehicleSpeed = 4.5;
-    @property({ group: 'Right field' }) public rightHaulerSpeed = 3.2;
-    @property({ group: 'Right field' }) public rightWorkerActionInterval = 0.75;
+    @property({ group: 'Right field' }) public rightInventoryCapacity = Number.MAX_SAFE_INTEGER;
+    @property({ group: 'Right field' }) public rightWorkerSpeed = 2;
+    @property({ group: 'Right field' }) public rightVehicleSpeed = 2;
+    @property({ group: 'Right field' }) public rightHaulerSpeed = 3;
+    @property({ group: 'Right field' }) public rightWorkerActionInterval = 0.8;
     @property({ group: 'Right field' }) public rightVehicleActionInterval = 0.42;
 
     @property({ tooltip: 'Player harvest detection radius.', group: 'Shared gameplay' })
@@ -215,10 +221,28 @@ export class ResourceFieldSystem extends Component {
     public sellRadius = 2.6;
 
     @property({ tooltip: 'Coins consumed per unlock tick.', group: 'Shared gameplay' })
-    public coinsPerTick = 1;
+    public coinsPerTick = 5;
 
     @property({ tooltip: 'Seconds between unlock consumption ticks.', group: 'Shared gameplay' })
     public consumeInterval = 0.2;
+
+    @property({ tooltip: 'Corn worker chop range.', group: 'Shared gameplay' })
+    public workerChopRange = 0.7;
+
+    @property({ tooltip: 'Corn worker wait after one plant is finished.', group: 'Shared gameplay' })
+    public workerWaitAfterChop = 0.2;
+
+    @property({ tooltip: 'Corn worker startup delay.', group: 'Shared gameplay' })
+    public workerStartDelay = 1;
+
+    @property({ tooltip: 'Corn tractor contact harvest range.', group: 'Shared gameplay' })
+    public vehicleChopRange = 3;
+
+    @property({ tooltip: 'Corn tractor startup delay.', group: 'Shared gameplay' })
+    public vehicleStartDelay = 1;
+
+    @property({ tooltip: 'Corn tractor endpoint wait.', group: 'Shared gameplay' })
+    public vehicleEndpointWait = 0.1;
 
     @property({ tooltip: 'Local position of side-field stock inside its sell slot, matching the forest wood slot.', group: 'Shared gameplay' })
     public sellStoragePosition = new Vec3(-0.358, 0.866, 1.53);
@@ -235,7 +259,6 @@ export class ResourceFieldSystem extends Component {
     private _chopAction: ChopAction | null = null;
     private _coinBackpack: CoinBackpack | null = null;
     private _resourceBackpack: MultiResourceBackpack | null = null;
-    private _playerHarvesting = false;
     private _openedSideFields = 0;
     private _finished = false;
 
@@ -255,13 +278,11 @@ export class ResourceFieldSystem extends Component {
             return;
         }
 
-        const fallbackPrefab = this.resolveFallbackResourcePrefab();
-        this.leftResourcePrefab = this.leftResourcePrefab ?? fallbackPrefab;
-        this.rightResourcePrefab = this.rightResourcePrefab ?? fallbackPrefab;
-
-        const woodMount = this._player.getComponent(WoodBackpack)?.backpackMount ?? null;
-        this._resourceBackpack.registerResource(this.leftResourceId, this.leftResourcePrefab, -0.42, this.leftInventoryCapacity, woodMount);
-        this._resourceBackpack.registerResource(this.rightResourceId, this.rightResourcePrefab, 0.42, this.rightInventoryCapacity, woodMount);
+        const resourceMount = this._player.components
+            .map(component => (component as unknown as { backpackMount?: Node }).backpackMount)
+            .find((mount): mount is Node => !!mount?.isValid) ?? null;
+        this._resourceBackpack.registerResource(this.leftResourceId, this.leftResourcePrefab, -0.42, this.leftInventoryCapacity, resourceMount);
+        this._resourceBackpack.registerResource(this.rightResourceId, this.rightResourcePrefab, 0.42, this.rightInventoryCapacity, resourceMount);
 
         const leftField = this.createField(
             this.leftResourceId,
@@ -271,6 +292,8 @@ export class ResourceFieldSystem extends Component {
             this.leftVehicleUnlockPoint,
             this.leftHaulerUnlockPoint,
             this.leftCollectionStorage,
+            this.leftVehicleStartPoint,
+            this.leftVehicleEndPoint,
             this.leftResourcePrefab,
             this.leftResourceIcon,
             this.leftPlantVisualPrefab,
@@ -280,14 +303,10 @@ export class ResourceFieldSystem extends Component {
             this.leftWorkerPrefab,
             this.leftVehiclePrefab,
             this.leftHaulerPrefab,
-            this.leftHitsPerPlant,
-            this.leftYieldPerPlant,
-            this.leftRespawnSeconds,
             this.leftWorkerSpeed,
             this.leftVehicleSpeed,
             this.leftHaulerSpeed,
             this.leftWorkerActionInterval,
-            this.leftVehicleActionInterval,
         );
         if (leftField) this._fields.push(leftField);
 
@@ -299,6 +318,8 @@ export class ResourceFieldSystem extends Component {
             this.rightVehicleUnlockPoint,
             this.rightHaulerUnlockPoint,
             this.rightCollectionStorage,
+            this.rightVehicleStartPoint,
+            this.rightVehicleEndPoint,
             this.rightResourcePrefab,
             this.rightResourceIcon,
             this.rightPlantVisualPrefab,
@@ -308,14 +329,10 @@ export class ResourceFieldSystem extends Component {
             this.rightWorkerPrefab,
             this.rightVehiclePrefab,
             this.rightHaulerPrefab,
-            this.rightHitsPerPlant,
-            this.rightYieldPerPlant,
-            this.rightRespawnSeconds,
             this.rightWorkerSpeed,
             this.rightVehicleSpeed,
             this.rightHaulerSpeed,
             this.rightWorkerActionInterval,
-            this.rightVehicleActionInterval,
         );
         if (rightField) this._fields.push(rightField);
     }
@@ -325,21 +342,13 @@ export class ResourceFieldSystem extends Component {
             return;
         }
 
-        const now = Date.now() / 1000;
         for (const field of this._fields) {
             if (!field.unlocked) {
                 continue;
             }
 
-            this.updateRespawns(field, now);
-            this.updateUnlockPad(field, deltaTime);
             this.updatePlayerDeposit(field, deltaTime);
-            this.updateWorkers(field, deltaTime);
-            this.updateVehicle(field, deltaTime);
-            this.updateHauler(field, deltaTime);
         }
-
-        void this.updatePlayerHarvest();
     }
 
     protected onDestroy(): void {
@@ -362,8 +371,8 @@ export class ResourceFieldSystem extends Component {
         field.unlocked = true;
         this._openedSideFields++;
         field.collectionStorage.node.active = true;
-        this.collectPlants(field);
-        this.showUnlockStage(field, 'worker');
+        field.production.activateProduction();
+        this.showUnlockStage(field, 'worker', true);
 
         if (this._openedSideFields >= 2) {
             this.finishGame();
@@ -379,7 +388,9 @@ export class ResourceFieldSystem extends Component {
         workerUnlockPoint: Node,
         vehicleUnlockPoint: Node,
         haulerUnlockPoint: Node,
-        collectionStorage: StoragePoint,
+        collectionStorage: CornStoragePoint,
+        vehicleStartPoint: Node,
+        vehicleEndPoint: Node,
         resourcePrefab: Prefab | null,
         icon: SpriteFrame | null,
         plantVisualPrefab: Prefab | null,
@@ -389,14 +400,10 @@ export class ResourceFieldSystem extends Component {
         workerPrefab: Prefab | null,
         vehiclePrefab: Prefab | null,
         haulerPrefab: Prefab | null,
-        hitsPerPlant: number,
-        yieldPerPlant: number,
-        respawnSeconds: number,
         workerSpeed: number,
         vehicleSpeed: number,
         haulerSpeed: number,
         workerActionInterval: number,
-        vehicleActionInterval: number,
     ): FieldRuntime | null {
         const missingBindings = [
             ['field root', root],
@@ -405,6 +412,8 @@ export class ResourceFieldSystem extends Component {
             ['vehicle unlock point', vehicleUnlockPoint],
             ['hauler unlock point', haulerUnlockPoint],
             ['collection storage', collectionStorage],
+            ['vehicle start point', vehicleStartPoint],
+            ['vehicle end point', vehicleEndPoint],
         ].filter(([, binding]) => !binding).map(([name]) => name);
         if (missingBindings.length > 0) {
             console.error(`ResourceFieldSystem: ${id} disabled; missing scene bindings: ${missingBindings.join(', ')}.`);
@@ -412,12 +421,51 @@ export class ResourceFieldSystem extends Component {
         }
 
         const sellNode = root.getChildByName('Sell1') ?? root;
-        collectionStorage.storageName = `${id}_collection`;
+        this.configureStorage(collectionStorage.node, `${id}_collection`, 200);
+        collectionStorage.enabled = true;
+        collectionStorage.capacity = 200;
+        collectionStorage.layers = 10;
+        collectionStorage.layerHeight = 0.2;
+        collectionStorage.resourcePerRow = 10;
+        collectionStorage.resourceRowSpacing = 0.2;
+        collectionStorage.resourcePerCol = 1;
+        collectionStorage.resourceColSpacing = 0.2;
+        collectionStorage.autoStack = true;
+        collectionStorage.showCapacityInfo = true;
         collectionStorage.node.active = false;
         workerUnlockPoint.active = false;
         vehicleUnlockPoint.active = false;
         haulerUnlockPoint.active = false;
         const sellStorage = this.ensureSellStorage(sellNode, id);
+        const finishComponent = root.getComponentInChildren('FinishNode') as unknown as { targetNodes?: Node[] } | null;
+        const cropRoot = finishComponent?.targetNodes?.[0] ?? root.children[0] ?? null;
+        if (!cropRoot || !this._player || !this._resourceBackpack) {
+            console.error(`ResourceFieldSystem: ${id} disabled; crop root or player resource binding is missing.`);
+            return null;
+        }
+
+        const production = root.getComponent(CornFieldProduction) ?? root.addComponent(CornFieldProduction);
+        production.truckStartPoint = vehicleStartPoint;
+        production.truckEndPoint = vehicleEndPoint;
+        production.playerReward = 3;
+        production.workerChopsRequired = 4;
+        production.workerRewardPerChop = 2;
+        production.vehicleReward = 3;
+        production.respawnSeconds = 10;
+        production.playerHarvestRadius = this.harvestRadius;
+        production.vehicleHarvestRadius = this.vehicleChopRange + 0.5;
+        production.configure({
+            resourceId: id,
+            cropRoot,
+            resourcePrefab,
+            plantVisualPrefab,
+            collectionStorage,
+            player: this._player,
+            playerController: this._playerController,
+            chopAction: this._chopAction,
+            backpack: this._resourceBackpack,
+        });
+        this.applyResourceIcon(root, icon);
 
         return {
             id,
@@ -426,9 +474,6 @@ export class ResourceFieldSystem extends Component {
             resourcePrefab,
             plantVisualPrefab,
             icon,
-            hitsPerPlant,
-            yieldPerPlant,
-            respawnSeconds,
             workerCost,
             vehicleCost,
             haulerCost,
@@ -439,9 +484,13 @@ export class ResourceFieldSystem extends Component {
             vehicleSpeed,
             haulerSpeed,
             workerActionInterval,
-            vehicleActionInterval,
+            workerChopRange: this.workerChopRange,
+            workerWaitAfterChop: this.workerWaitAfterChop,
+            workerStartDelay: this.workerStartDelay,
             unlocked: false,
-            plants: [],
+            production,
+            vehicleStartPoint,
+            vehicleEndPoint,
             collectionStorage,
             sellStorage,
             sellNode,
@@ -454,111 +503,9 @@ export class ResourceFieldSystem extends Component {
             workers: [],
             vehicle: null,
             hauler: null,
-            haulerState: 'waiting',
-            haulerTimer: 0,
+            haulerBehavior: null,
             depositTimer: 0,
         };
-    }
-
-    private collectPlants(field: FieldRuntime): void {
-        const finishComponent = field.root.getComponentInChildren('FinishNode') as unknown as { targetNodes?: Node[] } | null;
-        const cropRoot = finishComponent?.targetNodes?.[0] ?? field.root.children[0] ?? null;
-        if (!cropRoot) {
-            console.error(`ResourceFieldSystem: crop root missing for ${field.id}.`);
-            return;
-        }
-
-        field.plants = cropRoot.children.map(node => ({
-            node,
-            hitPoints: field.hitsPerPlant,
-            respawnAt: 0,
-        }));
-
-        if (field.plantVisualPrefab) {
-            for (const plant of field.plants) {
-                for (const child of [...plant.node.children]) child.destroy();
-                const replacement = instantiate(field.plantVisualPrefab);
-                replacement.setParent(plant.node);
-                replacement.setPosition(Vec3.ZERO);
-                this.disableActorGameplayComponents(replacement);
-            }
-        }
-        this.applyResourceIcon(field.root, field.icon);
-    }
-
-    private async updatePlayerHarvest(): Promise<void> {
-        if (this._playerHarvesting || !this._player || !this._resourceBackpack || !this._chopAction) {
-            return;
-        }
-
-        let closestField: FieldRuntime | null = null;
-        let closestPlant: PlantRuntime | null = null;
-        let closestDistance = this.harvestRadius;
-
-        for (const field of this._fields) {
-            if (!field.unlocked) continue;
-            for (const plant of field.plants) {
-                if (!plant.node.activeInHierarchy || plant.respawnAt > 0) continue;
-                const distance = Vec3.distance(this._player.worldPosition, plant.node.worldPosition);
-                if (distance < closestDistance) {
-                    closestDistance = distance;
-                    closestField = field;
-                    closestPlant = plant;
-                }
-            }
-        }
-
-        if (!closestField || !closestPlant) {
-            return;
-        }
-
-        this._playerHarvesting = true;
-        if (!this._playerController?.isMoving()) {
-            this._playerController?.faceTarget(closestPlant.node.worldPosition);
-        }
-
-        await this._chopAction.playChopAction(closestPlant.node.worldPosition);
-        this.damagePlant(closestField, closestPlant, true);
-        this._playerController?.refreshMovementAnimation();
-        this._playerHarvesting = false;
-    }
-
-    private damagePlant(field: FieldRuntime, plant: PlantRuntime, pickedUpByPlayer: boolean): void {
-        if (plant.respawnAt > 0 || !plant.node.activeInHierarchy) {
-            return;
-        }
-
-        plant.hitPoints--;
-        if (plant.hitPoints > 0) {
-            return;
-        }
-
-        const sourcePosition = plant.node.worldPosition.clone();
-        plant.node.active = false;
-        plant.respawnAt = Date.now() / 1000 + field.respawnSeconds;
-
-        for (let i = 0; i < field.yieldPerPlant; i++) {
-            if (pickedUpByPlayer) {
-                this._resourceBackpack?.addResource(field.id, sourcePosition);
-            } else {
-                const item = this.createResourceVisual(field, sourcePosition);
-                if (item) {
-                    field.collectionStorage.addResource(item, 1);
-                }
-            }
-        }
-    }
-
-    private updateRespawns(field: FieldRuntime, now: number): void {
-        for (const plant of field.plants) {
-            if (plant.respawnAt <= 0 || now < plant.respawnAt) continue;
-            plant.respawnAt = 0;
-            plant.hitPoints = field.hitsPerPlant;
-            plant.node.active = true;
-            const finalScale = plant.node.scale.clone();
-            plant.node.setScale(0.1, 0.1, 0.1);
-            tween(plant.node).to(0.35, { scale: finalScale }, { easing: 'backOut' }).start();
-        }
     }
 
     private updatePlayerDeposit(field: FieldRuntime, deltaTime: number): void {
@@ -578,90 +525,132 @@ export class ResourceFieldSystem extends Component {
         }
     }
 
-    private updateUnlockPad(field: FieldRuntime, deltaTime: number): void {
-        const pad = field.unlockPad;
-        if (!pad || pad.stage === 'complete' || !this._player || !this._coinBackpack) return;
-        if (Vec3.distance(this._player.worldPosition, pad.node.worldPosition) > 1.6) {
-            pad.timer = 0;
-            return;
-        }
-
-        pad.timer += deltaTime;
-        if (pad.timer < this.consumeInterval) return;
-        pad.timer = 0;
-
-        if (!this._coinBackpack.removeCoins(this.coinsPerTick)) {
-            return;
-        }
-
-        pad.progress = Math.min(pad.cost, pad.progress + this.coinsPerTick);
-        this.updateUnlockPadUI(pad);
-        if (pad.progress >= pad.cost) {
-            this.completeUnlockStage(field, pad.stage);
-        }
-    }
-
     private completeUnlockStage(field: FieldRuntime, stage: UnlockStage): void {
-        if (field.unlockPad) {
-            field.unlockPad.node.active = false;
-        }
+        const completedPad = field.unlockPad?.node ?? null;
         field.unlockPad = null;
 
         if (stage === 'worker') {
-            this.spawnWorkers(field);
-            this.showUnlockStage(field, 'vehicle');
+            if (completedPad) this.completeWorkerUnlock(field, completedPad);
         } else if (stage === 'vehicle') {
-            for (const worker of field.workers) {
-                worker.node.active = false;
-            }
-            this.spawnVehicle(field);
-            this.showUnlockStage(field, 'hauler');
+            if (completedPad) this.completeVehicleUnlock(field, completedPad);
         } else if (stage === 'hauler') {
-            this.spawnHauler(field);
+            if (completedPad) this.completeHaulerUnlock(field, completedPad);
         }
     }
 
-    private showUnlockStage(field: FieldRuntime, stage: PurchasableUnlockStage): void {
+    private completeWorkerUnlock(field: FieldRuntime, padNode: Node): void {
+        this.spawnWorkers(field);
+
+        const currentVisual = this.resolveUnlockVisual(padNode);
+        if (currentVisual) {
+            tween(currentVisual)
+                .to(0.5, { scale: new Vec3(0, 1, 0) }, { easing: 'linear' })
+                .start();
+        }
+
+        this.scheduleOnce(() => {
+            this.showUnlockStage(field, 'vehicle', true);
+            padNode.active = false;
+        }, 1.5);
+
+        const focusWorker = field.workers[2]?.node ?? field.workers[0]?.node ?? null;
+        const cameraController = find('Main Camera')?.getComponent(CameraController) ?? null;
+        const joystickController = find('Canvas/JoystickContainer')?.getComponent(JoystickController) ?? null;
+        if (cameraController && focusWorker) cameraController.target = focusWorker;
+        if (joystickController) joystickController._lock = true;
+        this._playerController?.stopMovement();
+
+        this.scheduleOnce(() => {
+            if (cameraController && this._player) cameraController.target = this._player;
+            if (joystickController) joystickController._lock = false;
+        }, 6);
+    }
+
+    private completeVehicleUnlock(field: FieldRuntime, padNode: Node): void {
+        for (const worker of field.workers) worker.node.active = false;
+        this.spawnVehicle(field);
+
+        const currentVisual = this.resolveUnlockVisual(padNode);
+        if (currentVisual) {
+            tween(currentVisual)
+                .to(0.5, { scale: new Vec3(0, 0, 0) }, { easing: 'linear' })
+                .start();
+        }
+        this.showUnlockStage(field, 'hauler', true, padNode);
+        this.scheduleOnce(() => {
+            padNode.active = false;
+        }, 1);
+
+        const cameraController = find('Main Camera')?.getComponent(CameraController) ?? null;
+        const joystickController = find('Canvas/JoystickContainer')?.getComponent(JoystickController) ?? null;
+        if (cameraController && field.vehicle) cameraController.target = field.vehicle.node;
+        if (joystickController) joystickController._lock = true;
+        this._playerController?.stopMovement();
+        this.scheduleOnce(() => {
+            if (cameraController && this._player) cameraController.target = this._player;
+            if (joystickController) joystickController._lock = false;
+        }, 4);
+    }
+
+    private completeHaulerUnlock(field: FieldRuntime, padNode: Node): void {
+        const currentVisual = this.resolveUnlockVisual(padNode);
+        if (currentVisual) {
+            tween(currentVisual)
+                .to(0.5, { scale: new Vec3(0, 0, 0) }, { easing: 'linear' })
+                .start();
+        }
+        this.spawnHauler(field, padNode);
+        this.scheduleOnce(() => {
+            padNode.active = false;
+        }, 0.5);
+    }
+
+    private showUnlockStage(
+        field: FieldRuntime,
+        stage: PurchasableUnlockStage,
+        animateEntrance = false,
+        preserveNode: Node | null = null,
+    ): void {
         for (const node of [field.unlockNodes.worker, field.unlockNodes.vehicle, field.unlockNodes.hauler]) {
-            node.active = false;
+            if (node !== preserveNode) node.active = false;
         }
 
         const padNode = field.unlockNodes[stage];
         padNode.active = true;
-        const visual = padNode.getChildByName('view') ?? padNode.children[0] ?? null;
+        const visual = this.resolveUnlockVisual(padNode);
         if (!visual) {
             console.error(`ResourceFieldSystem: scene visual missing from ${padNode.name}.`);
         }
         visual?.setPosition(Vec3.ZERO);
-        visual?.setScale(0.72, 0.72, 0.72);
-        if (visual) visual.active = true;
+        if (visual) {
+            visual.active = true;
+            if (animateEntrance) {
+                visual.setScale(0, 1, 0);
+                tween(visual)
+                    .to(0.5, { scale: new Vec3(0.72, 0.72, 0.72) }, { easing: 'linear' })
+                    .start();
+            }
+        }
         this.applyResourceIcon(padNode, field.icon);
 
         const cost = stage === 'worker' ? field.workerCost : stage === 'vehicle' ? field.vehicleCost : field.haulerCost;
-        field.unlockPad = {
-            node: padNode,
-            cost,
-            progress: 0,
-            stage,
-            timer: 0,
-        };
-        this.updateUnlockPadUI(field.unlockPad);
+        const unlockPad = padNode.getComponent(CornUnlockPad) ?? padNode.addComponent(CornUnlockPad);
+        unlockPad.enabled = true;
+        if (this._player && this._coinBackpack) {
+            unlockPad.configure({
+                player: this._player,
+                coinBackpack: this._coinBackpack,
+                cost,
+                coinsPerTick: this.coinsPerTick,
+                consumeInterval: this.consumeInterval,
+                onCompleted: () => this.completeUnlockStage(field, stage),
+            });
+        }
+        field.unlockPad = unlockPad;
     }
 
-    private updateUnlockPadUI(pad: UnlockPadRuntime): void {
-        const remaining = Math.max(0, pad.cost - pad.progress);
-        const visit = (node: Node): void => {
-            const label = node.getComponent(Label);
-            if (label && (node.name === 'amount' || /^\d+$/.test(label.string))) {
-                label.string = `${remaining}`;
-            }
-            const sprite = node.getComponent(Sprite);
-            if (sprite && node.name.toLowerCase().includes('fill')) {
-                sprite.fillRange = pad.cost > 0 ? pad.progress / pad.cost : 1;
-            }
-            for (const child of node.children) visit(child);
-        };
-        visit(pad.node);
+    private resolveUnlockVisual(padNode: Node): Node | null {
+        return padNode.getChildByName('view') ?? padNode.children[0] ?? null;
     }
 
     private applyResourceIcon(root: Node, icon: SpriteFrame | null): void {
@@ -677,148 +666,177 @@ export class ResourceFieldSystem extends Component {
     }
 
     private spawnWorkers(field: FieldRuntime): void {
+        const spawned: Array<{ actor: Node; controller: CornWorker }> = [];
         for (let index = 0; index < 3; index++) {
-            const actor = this.createActor(field.workerPrefab, this.workerTemplate?.children[index] ?? this.workerTemplate?.children[0] ?? this.workerTemplate);
+            const actor = this.createActor(
+                field.workerPrefab,
+                this.workerTemplate?.children[index] ?? this.workerTemplate?.children[0] ?? this.workerTemplate,
+                true,
+            );
             if (!actor) continue;
             actor.name = `${field.id}_Worker_${index + 1}`;
             actor.setParent(field.root);
-            actor.setWorldPosition(field.collectionStorage.node.worldPosition.clone().add3f((index - 1) * 0.8, 0, 0));
-            field.workers.push({ node: actor, target: null, actionTimer: index * 0.15 });
+            const rigidBody = actor.getComponent(RigidBody) ?? actor.addComponent(RigidBody);
+            rigidBody.type = ERigidBodyType.DYNAMIC;
+            rigidBody.useGravity = false;
+            rigidBody.enabled = true;
+
+            const collider = actor.getComponent(CapsuleCollider) ?? actor.addComponent(CapsuleCollider);
+            collider.center.set(0, 0.3, 0);
+            collider.radius = 0.5;
+            collider.cylinderHeight = 1;
+            collider.isTrigger = true;
+            collider.enabled = true;
+
+            const controller = actor.getComponent(CornWorker) ?? actor.addComponent(CornWorker);
+            controller.enabled = true;
+            controller.moveSpeed = field.workerSpeed;
+            controller.chopRange = field.workerChopRange;
+            controller.waitAfterChop = field.workerWaitAfterChop;
+            controller.chopInterval = field.workerActionInterval;
+            controller.autoStart = true;
+            controller.standDistance = 0.9;
+            controller.chopAction = actor.getComponent(ChopAction)
+                ?? actor.getComponentInChildren(ChopAction)
+                ?? actor.addComponent(ChopAction);
+            controller.skeletalAnimation = actor.getComponentInChildren(SkeletalAnimation);
+            controller.chopAction.skeletonAnimation = controller.skeletalAnimation;
+            spawned.push({ actor, controller });
+            field.workers.push(controller);
         }
+
+        const assignments = field.production.partitionWorkerTargets(
+            spawned.map(({ actor }) => actor.parent),
+            spawned.length,
+        );
+        spawned.forEach(({ actor, controller }, index) => {
+            const laneStart = field.production.getWorkerLaneStartPosition(index, controller.standDistance);
+            if (laneStart) actor.setWorldPosition(laneStart);
+            controller.setHarvestTargets(assignments[index] ?? []);
+        });
     }
 
     private spawnVehicle(field: FieldRuntime): void {
         const source = this.vehicleTemplate?.getChildByName('Truck') ?? this.vehicleTemplate;
-        const actor = this.createActor(field.vehiclePrefab, source);
+        const actor = field.vehiclePrefab ? instantiate(field.vehiclePrefab) : source ? instantiate(source) : null;
         if (!actor) return;
+        actor.active = false;
         actor.name = `${field.id}_Harvester`;
         actor.setParent(field.root);
-        actor.setWorldPosition(field.collectionStorage.node.worldPosition);
-        field.vehicle = { node: actor, target: null, actionTimer: 0 };
+        this.disableActorGameplayComponents(actor);
+
+        const path = this.clampVehiclePath(field, actor);
+        if (!path) {
+            actor.destroy();
+            return;
+        }
+        actor.setPosition(path.start.position);
+
+        const collider = actor.getComponent(BoxCollider) ?? actor.addComponent(BoxCollider);
+        collider.isTrigger = true;
+        collider.enabled = false;
+
+        const behavior = actor.getComponent(CornTractor) ?? actor.addComponent(CornTractor);
+        behavior.enabled = true;
+        behavior.startPoint = path.start;
+        behavior.endPoint = path.end;
+        behavior.moveSpeed = field.vehicleSpeed;
+        behavior.chopRange = this.vehicleChopRange;
+        behavior.waitAfterChop = 0.1;
+        behavior.waitAtEndPoint = 0.1;
+        behavior.waitAtStartPoint = 0.1;
+        behavior.turnSpeed = 360;
+        behavior.waitAfterTurn = 0;
+        actor.active = true;
+
+        field.vehicle = { node: actor, behavior };
+        field.production.setVehicle(actor);
     }
 
-    private spawnHauler(field: FieldRuntime): void {
-        const actor = this.createActor(field.haulerPrefab, this.haulerTemplate);
+    private clampVehiclePath(field: FieldRuntime, actor: Node): VehiclePath | null {
+        const bounds = field.production.getVehiclePathBounds();
+        if (!bounds) return null;
+
+        const clamp = (value: number, min: number, max: number): number => Math.min(Math.max(value, min), max);
+        const start = this.ensurePathPoint(field.root, 'CornTruckPathStart');
+        const end = this.ensurePathPoint(field.root, 'CornTruckPathEnd');
+        const startWorld = field.vehicleStartPoint.worldPosition;
+        const endWorld = field.vehicleEndPoint.worldPosition;
+
+        start.setWorldPosition(
+            clamp(startWorld.x, bounds.minX, bounds.maxX),
+            startWorld.y,
+            clamp(startWorld.z, bounds.minZ, bounds.maxZ),
+        );
+        end.setWorldPosition(
+            clamp(endWorld.x, bounds.minX, bounds.maxX),
+            endWorld.y,
+            clamp(endWorld.z, bounds.minZ, bounds.maxZ),
+        );
+
+        return Vec3.distance(start.worldPosition, end.worldPosition) > 0.05 ? { start, end } : null;
+    }
+
+    private ensurePathPoint(parent: Node, name: string): Node {
+        const point = parent.getChildByName(name) ?? new Node(name);
+        if (!point.parent) point.setParent(parent);
+        return point;
+    }
+
+    private spawnHauler(field: FieldRuntime, padNode: Node): void {
+        const fallback = this.haulerTemplate ?? this.workerTemplate?.children[0] ?? this.workerTemplate;
+        const actor = field.haulerPrefab ? instantiate(field.haulerPrefab) : fallback ? instantiate(fallback) : null;
         if (!actor) return;
         actor.name = `${field.id}_Hauler`;
+        actor.active = false;
         actor.setParent(field.root);
-        actor.setWorldPosition(field.sellNode.worldPosition);
+        actor.setWorldPosition(padNode.worldPosition);
+        this.disableActorGameplayComponents(actor);
+        for (const storage of actor.getComponentsInChildren(CornStoragePoint)) storage.clearStorage();
+
+        const carryNode = new Node('CornCarryStorage');
+        carryNode.setParent(actor);
+        carryNode.setPosition(0, 1.2, -0.6);
+        const carryStorage = this.configureStorage(carryNode, `${field.id}_hauler_carry`, 4);
+        carryStorage.resourcePerRow = 2;
+        carryStorage.resourcePerCol = 2;
+        carryStorage.layerHeight = 0.18;
+        carryStorage.resourceRowSpacing = 0.18;
+        carryStorage.resourceColSpacing = 0.18;
+        carryStorage.stackAreaNode = carryNode;
+
+        const behavior = actor.getComponent(CornHauler) ?? actor.addComponent(CornHauler);
+        behavior.enabled = true;
+        behavior.skeletonAnimation = actor.getComponentInChildren(SkeletalAnimation);
+        behavior.collectionPoint = field.collectionStorage.node;
+        behavior.sellPoint = field.sellNode;
+        behavior.idlePoint = padNode;
+        behavior.collectionStorage = field.collectionStorage;
+        behavior.sellStorage = field.sellStorage;
+        behavior.carryStorage = carryStorage;
+        behavior.moveSpeed = field.haulerSpeed;
+        behavior.transferInterval = 0.15;
+        behavior.collectionStopDistance = 1.1;
+        behavior.sellStopDistance = 0.2;
+        actor.active = true;
         field.hauler = actor;
-        field.haulerState = 'waiting';
+        field.haulerBehavior = behavior;
     }
 
-    private updateWorkers(field: FieldRuntime, deltaTime: number): void {
-        for (const worker of field.workers) {
-            if (!worker.node.active) continue;
-            this.updateHarvesterActor(field, worker, deltaTime, field.workerSpeed, field.workerActionInterval);
-        }
-    }
-
-    private updateVehicle(field: FieldRuntime, deltaTime: number): void {
-        if (!field.vehicle) return;
-        this.updateHarvesterActor(field, field.vehicle, deltaTime, field.vehicleSpeed, field.vehicleActionInterval);
-    }
-
-    private updateHarvesterActor(field: FieldRuntime, actor: ActorRuntime, deltaTime: number, speed: number, actionInterval: number): void {
-        if (!actor.target || actor.target.respawnAt > 0 || !actor.target.node.activeInHierarchy) {
-            actor.target = this.findClosestActivePlant(field, actor.node.worldPosition);
-        }
-        if (!actor.target) return;
-
-        const targetPosition = actor.target.node.worldPosition;
-        const distance = Vec3.distance(actor.node.worldPosition, targetPosition);
-        if (distance > 1.35) {
-            this.moveTowards(actor.node, targetPosition, speed * deltaTime);
-            return;
-        }
-
-        actor.actionTimer += deltaTime;
-        if (actor.actionTimer < actionInterval) return;
-        actor.actionTimer = 0;
-        actor.node.lookAt(targetPosition);
-        actor.node.getComponentInChildren(SkeletalAnimation)?.play('KanMuTou');
-        this.damagePlant(field, actor.target, false);
-    }
-
-    private updateHauler(field: FieldRuntime, deltaTime: number): void {
-        if (!field.hauler) return;
-        const hauler = field.hauler;
-
-        if (field.haulerState === 'waiting') {
-            if (field.collectionStorage.amount > 0) field.haulerState = 'toCollection';
-            return;
-        }
-
-        if (field.haulerState === 'toCollection') {
-            if (this.moveTowards(hauler, field.collectionStorage.node.worldPosition, field.haulerSpeed * deltaTime)) {
-                field.haulerTimer = 0;
-                field.haulerState = 'toSell';
-            }
-            return;
-        }
-
-        if (field.haulerState === 'toSell') {
-            field.haulerTimer += deltaTime;
-            if (field.haulerTimer < 0.35) return;
-            if (this.moveTowards(hauler, field.sellNode.worldPosition, field.haulerSpeed * deltaTime)) {
-                const batch = Math.min(4, field.collectionStorage.amount);
-                for (let index = 0; index < batch; index++) {
-                    const item = field.collectionStorage.removeResource();
-                    if (item) field.sellStorage.addResource(item, 2);
-                }
-                field.haulerState = 'returning';
-            }
-            return;
-        }
-
-        if (this.moveTowards(hauler, field.collectionStorage.node.worldPosition, field.haulerSpeed * deltaTime)) {
-            field.haulerState = field.collectionStorage.amount > 0 ? 'toSell' : 'waiting';
-            field.haulerTimer = 0;
-        }
-    }
-
-    private findClosestActivePlant(field: FieldRuntime, position: Vec3): PlantRuntime | null {
-        let closest: PlantRuntime | null = null;
-        let distance = Number.MAX_VALUE;
-        for (const plant of field.plants) {
-            if (!plant.node.activeInHierarchy || plant.respawnAt > 0) continue;
-            const candidateDistance = Vec3.distance(position, plant.node.worldPosition);
-            if (candidateDistance < distance) {
-                distance = candidateDistance;
-                closest = plant;
-            }
-        }
-        return closest;
-    }
-
-    /** Returns true once the node reaches the target. */
-    private moveTowards(node: Node, target: Vec3, distance: number): boolean {
-        const current = node.worldPosition;
-        const direction = target.clone().subtract(current);
-        const remaining = direction.length();
-        if (remaining <= Math.max(0.12, distance)) {
-            node.setWorldPosition(target);
-            return true;
-        }
-        direction.normalize().multiplyScalar(distance);
-        node.lookAt(target);
-        node.setWorldPosition(current.clone().add(direction));
-        return false;
-    }
-
-    private createActor(prefab: Prefab | null, fallback: Node | null): Node | null {
+    private createActor(prefab: Prefab | null, fallback: Node | null, preserveChopAction = false): Node | null {
         const actor = prefab ? instantiate(prefab) : fallback ? instantiate(fallback) : null;
         if (!actor) return null;
-        this.disableActorGameplayComponents(actor);
+        this.disableActorGameplayComponents(actor, preserveChopAction);
         actor.active = true;
         return actor;
     }
 
-    private disableActorGameplayComponents(root: Node): void {
+    private disableActorGameplayComponents(root: Node, preserveChopAction = false): void {
         const visit = (node: Node): void => {
             for (const component of node.components) {
                 const name = component.constructor.name;
-                const keepEnabled = name.includes('Animation') || name.includes('Renderer');
+                const keepEnabled = name.includes('Animation') || name.includes('Renderer') ||
+                    (preserveChopAction && (name.includes('ChopAction') || name.includes('AudioSource')));
                 if (!keepEnabled) component.enabled = false;
             }
             for (const child of node.children) visit(child);
@@ -826,17 +844,8 @@ export class ResourceFieldSystem extends Component {
         visit(root);
     }
 
-    private createResourceVisual(field: FieldRuntime, worldPosition: Vec3): Node | null {
-        if (!field.resourcePrefab) return null;
-        const item = instantiate(field.resourcePrefab);
-        item.setParent(field.root.scene);
-        item.setWorldPosition(worldPosition);
-        this.disableActorGameplayComponents(item);
-        return item;
-    }
-
-    private configureStorage(node: Node, name: string, capacity: number): StoragePoint {
-        const storage = node.getComponent(StoragePoint) ?? node.addComponent(StoragePoint);
+    private configureStorage(node: Node, name: string, capacity: number): CornStoragePoint {
+        const storage = node.getComponent(CornStoragePoint) ?? node.addComponent(CornStoragePoint);
         storage.storageName = name;
         storage.capacity = capacity;
         storage.layers = 10000;
@@ -845,12 +854,12 @@ export class ResourceFieldSystem extends Component {
         storage.layerHeight = 0.2;
         storage.resourceRowSpacing = 0.22;
         storage.resourceColSpacing = 0.55;
-        storage.stackAreaNode = node;
+        storage.stackAreaNode = node.getChildByName('StackArea') ?? node;
         return storage;
     }
 
-    private ensureSellStorage(sellNode: Node, resourceId: string): StoragePoint {
-        const existing = sellNode.getComponentInChildren(StoragePoint);
+    private ensureSellStorage(sellNode: Node, resourceId: string): CornStoragePoint {
+        const existing = sellNode.getComponentInChildren(CornStoragePoint);
         const storageNode = existing?.node ?? new Node(`SellStorage_${resourceId}`);
         if (!storageNode.parent) {
             storageNode.setParent(sellNode);
@@ -868,11 +877,6 @@ export class ResourceFieldSystem extends Component {
         storage.resourceColSpacing = 1;
         storage.layerHeight = 0.2;
         return storage;
-    }
-
-    private resolveFallbackResourcePrefab(): Prefab | null {
-        const woodBackpack = this._player?.getComponent('WoodBackpack') as unknown as { woodDisplayPrefab?: Prefab } | null;
-        return woodBackpack?.woodDisplayPrefab ?? null;
     }
 
     private finishGame(): void {

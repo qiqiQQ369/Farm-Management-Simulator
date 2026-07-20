@@ -1,0 +1,535 @@
+import {
+    _decorator,
+    Animation,
+    Component,
+    Label,
+    Node,
+    Prefab,
+    Sprite,
+    Tween,
+    Vec3,
+    instantiate,
+    tween,
+} from 'cc';
+import { AnimationLibrary } from './AnimationLibrary';
+import { AnimationController } from './AnimationController';
+import { CameraFacingUI } from './CameraFacingUI';
+import { CornStoragePoint } from './CornStoragePoint';
+
+const { ccclass, property } = _decorator;
+
+type StorageLike = Component & {
+    amount: number;
+    capacity: number;
+    storageName?: string;
+    autoStack?: boolean;
+    showCapacityInfo?: boolean;
+    layers?: number;
+    layerHeight?: number;
+    resourcePerRow?: number;
+    resourceRowSpacing?: number;
+    resourcePerCol?: number;
+    resourceColSpacing?: number;
+    stackAreaNode?: Node;
+    moveAnimationDuration?: number;
+    fadeAnimationDuration?: number;
+    moveEasing?: string;
+    fadeEasing?: string;
+    checkOffset?: boolean;
+    audioInterval?: number;
+};
+
+/** 玉米区独立顾客调度器。流程与森林顾客一致，但不读取森林库存。 */
+@ccclass('CornCustomerScheduler')
+export class CornCustomerScheduler extends Component {
+    @property({ type: Component }) public sellZone: Component = null!;
+    @property({ type: Node }) public fillTip: Node = null!;
+    @property public fillTipHeadOffsetY = 2.1;
+
+    @property({ type: Prefab }) public coinPrefab: Prefab = null!;
+    @property({ type: Node }) public coinDropArea: Node = null!;
+    @property public coinReward: number = 3;
+
+    @property({ type: Node }) public startPoint: Node = null!;
+    @property({ type: Node }) public pointA: Node = null!;
+    @property({ type: Node }) public pointB: Node = null!;
+    @property({ type: Node }) public pointC: Node = null!;
+    @property({ type: Node }) public pointD: Node = null!;
+    @property({ type: [Node] }) public npcs: Node[] = [];
+
+    @property public moveSpeed = 2;
+    @property public spacing = 1.2;
+    @property public loadDuration = 2;
+    @property public collectInterval = 1;
+    @property public moveAnim = 'move';
+    @property public idleAnim = 'idle';
+    @property public loadAnim = 'load';
+    @property public loadMoveAnim = 'loadMove';
+
+    private readonly _customerCapacity = 4;
+    private _queue: Node[] = [];
+    private _waitingAtA: Node | null = null;
+    private _loadingAtB: Node | null = null;
+    private _bReserved = false;
+    private readonly _activeDeparted = new Set<Node>();
+    private readonly _runningTweens = new Map<Node, Tween<Node>>();
+    private _resolvedSellStoragePoint: CornStoragePoint | null = null;
+    private _fillTipTargetNpc: Node | null = null;
+    private readonly _fillTipOffset = new Vec3();
+    private readonly _fillTipWorldPosition = new Vec3();
+    private _reportedMissingSellStorage = false;
+    private _reportedMissingCarryStorage = false;
+    private _reportedMissingCoinStorage = false;
+
+    protected onEnable(): void {
+        this._resolvedSellStoragePoint = null;
+        this.prepareNpcCarryStorages();
+        this.setupFillTipFacing();
+        this.initializeQueue();
+    }
+
+    protected onDisable(): void {
+        this.stopAllTweens();
+        this.unscheduleAllCallbacks();
+    }
+
+    protected update(): void {
+        this.updateFillTipPosition();
+    }
+
+    private setupFillTipFacing(): void {
+        if (!this.fillTip) return;
+        if (!this.fillTip.getComponent(CameraFacingUI)) this.fillTip.addComponent(CameraFacingUI);
+        const floatingAnimation = this.fillTip.getComponent(AnimationController);
+        if (floatingAnimation) {
+            floatingAnimation.stopAnimation();
+            floatingAnimation.enabled = false;
+        }
+        this.fillTip.setPosition(0, 0.95, 10.307);
+        this.fillTip.setScale(0.42, 0.42, 0.42);
+        this.fillTip.active = false;
+        for (const child of this.fillTip.children) child.setRotationFromEuler(Vec3.ZERO);
+    }
+
+    private prepareNpcCarryStorages(): void {
+        for (const npc of this.npcs) this.ensureNpcCarryStorage(npc);
+    }
+
+    private ensureNpcCarryStorage(npc: Node): CornStoragePoint | null {
+        const existing = this.findCornStoragePointInNode(npc);
+        if (existing) {
+            existing.capacity = this._customerCapacity;
+            existing.recoverInterruptedTransfers();
+            return existing;
+        }
+
+        const legacy = this.findStorageLikeInNode(npc);
+        if (!legacy) {
+            if (!this._reportedMissingCarryStorage) {
+                console.error('CornCustomerScheduler: customer carry storage is missing.');
+                this._reportedMissingCarryStorage = true;
+            }
+            return null;
+        }
+
+        legacy.enabled = false;
+        const storage = legacy.node.addComponent(CornStoragePoint);
+        storage.storageName = 'corn_customer_carry';
+        storage.autoStack = legacy.autoStack ?? true;
+        storage.showCapacityInfo = legacy.showCapacityInfo ?? true;
+        storage.capacity = this._customerCapacity;
+        storage.layers = legacy.layers ?? 10;
+        storage.layerHeight = legacy.layerHeight ?? 0.2;
+        storage.resourcePerRow = legacy.resourcePerRow ?? 1;
+        storage.resourceRowSpacing = legacy.resourceRowSpacing ?? 0.2;
+        storage.resourcePerCol = legacy.resourcePerCol ?? 1;
+        storage.resourceColSpacing = legacy.resourceColSpacing ?? 0.2;
+        storage.stackAreaNode = legacy.stackAreaNode ?? legacy.node;
+        storage.moveAnimationDuration = legacy.moveAnimationDuration ?? 1;
+        storage.fadeAnimationDuration = legacy.fadeAnimationDuration ?? 0.5;
+        storage.moveEasing = legacy.moveEasing ?? 'sineOut';
+        storage.fadeEasing = legacy.fadeEasing ?? 'sineIn';
+        storage.checkOffset = legacy.checkOffset ?? false;
+        storage.audioInterval = legacy.audioInterval ?? 0.2;
+        storage.recoverInterruptedTransfers();
+        return storage;
+    }
+
+    private findStorageLikeInNode(root: Node | null): StorageLike | null {
+        if (!root) return null;
+        for (const component of root.components) {
+            const candidate = component as StorageLike;
+            if (
+                component.enabled
+                && typeof candidate.amount === 'number'
+                && typeof candidate.capacity === 'number'
+                && candidate.stackAreaNode instanceof Node
+            ) {
+                return candidate;
+            }
+        }
+        for (const child of root.children) {
+            const result = this.findStorageLikeInNode(child);
+            if (result) return result;
+        }
+        return null;
+    }
+
+    private findCornStoragePointInNode(root: Node | null): CornStoragePoint | null {
+        if (!root) return null;
+        const storage = root.getComponent(CornStoragePoint);
+        if (storage) return storage;
+        for (const child of root.children) {
+            const result = this.findCornStoragePointInNode(child);
+            if (result) return result;
+        }
+        return null;
+    }
+
+    private resolveSellAnchor(): Node | null {
+        const scene = this.node.scene;
+        let moduleRoot: Node | null = this.node.parent;
+        while (moduleRoot && moduleRoot !== scene) {
+            if (moduleRoot.name === 'Finish' || moduleRoot.name === 'Finish-001') {
+                return moduleRoot.getChildByName('Sell1');
+            }
+            moduleRoot = moduleRoot.parent;
+        }
+        return null;
+    }
+
+    private resolveSellStoragePoint(): CornStoragePoint | null {
+        if (this._resolvedSellStoragePoint?.node?.isValid) return this._resolvedSellStoragePoint;
+        this._resolvedSellStoragePoint = this.findCornStoragePointInNode(this.resolveSellAnchor());
+        if (!this._resolvedSellStoragePoint && !this._reportedMissingSellStorage) {
+            console.error('CornCustomerScheduler: local Sell1 CornStoragePoint is missing.');
+            this._reportedMissingSellStorage = true;
+        }
+        return this._resolvedSellStoragePoint;
+    }
+
+    private initializeQueue(): void {
+        if (!this.startPoint || !this.pointA) return;
+        this._queue = this.npcs.filter(npc => npc?.isValid);
+        const startPosition = this.startPoint.worldPosition.clone();
+        const direction = this.pointA.worldPosition.clone().subtract(startPosition).normalize();
+        this._queue.forEach((npc, index) => {
+            npc.setWorldPosition(startPosition.clone().add(direction.clone().multiplyScalar(-this.spacing * index)));
+            const emoji = this.getNpcEmoji(npc);
+            if (emoji) {
+                emoji.active = false;
+                if (!emoji.getComponent(CameraFacingUI)) emoji.addComponent(CameraFacingUI);
+            }
+            this.playIdle(npc);
+        });
+        this.syncQueueMove();
+    }
+
+    private syncQueueMove(): void {
+        if (this._queue.length === 0 || !this.pointA) return;
+        const targetA = this.pointA.worldPosition.clone();
+        const head = this._queue[0];
+        const travelDistance = Vec3.distance(head.worldPosition, targetA);
+        if (travelDistance <= 0.0001) {
+            this._waitingAtA = head;
+            this.playIdle(head);
+            this.tryDispatchFromAToB();
+            return;
+        }
+
+        const duration = travelDistance / Math.max(this.moveSpeed, 0.01);
+        this._queue.forEach((npc, index) => {
+            const from = npc.worldPosition.clone();
+            const direction = targetA.clone().subtract(from).normalize();
+            const target = index === 0
+                ? targetA
+                : from.clone().add(direction.multiplyScalar(travelDistance));
+            this.faceTarget(npc, target);
+            this.playTween(npc, target, duration, index === 0 ? () => {
+                this._waitingAtA = npc;
+                this.playIdle(npc);
+                this.tryDispatchFromAToB();
+            } : undefined);
+        });
+    }
+
+    private tryDispatchFromAToB(): void {
+        if (!this._waitingAtA || this._loadingAtB || this._bReserved || !this.pointB) return;
+        const npc = this._waitingAtA;
+        this._waitingAtA = null;
+        this._bReserved = true;
+        const index = this._queue.indexOf(npc);
+        if (index >= 0) this._queue.splice(index, 1);
+        this._activeDeparted.add(npc);
+        this.syncQueueMove();
+        this.moveTo(npc, this.pointB, () => {
+            this._loadingAtB = npc;
+            this.resetEmoji();
+            this.playIdle(npc);
+            npc.setRotationFromEuler(Vec3.ZERO);
+            void this.tryCollectItem(npc);
+        });
+    }
+
+    private loadComplete(npc: Node): void {
+        this._loadingAtB = null;
+        this._bReserved = false;
+        this.tryDispatchFromAToB();
+        this.playLoadMove(npc);
+        this.moveTo(npc, this.pointC, () => {
+            this.moveTo(npc, this.pointD, () => {
+                this.moveTo(npc, this.startPoint, () => {
+                    this._activeDeparted.delete(npc);
+                    this.playIdle(npc);
+                    this.enqueueAtStart(npc);
+                });
+            });
+        });
+    }
+
+    private enqueueAtStart(npc: Node): void {
+        if (!this.startPoint || !this.pointA) return;
+        const startPosition = this.startPoint.worldPosition.clone();
+        const direction = this.pointA.worldPosition.clone().subtract(startPosition).normalize();
+        const tail = this._queue[this._queue.length - 1];
+        const target = tail
+            ? tail.worldPosition.clone().subtract(direction.multiplyScalar(this.spacing))
+            : startPosition;
+        this.moveToPosition(npc, target, () => {
+            this._queue.push(npc);
+            if (!this._waitingAtA) this.syncQueueMove();
+            else this.playIdle(npc);
+        });
+    }
+
+    private async tryCollectItem(npc: Node): Promise<void> {
+        const targetStoragePoint = this.resolveSellStoragePoint();
+        const npcStoragePoint = this.ensureNpcCarryStorage(npc);
+        if (!targetStoragePoint || !npcStoragePoint) return;
+        npcStoragePoint.capacity = 4;
+        this.showFillTipForNpc(npc);
+        let stalledDuration = 0;
+
+        while (this.enabled && npc.isValid) {
+            if (targetStoragePoint.amount > 0 && npcStoragePoint.hasSpace(1)) {
+                const resource = targetStoragePoint.removeResource(4);
+                let moved = resource
+                    ? npcStoragePoint.addResource(resource, 4, Vec3.ZERO)
+                    : false;
+                if (!moved) {
+                    stalledDuration += this.collectInterval * 0.5;
+                    if (stalledDuration >= 1) {
+                        const stalledResource = targetStoragePoint.releaseStalledResource();
+                        moved = stalledResource
+                            ? npcStoragePoint.addResource(stalledResource, 4, Vec3.ZERO)
+                            : false;
+                        stalledDuration = 0;
+                    }
+                } else {
+                    stalledDuration = 0;
+                }
+
+                if (moved) {
+                    this.updateFillTip(npcStoragePoint.amount, npcStoragePoint.capacity);
+                    this.playLoad(npc);
+                }
+
+                if (npcStoragePoint.amount >= npcStoragePoint.capacity) {
+                    await this.delay(0.3);
+                    if (this.fillTip?.isValid) {
+                        AnimationLibrary.scaleFadeOut(this.fillTip, 0.1, 0, () => this.hideFillTip(true)).start();
+                    }
+                    await this.delay(0.2);
+                    this.loadComplete(npc);
+                    this.dropCoins();
+                    await this.delay(1);
+                    npcStoragePoint.clearStorage();
+                    const emoji = this.getNpcEmoji(npc);
+                    if (emoji) emoji.active = true;
+                    return;
+                }
+            }
+            await this.delay(Math.max(0.01, this.collectInterval * 0.5));
+        }
+    }
+
+    private delay(seconds: number): Promise<void> {
+        return new Promise(resolve => this.scheduleOnce(resolve, seconds));
+    }
+
+    private updateFillTip(carried: number, capacity: number): void {
+        if (!this.fillTip) return;
+        const fill = this.fillTip.getChildByName('fill')?.getComponent(Sprite);
+        const amount = this.fillTip.getChildByName('amount')?.getComponent(Label);
+        if (fill) fill.fillRange = carried / Math.max(1, capacity);
+        if (amount) amount.string = String(Math.max(0, this._customerCapacity - carried));
+    }
+
+    private showFillTipForNpc(npc: Node): void {
+        if (!this.fillTip) return;
+        this._fillTipTargetNpc = npc;
+        this.fillTip.active = true;
+        this.updateFillTipPosition();
+        AnimationLibrary.scaleFadeIn(this.fillTip, 0.1, 1, null).start();
+    }
+
+    private updateFillTipPosition(): void {
+        if (!this.fillTip?.active || !this._fillTipTargetNpc?.isValid) return;
+        this._fillTipOffset.set(0, this.fillTipHeadOffsetY, 0);
+        Vec3.add(this._fillTipWorldPosition, this._fillTipTargetNpc.worldPosition, this._fillTipOffset);
+        this.fillTip.setWorldPosition(this._fillTipWorldPosition);
+    }
+
+    private hideFillTip(resetContent = false): void {
+        if (!this.fillTip) return;
+        if (resetContent) this.updateFillTip(0, this._customerCapacity);
+        this._fillTipTargetNpc = null;
+        this.fillTip.active = false;
+    }
+
+    private resetEmoji(): void {
+        this.hideFillTip();
+        for (const npc of this.npcs) {
+            const emoji = this.getNpcEmoji(npc);
+            if (emoji) emoji.active = false;
+        }
+    }
+
+    private getNpcEmoji(npc: Node): Node | null {
+        return npc?.isValid ? npc.getChildByName('emoji') : null;
+    }
+
+    private resolveCoinStorage(): StorageLike | null {
+        if (!this.coinDropArea) return null;
+        for (const component of this.coinDropArea.components) {
+            const candidate = component as StorageLike;
+            if (typeof candidate.amount === 'number' && typeof candidate.capacity === 'number') return candidate;
+        }
+        if (!this._reportedMissingCoinStorage) {
+            console.error('CornCustomerScheduler: coin storage is missing.');
+            this._reportedMissingCoinStorage = true;
+        }
+        return null;
+    }
+
+    private dropCoins(): void {
+        if (!this.coinPrefab || !this.coinDropArea) {
+            console.error('CornCustomerScheduler: coin prefab or drop area is missing.');
+            return;
+        }
+        const coinStorage = this.resolveCoinStorage();
+        if (!coinStorage) return;
+        for (let i = 0; i < this.coinReward; i++) {
+            this.scheduleOnce(() => {
+                if (coinStorage.amount >= coinStorage.capacity) return;
+                this.createCoin(coinStorage.amount);
+                coinStorage.amount++;
+            }, i * 0.1);
+        }
+    }
+
+    private createCoin(coinStackCount: number): void {
+        if (!this.coinPrefab || !this.coinDropArea) return;
+        const coin = instantiate(this.coinPrefab);
+        const stackPosition = this.calculateCoinStackPosition(coinStackCount);
+        coin.setParent(this.coinDropArea);
+        coin.setPosition(stackPosition);
+        this.animateCoinDrop(coin, stackPosition);
+    }
+
+    private calculateCoinStackPosition(index: number): Vec3 {
+        const rows = 3;
+        const columns = 2;
+        const rowSpacing = 0.5;
+        const columnSpacing = 1;
+        const layerHeight = 0.2;
+        const perLayer = rows * columns;
+        const layer = Math.floor(index / perLayer);
+        const indexInLayer = index % perLayer;
+        const row = Math.floor(indexInLayer / columns);
+        const column = indexInLayer % columns;
+        return new Vec3(
+            column * columnSpacing - (columns - 1) * columnSpacing * 0.5,
+            layer * layerHeight,
+            row * rowSpacing - (rows - 1) * rowSpacing * 0.5,
+        );
+    }
+
+    private animateCoinDrop(coin: Node, targetPosition: Vec3): void {
+        coin.setPosition(targetPosition);
+        coin.setScale(Vec3.ZERO);
+        tween(coin)
+            .to(0.3, { scale: new Vec3(1.17, 1.17, 1.17) }, { easing: 'bounceOut' })
+            .to(0.2, { scale: Vec3.ONE }, { easing: 'bounceOut' })
+            .start();
+    }
+
+    private moveTo(npc: Node, targetNode: Node | null, onComplete?: () => void): void {
+        if (!targetNode) {
+            onComplete?.();
+            return;
+        }
+        this.moveToPosition(npc, targetNode.worldPosition.clone(), onComplete);
+    }
+
+    private moveToPosition(npc: Node, target: Vec3, onComplete?: () => void): void {
+        const duration = Vec3.distance(npc.worldPosition, target) / Math.max(this.moveSpeed, 0.01);
+        this.faceTarget(npc, target);
+        this.playTween(npc, target, duration, onComplete);
+    }
+
+    private playTween(npc: Node, target: Vec3, duration: number, onComplete?: () => void): void {
+        this.stopTween(npc);
+        this.playMove(npc);
+        const movement = tween(npc)
+            .to(duration, { worldPosition: target })
+            .call(() => {
+                this._runningTweens.delete(npc);
+                if (onComplete) onComplete();
+                else this.playIdle(npc);
+            })
+            .start();
+        this._runningTweens.set(npc, movement);
+    }
+
+    private stopTween(npc: Node): void {
+        const movement = this._runningTweens.get(npc);
+        if (!movement) return;
+        movement.stop();
+        this._runningTweens.delete(npc);
+    }
+
+    private stopAllTweens(): void {
+        for (const movement of this._runningTweens.values()) movement.stop();
+        this._runningTweens.clear();
+    }
+
+    private faceTarget(npc: Node, target: Vec3): void {
+        if (Vec3.distance(npc.worldPosition, target) > 0.0001) npc.lookAt(target);
+    }
+
+    private getAnimation(npc: Node): Animation | null {
+        return npc.getComponentInChildren(Animation);
+    }
+
+    private playMove(npc: Node): void {
+        const animation = this.getAnimation(npc);
+        if (animation && this.moveAnim) animation.play(this.moveAnim);
+    }
+
+    private playIdle(npc: Node): void {
+        const animation = this.getAnimation(npc);
+        if (animation && this.idleAnim) animation.play(this.idleAnim);
+    }
+
+    private playLoad(npc: Node): void {
+        const animation = this.getAnimation(npc);
+        if (animation && this.loadAnim) animation.play(this.loadAnim);
+    }
+
+    private playLoadMove(npc: Node): void {
+        const animation = this.getAnimation(npc);
+        if (animation && this.loadMoveAnim) animation.play(this.loadMoveAnim);
+        this.resetEmoji();
+    }
+}

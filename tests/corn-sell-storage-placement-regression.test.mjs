@@ -33,7 +33,7 @@ assert.match(
 );
 
 const ensureSellStorage = source.match(
-    /private ensureSellStorage[\s\S]*?\n    private resolveFallbackResourcePrefab/,
+    /private ensureSellStorage[\s\S]*?\n    private finishGame/,
 )?.[0] ?? '';
 assert.match(
     ensureSellStorage,
