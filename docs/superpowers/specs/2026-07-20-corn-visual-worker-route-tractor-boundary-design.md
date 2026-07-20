@@ -1,33 +1,33 @@
-# Corn Visual, Worker Route, and Tractor Boundary Design
+# 玉米模型、工人路线与拖拉机边界设计
 
-## Scope
+## 范围
 
-Fix three corn-field behaviors in `DevScene`:
+修复 `DevScene` 中玉米田的三项行为：
 
-1. A harvested corn plant must restore its visible model when its respawn timer completes.
-2. Only the three workers unlocked in a corn field must harvest their assigned corn row in order, proceed forward to the row boundary, then reverse direction. The forest workers keep their current behavior.
-3. A corn tractor must travel only over the occupied corn field area.
+1. 玉米被收获后，重生计时结束时必须恢复可见模型。
+2. 仅玉米田解锁的三名工人按各自分配的田垄顺序收割，向前推进到田垄边界后反向继续。森林区工人的现有行为保持不变。
+3. 玉米拖拉机只能在实际种有玉米的田地区域内行驶。
 
-## Architecture
+## 架构
 
-`CornFieldProduction` remains the sole owner of corn plant availability, rewards, and respawn timing. Each plant keeps its authored root node and any runtime visual child. Harvest hides the root. Respawn restores the root and all visual descendants to their active state, resets the root to its stored full scale, and then runs the existing growth tween. This keeps rendering and interaction state in the same lifecycle.
+`CornFieldProduction` 继续是玉米可收获状态、产出和重生计时的唯一管理者。每株玉米保留其场景根节点和任何运行时创建的模型子节点。收获时隐藏根节点；重生时恢复根节点及所有模型子节点的激活状态，将根节点还原到记录的完整缩放，再执行既有的生长补间。这样模型显示和可交互状态始终处于同一生命周期。
 
-`Woodcutter` remains the shared forest worker state machine. The corn-field adapter supplies only its three contiguous, row-ordered crop target lists. The adapter must preserve that order and configure each worker with a bounded forward-and-reverse target sequence. The forest branch continues using its tree targets and is not modified semantically.
+`Woodcutter` 继续作为森林区共用的工人状态机。玉米田适配层只向它提供三组连续、按田垄顺序排列的玉米目标；适配层必须保留这个顺序，并为每名工人配置有边界的正向和反向目标序列。森林区仍使用树木目标分支，语义不变。
 
-`LoggingTruck` remains the tractor movement controller. Every corn field owns a start and end waypoint derived from the outermost occupied crop positions along the tractor lane. The selected two positions must be clamped inside the crop bounds before they are assigned to the tractor, so an incorrectly authored or stale scene waypoint cannot take the tractor beyond the planted field.
+`LoggingTruck` 继续作为拖拉机移动控制器。每个玉米田的起点与终点由拖拉机田垄上最外侧的有效玉米位置推导得到。把端点交给拖拉机前必须夹紧到玉米田边界内，避免错误或过期的场景路径点把拖拉机带到田外。
 
-## Data Flow
+## 数据流
 
-Corn harvest sets a plant's respawn deadline and hides the plant root. On expiry, `CornFieldProduction` restores the authored/root visibility plus its child visual state before the model scales from its growth scale to the captured full scale. The availability check continues to gate player, worker, and tractor harvesting during the short protection window.
+收获玉米会设置该植株的重生截止时间并隐藏植株根节点。截止时间到达后，`CornFieldProduction` 会在模型从生长缩放恢复到记录的完整缩放之前，恢复场景根节点及模型子节点的可见状态。短暂的保护时间内，现有可用性检查仍会阻止玩家、工人和拖拉机再次收获。
 
-When a corn worker unlocks, `ResourceFieldSystem` partitions the plants in row order into three non-overlapping groups. A worker consumes targets in its own group from the current direction, skips temporarily unavailable plants, and reverses only after reaching its group's end. Its target callback delegates damage and output to `CornFieldProduction`; it never registers a forest tree chop or writes to wood storage.
+玉米工人解锁时，`ResourceFieldSystem` 按田垄顺序将玉米划分为三组互不重叠的连续目标。每名工人只从自己当前方向的目标序列中选择玉米，跳过暂时不可收获的玉米；只有到达所属序列的末端时才反向。目标回调仍由 `CornFieldProduction` 执行扣除和产出，绝不登记森林树木砍伐，也绝不写入木材仓储。
 
-When a tractor unlocks, `ResourceFieldSystem` passes crop-bounded lane endpoints to its `LoggingTruck`. The tractor uses its existing movement, turn, and contact-harvest loop. Crop contact harvesting still delegates to `CornFieldProduction`, so respawn and storage behavior remain unchanged.
+拖拉机解锁时，`ResourceFieldSystem` 向其 `LoggingTruck` 传入受玉米边界限制的田垄端点。拖拉机保持已有的移动、转向和接触收割循环。玉米接触收割仍委托给 `CornFieldProduction`，因此重生和仓储行为不变。
 
-## Error Handling
+## 异常处理
 
-If a corn field has no valid crop plants, workers receive no targets and the tractor remains disabled rather than being given an unbounded fallback route. If a plant root becomes invalid, it is skipped during visibility restoration and targeting. If a visual descendant was deactivated during harvesting, respawn reactivates it only when its authored/runtime state marked it as part of the plant visual.
+玉米田没有有效植株时，工人不接收目标，拖拉机也保持禁用，不提供无边界的备用路线。植株根节点失效时，在显示恢复与目标选择中跳过它。模型子节点若曾在收获期间被禁用，重生时只恢复已标记为该植株可视模型的节点。
 
-## Verification
+## 验证
 
-Regression checks will assert that the respawn lifecycle restores visible descendants before the growth tween, corn-worker routing uses row-order targets with endpoint reversal without altering the forest tree target branch, and the tractor endpoints are computed/clamped from the corn plant bounds. Existing corn isolation tests must continue to prove that no corn output enters forest wood storage. The complete Node regression suite, scene JSON parsing, TypeScript diagnostics, and `git diff --check` must pass.
+回归检查需要验证：重生生命周期会在生长补间前恢复可视子节点；玉米工人按照田垄顺序并在边界反向，且不改变森林区树木目标分支；拖拉机端点根据玉米植株边界计算并夹紧。现有玉米资源隔离测试必须继续证明玉米产出不会进入森林木材仓储。完整 Node 回归测试、场景 JSON 解析、TypeScript 诊断和 `git diff --check` 都必须通过。
