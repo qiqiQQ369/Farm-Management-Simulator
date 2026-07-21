@@ -1,4 +1,5 @@
-import { _decorator, Collider, Component, find, Node, Vec3 } from 'cc';
+import { _decorator, BoxCollider, Collider, Component, find, Node, Vec3 } from 'cc';
+import { isCornTractorFrontContact } from './CornTractorContact';
 
 const { ccclass, property } = _decorator;
 
@@ -25,6 +26,8 @@ export class CornTractor extends Component {
     @property public pathWidth = 5.0;
     @property public turnSpeed = 90.0;
     @property public waitAfterTurn = 0.5;
+    @property({ tooltip: 'Extra crop radius around the authored forest front cutter.' })
+    public frontContactPadding = 0.35;
 
     private _currentState = CornTractorState.Idle;
     private _isMovingToEnd = true;
@@ -78,6 +81,21 @@ export class CornTractor extends Component {
     public getMoveDirection(): string { return this._isMovingToEnd ? 'to_end' : 'to_start'; }
     public pauseTractor(): void { this._currentState = CornTractorState.Idle; this.autoStart = false; }
     public resumeTractor(): void { this.autoStart = true; this.startTractorCycle(); }
+
+    /** Uses the cloned forest truck's thin front BoxCollider as the cutter area. */
+    public isFrontContact(worldPosition: Vec3): boolean {
+        const collider = this.getComponent(BoxCollider);
+        if (!collider?.enabled) return false;
+
+        const localPosition = new Vec3();
+        this.node.inverseTransformPoint(localPosition, worldPosition);
+        return isCornTractorFrontContact(
+            localPosition,
+            collider.center,
+            collider.size,
+            this.frontContactPadding,
+        );
+    }
 
     private initializePathPoints(): void {
         if (!this.startPoint) this.startPoint = find('CornTruckStart') ?? this.node;

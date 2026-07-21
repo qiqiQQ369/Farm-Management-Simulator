@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import test from 'node:test';
 
 const scene = JSON.parse(readFileSync(
@@ -26,6 +26,10 @@ const finishNodeSource = readFileSync(
     new URL('../assets/_Scripts/FinishNode.ts', import.meta.url),
     'utf8',
 );
+const cornPickupPath = new URL('../assets/_Scripts/CornPickupDetector.ts', import.meta.url);
+const cornPickupSource = existsSync(cornPickupPath)
+    ? readFileSync(cornPickupPath, 'utf8')
+    : '';
 
 const nodeAt = (reference) => scene[reference.__id__];
 const childrenOf = (node) => (node._children ?? []).map(nodeAt);
@@ -292,15 +296,30 @@ test('the first corn field stays playable and opening the second ends the game',
     );
 });
 
-test('corn products are centered inside each sell slot without changing shared storage math', () => {
+test('corn products use the sell storage node as their stack anchor like forest wood', () => {
     const ensureSellStorage = resourceFieldSource.match(
         /private ensureSellStorage[\s\S]*?\n    private finishGame/,
     )?.[0] ?? '';
 
-    assert.match(ensureSellStorage, /new Node\('CornSellStack'\)/);
-    assert.match(ensureSellStorage, /stackArea\.setPosition\(-0\.2, 0, 0\.5\)/);
-    assert.match(ensureSellStorage, /storage\.stackAreaNode = stackArea/);
+    assert.match(ensureSellStorage, /storage\.stackAreaNode = storageNode/);
+    assert.doesNotMatch(ensureSellStorage, /CornSellStack|stackArea\.setPosition/);
     assert.doesNotMatch(ensureSellStorage, /calculateStackPosition/);
+});
+
+test('corn collection storage independently mirrors forest player pickup behavior', () => {
+    assert.ok(existsSync(cornPickupPath), 'corn collection storage needs its own pickup component');
+    assert.match(resourceFieldSource, /import \{ CornPickupDetector \} from '\.\/CornPickupDetector'/);
+    assert.match(resourceFieldSource, /collectionStorage\.node\.getComponent\(CornPickupDetector\)/);
+    assert.match(resourceFieldSource, /pickupDetector\.configure\(\{/);
+    assert.match(resourceFieldSource, /BoxCollider/);
+    assert.match(cornPickupSource, /onTriggerEnter/);
+    assert.match(cornPickupSource, /onTriggerExit/);
+    assert.match(cornPickupSource, /this\.collectionStorage\.removeResource\(4\)/);
+    assert.match(cornPickupSource, /this\.backpack\.addResource\(this\.resourceId, sourceWorldPosition\)/);
+    assert.doesNotMatch(
+        cornPickupSource,
+        /from '\.\/PickupDetector'|from '\.\/Resource\/StoragePoint'|WoodBackpack/,
+    );
 });
 
 test('corn storage and unlock points activate before optional reveal decorations', () => {

@@ -74,6 +74,32 @@ test('corn worker movement cannot step past its harvest stand position', () => {
     );
 });
 
+test('corn workers keep the player ground height while approaching crop roots', () => {
+    assert.deepEqual(
+        getCornHarvestStandPosition(
+            [
+                { x: 2, y: -0.52, z: 6 },
+                { x: 2, y: -0.52, z: 4 },
+            ],
+            0,
+            1,
+            0.9,
+            0.222,
+        ),
+        { x: 2, y: 0.222, z: 6.9 },
+        'crop-root height must not pull a corn worker underground',
+    );
+
+    const workerSpawn = source.match(
+        /private spawnWorkers[\s\S]*?\n    private spawnVehicle/,
+    )?.[0] ?? '';
+    assert.match(workerSpawn, /const groundWorldY = this\._player\?\.worldPosition\.y/);
+    assert.match(
+        workerSpawn,
+        /getWorkerLaneStartPosition\(\s*index,\s*controller\.standDistance,\s*groundWorldY,?\s*\)/,
+    );
+});
+
 test('corn workers restore the forest worker collision body when spawned', () => {
     const workerSpawn = source.match(
         /private spawnWorkers[\s\S]*?\n    private spawnVehicle/,
@@ -106,7 +132,7 @@ test('corn workers use a dedicated copy of the forest worker state machine', () 
     assert.match(workerSpawn, /controller\.standDistance = 0\.9/);
     assert.match(
         workerSpawn,
-        /field\.production\.getWorkerLaneStartPosition\(index, controller\.standDistance\)/,
+        /field\.production\.getWorkerLaneStartPosition\(\s*index,\s*controller\.standDistance,\s*groundWorldY,?\s*\)/,
     );
     assert.doesNotMatch(
         source,

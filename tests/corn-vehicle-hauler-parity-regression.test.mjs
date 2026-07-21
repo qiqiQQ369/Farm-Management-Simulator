@@ -8,6 +8,7 @@ import {
     planCornHaulerAdd,
     planCornHaulerRemove,
 } from '../assets/_Scripts/CornHaulerBackpackInventory.ts';
+import { isCornTractorFrontContact } from '../assets/_Scripts/CornTractorContact.ts';
 
 const source = readFileSync(
     new URL('../assets/_Scripts/ResourceFieldSystem.ts', import.meta.url),
@@ -134,7 +135,7 @@ test('corn tractor owns a copy of the forest path loop and contact harvest setti
     assert.match(vehicleSpawn, /behavior\.startPoint = path\.start/);
     assert.match(vehicleSpawn, /behavior\.endPoint = path\.end/);
     assert.match(source, /Math\.min\(Math\.max\(value, min\), max\)/);
-    assert.match(vehicleSpawn, /field\.production\.setVehicle\(actor\)/);
+    assert.match(vehicleSpawn, /field\.production\.setVehicle\(actor, behavior\)/);
     assert.doesNotMatch(source, /private updateVehicle|type VehicleState|createVehiclePath/);
 
     for (const state of ['Idle', 'MovingToStart', 'MovingToEnd', 'Turning', 'Waiting']) {
@@ -158,6 +159,31 @@ test('corn tractor owns a copy of the forest path loop and contact harvest setti
             fieldSystem[`${side}VehicleEndPoint`].__id__,
         );
     }
+});
+
+test('corn tractor harvests only when its forest-shaped front collider reaches a crop', () => {
+    const colliderCenter = { x: 0, y: 0, z: -4.8 };
+    const colliderSize = { x: 9.564268112182617, y: 2.132222, z: 0.553972 };
+
+    assert.equal(
+        isCornTractorFrontContact({ x: 0, y: 0, z: -4.8 }, colliderCenter, colliderSize, 0.35),
+        true,
+        'a crop touching the front cutter must be harvested immediately',
+    );
+    assert.equal(
+        isCornTractorFrontContact({ x: 0, y: 0, z: 0 }, colliderCenter, colliderSize, 0.35),
+        false,
+        'a crop at the tractor root must not wait for the body to pass over it',
+    );
+    assert.equal(
+        isCornTractorFrontContact({ x: 5.5, y: 0, z: -4.8 }, colliderCenter, colliderSize, 0.35),
+        false,
+        'crops outside the cutter width must remain untouched',
+    );
+
+    assert.match(cornTractorSource, /public isFrontContact\(worldPosition: Vec3\): boolean/);
+    assert.match(cornTractorSource, /this\.node\.inverseTransformPoint\(localPosition, worldPosition\)/);
+    assert.match(cornProductionSource, /this\._tractor\?\.isFrontContact\(plant\.node\.worldPosition\)/);
 });
 
 test('each corn tractor path stays inside its own field production side', () => {

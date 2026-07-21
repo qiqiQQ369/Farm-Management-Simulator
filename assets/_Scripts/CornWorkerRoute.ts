@@ -10,10 +10,14 @@ export function getCornHarvestStandPosition(
     targetIndex: number,
     direction: 1 | -1,
     standDistance: number,
+    travelHeight?: number,
 ): CornRoutePoint {
     const target = lane[targetIndex];
     if (!target) return { x: 0, y: 0, z: 0 };
-    if (lane.length < 2) return { ...target };
+    if (lane.length < 2) return {
+        ...target,
+        y: travelHeight ?? target.y,
+    };
 
     const neighborIndex = direction > 0
         ? Math.min(targetIndex + 1, lane.length - 1)
@@ -30,7 +34,7 @@ export function getCornHarvestStandPosition(
 
     return {
         x: target.x - dx / length * standDistance,
-        y: target.y,
+        y: travelHeight ?? target.y,
         z: target.z - dz / length * standDistance,
     };
 }

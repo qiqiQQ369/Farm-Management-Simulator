@@ -132,15 +132,16 @@ export class CornWorker extends Component {
             return;
         }
 
+        const currentPosition = this.node.position;
         const lane = this._targetList.map(target => this.getTargetPosition(target));
         const standPosition = getCornHarvestStandPosition(
             lane,
             this._currentTargetIndex,
             this._direction as 1 | -1,
             Math.max(0, this.standDistance),
+            currentPosition.y,
         );
         const targetPosition = new Vec3(standPosition.x, standPosition.y, standPosition.z);
-        const currentPosition = this.node.position;
         if (Vec3.distance(currentPosition, targetPosition) <= this.chopRange) {
             this._currentState = CornWorkerState.Chopping;
             this.startChopping();

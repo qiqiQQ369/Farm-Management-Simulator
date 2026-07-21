@@ -23,6 +23,7 @@ import { CoinBackpack } from './CoinBackpack';
 import { CornFieldProduction } from './CornFieldProduction';
 import { CornHauler } from './CornHauler';
 import { CornHaulerBackpack } from './CornHaulerBackpack';
+import { CornPickupDetector } from './CornPickupDetector';
 import { CornStoragePoint } from './CornStoragePoint';
 import { CornTractor } from './CornTractor';
 import { CornUnlockPad } from './CornUnlockPad';
@@ -439,6 +440,7 @@ export class ResourceFieldSystem extends Component {
         collectionStorage.resourceColSpacing = 0.2;
         collectionStorage.autoStack = true;
         collectionStorage.showCapacityInfo = true;
+        this.configureCollectionPickup(collectionStorage, id);
         collectionStorage.node.active = false;
         workerUnlockPoint.active = false;
         vehicleUnlockPoint.active = false;
@@ -717,7 +719,12 @@ export class ResourceFieldSystem extends Component {
             spawned.length,
         );
         spawned.forEach(({ actor, controller }, index) => {
-            const laneStart = field.production.getWorkerLaneStartPosition(index, controller.standDistance);
+            const groundWorldY = this._player?.worldPosition.y ?? actor.worldPosition.y;
+            const laneStart = field.production.getWorkerLaneStartPosition(
+                index,
+                controller.standDistance,
+                groundWorldY,
+            );
             if (laneStart) actor.setWorldPosition(laneStart);
             controller.setHarvestTargets(assignments[index] ?? []);
         });
@@ -757,7 +764,7 @@ export class ResourceFieldSystem extends Component {
         actor.active = true;
 
         field.vehicle = { node: actor, behavior };
-        field.production.setVehicle(actor);
+        field.production.setVehicle(actor, behavior);
     }
 
     private clampVehiclePath(field: FieldRuntime, actor: Node): VehiclePath | null {
@@ -925,6 +932,26 @@ export class ResourceFieldSystem extends Component {
         return storage;
     }
 
+    private configureCollectionPickup(collectionStorage: CornStoragePoint, resourceId: string): void {
+        const collider = collectionStorage.node.getComponent(BoxCollider)
+            ?? collectionStorage.node.addComponent(BoxCollider);
+        collider.isTrigger = true;
+        collider.center.set(0.1, 0, 0);
+        collider.size.set(2, 1, 1.8);
+        collider.enabled = true;
+
+        const pickupDetector = collectionStorage.node.getComponent(CornPickupDetector)
+            ?? collectionStorage.node.addComponent(CornPickupDetector);
+        pickupDetector.enabled = true;
+        pickupDetector.configure({
+            player: this._player!,
+            backpack: this._resourceBackpack!,
+            collectionStorage,
+            resourceId,
+            collectionInterval: 0.1,
+        });
+    }
+
     private ensureSellStorage(sellNode: Node, resourceId: string): CornStoragePoint {
         const existing = sellNode.getComponentInChildren(CornStoragePoint);
         const storageNode = existing?.node ?? new Node(`SellStorage_${resourceId}`);
@@ -943,10 +970,7 @@ export class ResourceFieldSystem extends Component {
         storage.resourceRowSpacing = 0.2;
         storage.resourceColSpacing = 1;
         storage.layerHeight = 0.2;
-        const stackArea = storageNode.getChildByName('CornSellStack') ?? new Node('CornSellStack');
-        if (!stackArea.parent) stackArea.setParent(storageNode);
-        stackArea.setPosition(-0.2, 0, 0.5);
-        storage.stackAreaNode = stackArea;
+        storage.stackAreaNode = storageNode;
         return storage;
     }
 

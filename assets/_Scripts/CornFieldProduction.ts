@@ -13,6 +13,7 @@ import { MultiResourceBackpack } from './MultiResourceBackpack';
 import { PlayerController } from './PlayerController';
 import type { CornHarvestTarget } from './CornWorker';
 import { CornStoragePoint } from './CornStoragePoint';
+import { CornTractor } from './CornTractor';
 
 const { ccclass, property } = _decorator;
 
@@ -86,6 +87,7 @@ export class CornFieldProduction extends Component {
     private _chopAction: ChopAction | null = null;
     private _backpack: MultiResourceBackpack | null = null;
     private _vehicle: Node | null = null;
+    private _tractor: CornTractor | null = null;
     private _productionActive = false;
     private _playerHarvesting = false;
 
@@ -105,8 +107,9 @@ export class CornFieldProduction extends Component {
         this._productionActive = true;
     }
 
-    public setVehicle(vehicle: Node | null): void {
+    public setVehicle(vehicle: Node | null, tractor: CornTractor | null = null): void {
         this._vehicle = vehicle;
+        this._tractor = tractor;
     }
 
     public getPlantCount(): number {
@@ -127,21 +130,31 @@ export class CornFieldProduction extends Component {
         };
     }
 
-    public getWorkerLaneStartPosition(laneIndex: number, standDistance = 0.9): Vec3 | null {
+    public getWorkerLaneStartPosition(
+        laneIndex: number,
+        standDistance = 0.9,
+        groundWorldY?: number,
+    ): Vec3 | null {
         const lane = this.getWorkerLanes()[laneIndex] ?? [];
         if (lane.length === 0) return null;
-        if (lane.length === 1) return lane[0].node.worldPosition.clone();
+        if (lane.length === 1) {
+            const position = lane[0].node.worldPosition.clone();
+            position.y = groundWorldY ?? position.y;
+            return position;
+        }
 
         const direction = new Vec3();
         Vec3.subtract(direction, lane[1].node.worldPosition, lane[0].node.worldPosition);
         direction.y = 0;
         direction.normalize();
-        return Vec3.scaleAndAdd(
+        const position = Vec3.scaleAndAdd(
             new Vec3(),
             lane[0].node.worldPosition,
             direction,
             -standDistance,
         );
+        position.y = groundWorldY ?? position.y;
+        return position;
     }
 
     public partitionWorkerTargets(actorParents: Array<Node | null>, workerCount: number): CornHarvestTarget[][] {
@@ -222,7 +235,7 @@ export class CornFieldProduction extends Component {
         if (!this._vehicle?.isValid || !this._vehicle.activeInHierarchy) return;
         for (const plant of this._plants) {
             if (!this.isPlantAvailable(plant)) continue;
-            if (Vec3.distance(this._vehicle.worldPosition, plant.node.worldPosition) > this.vehicleHarvestRadius) continue;
+            if (!this._tractor?.isFrontContact(plant.node.worldPosition)) continue;
 
             const sourcePosition = plant.node.worldPosition.clone();
             this.chopPlant(plant);
@@ -260,7 +273,7 @@ export class CornFieldProduction extends Component {
 
     private isVehicleClaiming(plant: CornPlantRuntime): boolean {
         return !!this._vehicle?.isValid && this._vehicle.activeInHierarchy &&
-            Vec3.distance(this._vehicle.worldPosition, plant.node.worldPosition) <= this.vehicleHarvestRadius;
+            !!this._tractor?.isFrontContact(plant.node.worldPosition);
     }
 
     private isPlantAvailable(plant: CornPlantRuntime): boolean {
