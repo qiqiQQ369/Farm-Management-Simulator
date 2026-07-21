@@ -11,6 +11,7 @@ type MountedCoinStorage = Component & {
 export type CornUnlockPadConfig = {
     player: Node;
     coinBackpack: CoinBackpack;
+    interactionNode: Node;
     cost: number;
     coinsPerTick: number;
     consumeInterval: number;
@@ -27,6 +28,7 @@ export class CornUnlockPad extends Component {
 
     private _player: Node | null = null;
     private _coinBackpack: CoinBackpack | null = null;
+    private _interactionNode: Node | null = null;
     private _progress = 0;
     private _timer = 0;
     private _onCompleted: (() => void) | null = null;
@@ -35,6 +37,7 @@ export class CornUnlockPad extends Component {
     public configure(config: CornUnlockPadConfig): void {
         this._player = config.player;
         this._coinBackpack = config.coinBackpack;
+        this._interactionNode = config.interactionNode;
         this.cost = config.cost;
         this.coinsPerTick = config.coinsPerTick;
         this.consumeInterval = config.consumeInterval;
@@ -47,7 +50,8 @@ export class CornUnlockPad extends Component {
 
     protected update(deltaTime: number): void {
         if (this._completed || !this._player || !this._coinBackpack) return;
-        if (Vec3.distance(this._player.worldPosition, this.node.worldPosition) > this.interactionRadius) {
+        const interactionWorldPosition = this._interactionNode?.worldPosition ?? this.node.worldPosition;
+        if (Vec3.distance(this._player.worldPosition, interactionWorldPosition) > this.interactionRadius) {
             this._timer = 0;
             return;
         }
@@ -72,7 +76,8 @@ export class CornUnlockPad extends Component {
             return typeof candidate.amount === 'number' && typeof candidate.removeResourceWithAnimation === 'function';
         }) as MountedCoinStorage | undefined;
         if (mountedCoinStorage && mountedCoinStorage.amount > 0) {
-            mountedCoinStorage.removeResourceWithAnimation(this.node.worldPosition, 'parabola');
+            const interactionWorldPosition = this._interactionNode?.worldPosition ?? this.node.worldPosition;
+            mountedCoinStorage.removeResourceWithAnimation(interactionWorldPosition, 'parabola');
             const label = find('Canvas/CoinLabel/coinAmount')?.getComponent(Label) ?? null;
             if (label) {
                 const displayed = Number.parseInt(label.string, 10);

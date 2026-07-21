@@ -242,18 +242,25 @@ export class FinishNode extends Component {
         
         this._cameraMoveStarted = true;
         this._cameraMoveTimer = 0;
-        
-        // 设置摄像机到起点位置和起始角度
-        this.camera.node.setWorldPosition(this.cameraStartPoint.worldPosition);
-        this.camera.node.setWorldRotation(this.cameraStartPoint.worldRotation);
 
-        // 终点摄像机始终朝向解锁区域中心，避免玉米田偏出画面。
+        // 玉米区域展示保持玩家触发解锁时的观察角度，并通过平移让田地始终居中。
+        const preservedRotation = this.camera.node.worldRotation.clone();
+        this._cameraOriginalPosition = this.camera.node.position.clone();
+        this._cameraOriginalRotation = this.camera.node.eulerAngles.clone();
+        this.camera.node.setWorldRotation(preservedRotation);
+
         const fieldCenter = this.getUnlockFieldCenter();
-        const lookAtNode = new Node('FinishCameraLookAt');
-        lookAtNode.setWorldPosition(this.cameraEndPoint.worldPosition);
-        lookAtNode.lookAt(fieldCenter, Vec3.UP);
-        const endRotation = lookAtNode.worldRotation.clone();
-        lookAtNode.destroy();
+        const cameraForward = this.camera.node.forward.clone();
+        const focusDistance = Vec3.distance(this.cameraEndPoint.worldPosition, fieldCenter);
+        const endPosition = new Vec3();
+        Vec3.scaleAndAdd(endPosition, fieldCenter, cameraForward, -focusDistance);
+
+        // 起点和终点使用相同偏移量，完整保留场景原本定义的移动方向与距离。
+        const pathOffset = new Vec3();
+        Vec3.subtract(pathOffset, endPosition, this.cameraEndPoint.worldPosition);
+        const startPosition = this.cameraStartPoint.worldPosition.clone();
+        Vec3.add(startPosition, startPosition, pathOffset);
+        this.camera.node.setWorldPosition(startPosition);
         
         // 触发事件
         this.onCameraMoveStarted?.();
@@ -263,8 +270,7 @@ export class FinishNode extends Component {
         // 创建摄像机移动动画
         tween(this.camera.node)
             .to(this.cameraMoveDuration, {
-                position: this.cameraEndPoint.worldPosition,
-                rotation: endRotation
+                position: endPosition
             }, {
                 easing: 'sineInOut' // 使用正弦缓动效果
             })
@@ -274,7 +280,7 @@ export class FinishNode extends Component {
             .start();
     }
 
-    /** 计算当前解锁区域（玉米田）的世界坐标中心。 */
+    /** 计算当前正在解锁的玉米田世界坐标中心。 */
     private getUnlockFieldCenter(): Vec3 {
         const field = this.targetNodes?.[0];
         if (!field || field.children.length === 0) {

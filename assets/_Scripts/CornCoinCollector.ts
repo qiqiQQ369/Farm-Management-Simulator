@@ -146,6 +146,10 @@ export class CornCoinCollector extends Component {
         return null;
     }
 
+    private normalizeCarriedMoneyScale(money: Node): void {
+        money.setScale(Vec3.ONE);
+    }
+
     private collectCoin(): void {
         const sourceStorage = this._sourceStorage;
         const destination = this.findPlayerStorage();
@@ -154,10 +158,14 @@ export class CornCoinCollector extends Component {
         const nextCoin = this.coinLoadArea?.children[this.coinLoadArea.children.length - 1] ?? null;
         if (!nextCoin || nextCoin.scale.lengthSqr() < 2.7) return;
 
-        const coin = sourceStorage.removeResource(4);
-        if (!coin) return;
-        if (!destination.addResource(coin, 4, new Vec3(0, 0, 360), false)) {
-            sourceStorage.addResource(coin, 1);
+        const money = sourceStorage.removeResource(4);
+        if (!money) return;
+
+        const sourceScale = money.scale.clone();
+        this.normalizeCarriedMoneyScale(money);
+        if (!destination.addResource(money, 4, new Vec3(0, 0, 360), false)) {
+            money.setScale(sourceScale);
+            sourceStorage.addResource(money, 1);
             return;
         }
 

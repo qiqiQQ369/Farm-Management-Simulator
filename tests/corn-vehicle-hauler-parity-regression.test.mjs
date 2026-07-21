@@ -207,6 +207,31 @@ test('each corn tractor path stays inside its own field production side', () => 
     }
 });
 
+test('each corn tractor copies the forest tractor safe endpoint margins', () => {
+    const forestBehavior = scene.find((entry) => {
+        const actor = scene[entry?.node?.__id__];
+        return actor?._name === 'Truck' && entry?.startPoint && entry?.endPoint;
+    });
+    assert.ok(forestBehavior, 'forest tractor path binding must exist');
+
+    const forestStart = scene[forestBehavior.startPoint.__id__];
+    const forestEnd = scene[forestBehavior.endPoint.__id__];
+    for (const side of ['left', 'right']) {
+        const cornStart = scene[fieldSystem[`${side}VehicleStartPoint`].__id__];
+        const cornEnd = scene[fieldSystem[`${side}VehicleEndPoint`].__id__];
+        assert.equal(
+            cornStart._lpos.z,
+            forestStart._lpos.z,
+            `${side} corn tractor start must keep the forest tractor's body-length margin`,
+        );
+        assert.equal(
+            cornEnd._lpos.z,
+            forestEnd._lpos.z,
+            `${side} corn tractor end must keep the forest tractor's body-length margin`,
+        );
+    }
+});
+
 test('corn tractor unlock uses the forest MACHINE presentation', () => {
     const method = source.match(
         /private completeVehicleUnlock[\s\S]*?\n    private completeHaulerUnlock/,
@@ -259,6 +284,12 @@ test('corn hauler, storage, and unlock pad are dedicated copies of forest behavi
     )?.[0] ?? '';
     assert.match(method, /scale: new Vec3\(0, 0, 0\)/);
     assert.match(method, /this\.spawnHauler\(field, padNode\)/);
+    assert.match(method, /cameraController\.target = field\.hauler/);
+    assert.match(method, /joystickController\._lock = true/);
+    assert.match(method, /this\._playerController\?\.stopMovement\(\)/);
+    assert.match(method, /cameraController\.target = this\._player/);
+    assert.match(method, /joystickController\._lock = false/);
+    assert.match(method, /}, 6\)/);
 
     const spawnMethod = source.match(
         /private spawnHauler[\s\S]*?\n    private createActor/,

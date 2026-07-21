@@ -121,6 +121,82 @@ test('场景中仅玉米区迁移为 CornCustomerScheduler 且奖励为三枚金
     assert.equal(componentOf(forestNode).__type__, forestSchedulerType);
 });
 
+test('玉米顾客购买后的背负位置和堆叠间距与森林顾客一致', () => {
+    const forestSchedulerNode = scene.find((entry) =>
+        entry?.__type__ === 'cc.Node' && entry._name === 'NPCScheduler' && entry._active,
+    );
+    assert.ok(forestSchedulerNode, 'central forest scheduler must exist');
+    const forestScheduler = componentOf(forestSchedulerNode);
+    const forestNpc = nodeAt(forestScheduler.npcs[0]);
+    const forestCarryNode = childNamed(forestNpc, 'StoragePoint');
+    const forestCarryStorage = componentOf(forestCarryNode);
+    const layoutProperties = [
+        'layers',
+        'layerHeight',
+        'resourcePerRow',
+        'resourceRowSpacing',
+        'resourcePerCol',
+        'resourceColSpacing',
+    ];
+
+    for (const rootName of ['Finish', 'Finish-001']) {
+        const root = scene.find((entry) => entry?.__type__ === 'cc.Node' && entry._name === rootName);
+        const scheduler = componentOf(childNamed(root, 'NPCScheduler-001'));
+        for (const npcReference of scheduler.npcs) {
+            const npc = nodeAt(npcReference);
+            const carryNode = childNamed(npc, 'StoragePoint');
+            const carryStorage = componentOf(carryNode);
+            assert.deepEqual(carryNode._lpos, forestCarryNode._lpos, `${rootName}/${npc._name} carry position`);
+            assert.deepEqual(carryNode._lrot, forestCarryNode._lrot, `${rootName}/${npc._name} carry rotation`);
+            assert.deepEqual(carryNode._lscale, forestCarryNode._lscale, `${rootName}/${npc._name} carry scale`);
+            for (const property of layoutProperties) {
+                assert.equal(
+                    carryStorage[property],
+                    forestCarryStorage[property],
+                    `${rootName}/${npc._name} ${property}`,
+                );
+            }
+        }
+    }
+
+    const source = readFileSync(scriptUrl, 'utf8');
+    const ensureCarryStorage = source.match(
+        /private ensureNpcCarryStorage[\s\S]*?\n    private findStorageLikeInNode/,
+    )?.[0] ?? '';
+    assert.match(source, /private configureNpcCarryLayout/);
+    assert.match(ensureCarryStorage, /this\.configureNpcCarryLayout\(existing\)/);
+    assert.match(ensureCarryStorage, /this\.configureNpcCarryLayout\(storage\)/);
+});
+
+test('玉米顾客购买完成后显示与森林顾客相同的完成提示', () => {
+    const forestSchedulerNode = scene.find((entry) =>
+        entry?.__type__ === 'cc.Node' && entry._name === 'NPCScheduler' && entry._active,
+    );
+    const forestScheduler = componentOf(forestSchedulerNode);
+    const forestNpc = nodeAt(forestScheduler.npcs[0]);
+    const forestEmoji = childNamed(forestNpc, 'emoji');
+    const forestEmojiSprite = forestEmoji._components
+        .map(nodeAt)
+        .find(component => component.__type__ === 'cc.Sprite');
+    assert.ok(forestEmojiSprite?._spriteFrame?.__uuid__, 'forest completion emoji must expose its sprite frame');
+
+    for (const rootName of ['Finish', 'Finish-001']) {
+        const root = scene.find((entry) => entry?.__type__ === 'cc.Node' && entry._name === rootName);
+        const scheduler = componentOf(childNamed(root, 'NPCScheduler-001'));
+        assert.equal(
+            scheduler.completionEmojiFrame?.__uuid__,
+            forestEmojiSprite._spriteFrame.__uuid__,
+            `${rootName} must bind the forest-style completion emoji asset`,
+        );
+    }
+
+    const source = readFileSync(scriptUrl, 'utf8');
+    assert.match(source, /@property\(\{ type: SpriteFrame \}\) public completionEmojiFrame/);
+    assert.match(source, /this\.prepareNpcCompletionEmojis\(\)/);
+    assert.match(source, /new Node\('emoji'\)/);
+    assert.match(source, /sprite\.spriteFrame = this\.completionEmojiFrame/);
+});
+
 test('左右玉米顾客只把金币生成到所属玉米区', () => {
     const cornRoots = ['Finish', 'Finish-001'].map((name) =>
         scene.find((entry) => entry?.__type__ === 'cc.Node' && entry._name === name),

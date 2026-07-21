@@ -191,7 +191,8 @@ test('corn worker unlock uses the forest LOGGER presentation', () => {
         /private showUnlockStage[\s\S]*?\n    private resolveUnlockVisual/,
     )?.[0] ?? '';
     assert.match(showUnlockStage, /animateEntrance/);
-    assert.match(showUnlockStage, /scale: new Vec3\(0\.72, 0\.72, 0\.72\)/);
+    assert.match(showUnlockStage, /const visualScale = stage === 'worker' \? 0\.9 : 0\.72/);
+    assert.match(showUnlockStage, /scale: new Vec3\(visualScale, visualScale, visualScale\)/);
 });
 
 test('corn workers keep crop output isolated from forest wood storage', () => {

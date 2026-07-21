@@ -6,8 +6,11 @@ import {
     Label,
     Node,
     Prefab,
+    RenderRoot2D,
     Sprite,
+    SpriteFrame,
     Tween,
+    UITransform,
     Vec3,
     instantiate,
     tween,
@@ -49,6 +52,7 @@ export class CornCustomerScheduler extends Component {
     @property({ type: Component }) public sellZone: Component = null!;
     @property({ type: Node }) public fillTip: Node = null!;
     @property public fillTipHeadOffsetY = 2.1;
+    @property({ type: SpriteFrame }) public completionEmojiFrame: SpriteFrame = null!;
 
     @property({ type: Prefab }) public coinPrefab: Prefab = null!;
     @property({ type: Node }) public coinDropArea: Node = null!;
@@ -89,6 +93,7 @@ export class CornCustomerScheduler extends Component {
         this._resolvedSellStoragePoint = null;
         this.ensureLocalCoinDropArea();
         this.prepareNpcCarryStorages();
+        this.prepareNpcCompletionEmojis();
         this.setupFillTipFacing();
         this.initializeQueue();
     }
@@ -120,10 +125,31 @@ export class CornCustomerScheduler extends Component {
         for (const npc of this.npcs) this.ensureNpcCarryStorage(npc);
     }
 
+    private prepareNpcCompletionEmojis(): void {
+        for (const npc of this.npcs) {
+            if (this.getNpcEmoji(npc) || !this.completionEmojiFrame) continue;
+
+            const emoji = new Node('emoji');
+            emoji.setParent(npc);
+            emoji.setPosition(0.131, 2.396, -0.18);
+            emoji.setRotationFromEuler(-45, 0, 0);
+            emoji.setScale(0.003, 0.003, 1);
+            emoji.layer = 8388608;
+
+            const transform = emoji.addComponent(UITransform);
+            transform.setContentSize(188, 188);
+            const sprite = emoji.addComponent(Sprite);
+            sprite.spriteFrame = this.completionEmojiFrame;
+            emoji.addComponent(RenderRoot2D);
+            emoji.addComponent(CameraFacingUI);
+            emoji.active = false;
+        }
+    }
+
     private ensureNpcCarryStorage(npc: Node): CornStoragePoint | null {
         const existing = this.findCornStoragePointInNode(npc);
         if (existing) {
-            existing.capacity = this._customerCapacity;
+            this.configureNpcCarryLayout(existing);
             existing.recoverInterruptedTransfers();
             return existing;
         }
@@ -139,25 +165,30 @@ export class CornCustomerScheduler extends Component {
 
         legacy.enabled = false;
         const storage = legacy.node.addComponent(CornStoragePoint);
-        storage.storageName = 'corn_customer_carry';
-        storage.autoStack = legacy.autoStack ?? true;
-        storage.showCapacityInfo = legacy.showCapacityInfo ?? true;
-        storage.capacity = this._customerCapacity;
-        storage.layers = legacy.layers ?? 10;
-        storage.layerHeight = legacy.layerHeight ?? 0.2;
-        storage.resourcePerRow = legacy.resourcePerRow ?? 1;
-        storage.resourceRowSpacing = legacy.resourceRowSpacing ?? 0.2;
-        storage.resourcePerCol = legacy.resourcePerCol ?? 1;
-        storage.resourceColSpacing = legacy.resourceColSpacing ?? 0.2;
         storage.stackAreaNode = legacy.stackAreaNode ?? legacy.node;
-        storage.moveAnimationDuration = legacy.moveAnimationDuration ?? 1;
-        storage.fadeAnimationDuration = legacy.fadeAnimationDuration ?? 0.5;
-        storage.moveEasing = legacy.moveEasing ?? 'sineOut';
-        storage.fadeEasing = legacy.fadeEasing ?? 'sineIn';
-        storage.checkOffset = legacy.checkOffset ?? false;
-        storage.audioInterval = legacy.audioInterval ?? 0.2;
+        this.configureNpcCarryLayout(storage);
         storage.recoverInterruptedTransfers();
         return storage;
+    }
+
+    /** Keep every corn customer's carried stack identical to the forest customer layout. */
+    private configureNpcCarryLayout(storage: CornStoragePoint): void {
+        storage.storageName = 'corn_customer_carry';
+        storage.autoStack = true;
+        storage.showCapacityInfo = true;
+        storage.capacity = this._customerCapacity;
+        storage.layers = 10;
+        storage.layerHeight = 0.2;
+        storage.resourcePerRow = 1;
+        storage.resourceRowSpacing = 0.2;
+        storage.resourcePerCol = 1;
+        storage.resourceColSpacing = 0.2;
+        storage.moveAnimationDuration = 1;
+        storage.fadeAnimationDuration = 0.5;
+        storage.moveEasing = 'sineOut';
+        storage.fadeEasing = 'sineIn';
+        storage.checkOffset = false;
+        storage.audioInterval = 2;
     }
 
     private findStorageLikeInNode(root: Node | null): StorageLike | null {

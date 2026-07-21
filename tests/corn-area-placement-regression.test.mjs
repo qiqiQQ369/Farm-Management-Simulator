@@ -6,8 +6,8 @@ const scene = JSON.parse(readFileSync(
     new URL('../assets/Scenes/DevScene.scene', import.meta.url),
     'utf8',
 ));
-const forestVisualPrefab = JSON.parse(readFileSync(
-    new URL('../assets/_Assets/Prefab/shoujimucai.prefab', import.meta.url),
+const mapVisualPrefab = JSON.parse(readFileSync(
+    new URL('../assets/Prefab/场景.prefab', import.meta.url),
     'utf8',
 ));
 const resourceFieldSource = readFileSync(
@@ -35,24 +35,88 @@ const nodeAt = (reference) => scene[reference.__id__];
 const childrenOf = (node) => (node._children ?? []).map(nodeAt);
 const childNamed = (node, name) => childrenOf(node).find((child) => child._name === name);
 const nodeNamed = (name) => scene.find((entry) => entry?.__type__ === 'cc.Node' && entry._name === name);
+const isDescendantOf = (node, ancestor) => {
+    let current = node;
+    while (current) {
+        if (current === ancestor) return true;
+        current = current._parent ? nodeAt(current._parent) : null;
+    }
+    return false;
+};
 const assertNear = (actual, expected, message) => assert.ok(
     Math.abs(actual - expected) < 0.001,
     `${message}: expected ${expected}, received ${actual}`,
 );
-
-const forestBoardRenderer = forestVisualPrefab.find((entry) =>
-    entry?.__type__ === 'cc.MeshRenderer'
-    && entry?._mesh?.__uuid__?.endsWith('@90ee8'),
-);
-assert.ok(forestBoardRenderer, 'forest wood-board renderer must exist in the authored prefab');
-const forestBoardNode = forestVisualPrefab[forestBoardRenderer.node.__id__];
-// The forest prefab root is placed at (0, -0.514, -0.014) in DevScene.
-// Subtracting woodStackArea gives the board's exact storage-relative position.
-const forestBoardRelativeToStorage = {
-    x: 0.0162388286590575,
-    y: 0.06452477729320526,
-    z: -0.2766022787094116,
+const rootOverridesOf = (serialized, prefabNode) => {
+    const prefabInfo = serialized[prefabNode._prefab.__id__];
+    const instance = serialized[prefabInfo.instance.__id__];
+    const overrides = (instance.propertyOverrides ?? []).map(reference => serialized[reference.__id__]);
+    const nameOverride = overrides.find(override => override.propertyPath?.[0] === '_name');
+    const rootTarget = JSON.stringify(serialized[nameOverride.targetInfo.__id__].localID);
+    const valueAt = path => overrides.find((override) =>
+        override.propertyPath?.[0] === path
+        && JSON.stringify(serialized[override.targetInfo.__id__].localID) === rootTarget
+    )?.value;
+    return {
+        assetUuid: prefabInfo.asset.__uuid__,
+        name: nameOverride.value,
+        position: valueAt('_lpos'),
+        rotation: valueAt('_lrot'),
+        scale: valueAt('_lscale'),
+    };
 };
+
+const forestBoardInstance = mapVisualPrefab.find((entry) => {
+    if (entry?.__type__ !== 'cc.Node' || !entry._prefab) return false;
+    return mapVisualPrefab[entry._prefab.__id__]?.asset?.__uuid__
+        === '602dfac6-7524-4034-83fa-af06e20e8337@71970';
+});
+assert.ok(forestBoardInstance, 'the map must expose the forest wood-board instance');
+const forestBoardInfo = mapVisualPrefab[forestBoardInstance._prefab.__id__];
+const forestBoardPrefabInstance = mapVisualPrefab[forestBoardInfo.instance.__id__];
+const forestBoardOverrides = forestBoardPrefabInstance.propertyOverrides
+    .map(reference => mapVisualPrefab[reference.__id__]);
+const forestBoardRootName = forestBoardOverrides.find(override => override.propertyPath?.[0] === '_name');
+const forestBoardRootTarget = JSON.stringify(
+    mapVisualPrefab[forestBoardRootName.targetInfo.__id__].localID,
+);
+const forestBoardMeshPosition = forestBoardOverrides.find((override) =>
+    override.propertyPath?.[0] === '_lpos'
+    && JSON.stringify(mapVisualPrefab[override.targetInfo.__id__].localID) !== forestBoardRootTarget
+)?.value;
+assert.ok(forestBoardMeshPosition, 'the forest wood-board mesh position must be authored in the map');
+const forestBoardPosition = {
+    x: mapVisualPrefab[1]._lpos.x + forestBoardMeshPosition.x,
+    y: mapVisualPrefab[1]._lpos.y + forestBoardMeshPosition.y,
+    z: mapVisualPrefab[1]._lpos.z + forestBoardMeshPosition.z,
+};
+const forestBoardScale = {
+    __type__: 'cc.Vec3',
+    x: 0.009999999776482582,
+    y: 0.009999999776482582,
+    z: 0.009999999776482582,
+};
+const forestBoardRotation = {
+    __type__: 'cc.Quat',
+    x: 0,
+    y: 0,
+    z: 0,
+    w: 1,
+};
+const forestBoardMeshUuid = '602dfac6-7524-4034-83fa-af06e20e8337@e2349';
+const forestBoardMaterialUuid = '602dfac6-7524-4034-83fa-af06e20e8337@f8a20';
+
+const cornDarkRegionCenters = mapVisualPrefab
+    .filter((entry) => {
+        if (entry?.__type__ !== 'cc.Node' || !entry._prefab) return false;
+        return mapVisualPrefab[entry._prefab.__id__]?.asset?.__uuid__
+            === '437556ad-49e6-446a-b1e8-27aba94f0efa@83ca4';
+    })
+    .map(entry => rootOverridesOf(mapVisualPrefab, entry))
+    .filter(entry => entry.name.startsWith('解锁地暗'))
+    .map(entry => entry.position)
+    .sort((left, right) => left.x - right.x);
+assert.equal(cornDarkRegionCenters.length, 2, 'the map must expose two corn dark regions');
 
 const fieldSystem = scene.find((entry) =>
     entry?.leftFieldRoot && entry?.rightFieldRoot && entry?.leftWorkerUnlockPoint,
@@ -93,44 +157,64 @@ const unlockBindings = [
     ],
 ];
 
-test('corn storage board and unlock nodes are authored in the scene with the forest layout', () => {
+test('corn storage board and unlock nodes use the forest layout inside each dark corn region', () => {
     const forestStorage = nodeNamed('woodStackArea');
-    const forestUnlockPoint = nodeNamed('unlockLevel1');
-    assert.ok(forestStorage, 'forest storage point must exist');
-    assert.ok(forestUnlockPoint, 'forest unlock point must exist');
-
-    const forestStorageToUnlock = {
-        x: forestUnlockPoint._lpos.x - forestStorage._lpos.x,
-        y: forestUnlockPoint._lpos.y - forestStorage._lpos.y,
-        z: forestUnlockPoint._lpos.z - forestStorage._lpos.z,
+    const forestUnlockPoints = {
+        Worker: nodeNamed('unlockLevel1'),
+        Vehicle: nodeNamed('unlockLevel2'),
+        Hauler: nodeNamed('unlockLevel3'),
     };
+    assert.ok(forestStorage, 'forest storage point must exist');
+    for (const unlockPoint of Object.values(forestUnlockPoints)) {
+        assert.ok(unlockPoint, 'every forest unlock point must exist');
+    }
 
-    for (const [fieldRootRef, openingPadRef, , collectionStorageRef] of unlockBindings) {
+    for (const [index, [fieldRootRef, openingPadRef, , collectionStorageRef]] of unlockBindings.entries()) {
         const fieldRoot = nodeAt(fieldRootRef);
         const openingPad = nodeAt(openingPadRef);
         const collectionStorageComponent = nodeAt(collectionStorageRef);
         const collectionStorage = nodeAt(collectionStorageComponent.node);
+        const collectionStack = childNamed(collectionStorage, 'StackArea');
         const openingLocalX = openingPad._lpos.x - fieldRoot._lpos.x;
-        const storageBoard = childNamed(collectionStorage, 'CornStorageBoard');
+        const storageBoard = childNamed(fieldRoot, 'CornStorageBoard');
+        const darkRegionCenter = cornDarkRegionCenters[index];
+        const worldTranslation = {
+            x: darkRegionCenter.x,
+            z: darkRegionCenter.z,
+        };
 
         assert.equal(
             collectionStorage._name,
             'CornStorageArea',
             `${fieldRoot._name} must expose an authored corn storage node in Creator`,
         );
-        assert.ok(storageBoard, `${fieldRoot._name} must expose an authored corn storage board in Creator`);
-        assert.deepEqual(
-            storageBoard._lscale,
-            forestBoardNode._lscale,
-            `${fieldRoot._name} storage board must use the forest board size`,
+        assert.ok(collectionStack, `${fieldRoot._name} collection storage must expose StackArea`);
+        assert.equal(
+            collectionStack._parent.__id__,
+            collectionStorageComponent.node.__id__,
+            `${fieldRoot._name} StackArea must remain parented to its collection storage`,
         );
-        for (const axis of ['x', 'y', 'z']) {
-            assertNear(
-                storageBoard._lpos[axis],
-                forestBoardRelativeToStorage[axis],
-                `${fieldRoot._name} storage board must use the forest ${axis.toUpperCase()} offset`,
-            );
-        }
+        assert.ok(storageBoard, `${fieldRoot._name} must expose a permanent corn storage board in Creator`);
+        assert.equal(storageBoard._active, true, `${fieldRoot._name} storage board must stay visible before storage activation`);
+        assert.deepEqual(collectionStorage._lscale, forestStorage._lscale);
+        assertNear(collectionStorage._lpos.y, forestStorage._lpos.y, `${fieldRoot._name} storage height`);
+        assertNear(
+            storageBoard._lpos.x + fieldRoot._lpos.x,
+            forestBoardPosition.x + worldTranslation.x,
+            `${fieldRoot._name} board X must follow the dark-region layout origin`,
+        );
+        assertNear(
+            storageBoard._lpos.y + fieldRoot._lpos.y,
+            forestBoardPosition.y,
+            `${fieldRoot._name} board Y must match the forest board`,
+        );
+        assertNear(
+            storageBoard._lpos.z + fieldRoot._lpos.z,
+            forestBoardPosition.z + worldTranslation.z,
+            `${fieldRoot._name} board Z must follow the dark-region layout origin`,
+        );
+        assert.deepEqual(storageBoard._lrot, forestBoardRotation);
+        assert.deepEqual(storageBoard._lscale, forestBoardScale);
         assert.equal(
             storageBoard._components.length,
             1,
@@ -141,6 +225,24 @@ test('corn storage board and unlock nodes are authored in the scene with the for
             'cc.MeshRenderer',
             `${fieldRoot._name} storage board must not copy forest storage or trigger logic`,
         );
+        assert.equal(
+            nodeAt(storageBoard._components[0])._mesh.__uuid__,
+            forestBoardMeshUuid,
+            `${fieldRoot._name} storage board must use the forest plank mesh, not the loose-log mesh`,
+        );
+        assert.equal(
+            nodeAt(storageBoard._components[0])._materials[0].__uuid__,
+            forestBoardMaterialUuid,
+            `${fieldRoot._name} storage board must use the forest plank material`,
+        );
+
+        for (const axis of ['x', 'z']) {
+            assertNear(
+                collectionStorage._lpos[axis] + fieldRoot._lpos[axis],
+                forestStorage._lpos[axis] + worldTranslation[axis],
+                `${fieldRoot._name} storage ${axis.toUpperCase()} must stay inside its dark region`,
+            );
+        }
 
         assert.ok(
             collectionStorage._lpos.x < openingLocalX - 1,
@@ -149,6 +251,14 @@ test('corn storage board and unlock nodes are authored in the scene with the for
 
         for (const stage of ['Worker', 'Vehicle', 'Hauler']) {
             const unlockPoint = nodeAt(fieldSystem[`${fieldRootRef === fieldSystem.leftFieldRoot ? 'left' : 'right'}${stage}UnlockPoint`]);
+            const forestUnlockPoint = forestUnlockPoints[stage];
+            const unlockVisual = rootOverridesOf(scene, nodeAt(unlockPoint._children[0]));
+            const forestUnlockVisual = rootOverridesOf(scene, nodeAt(forestUnlockPoint._children[0]));
+            const forestStorageToUnlock = {
+                x: forestUnlockPoint._lpos.x - forestStorage._lpos.x,
+                y: forestUnlockPoint._lpos.y - forestStorage._lpos.y,
+                z: forestUnlockPoint._lpos.z - forestStorage._lpos.z,
+            };
 
             assert.ok(
                 unlockPoint._lpos.x < openingLocalX - 1,
@@ -174,6 +284,31 @@ test('corn storage board and unlock nodes are authored in the scene with the for
                 forestUnlockPoint._lscale,
                 `${fieldRoot._name} ${stage} unlock must use the forest unlock scale`,
             );
+            assert.deepEqual(
+                unlockVisual.position,
+                forestUnlockVisual.position,
+                `${fieldRoot._name} ${stage} visual must use the forest visual offset`,
+            );
+            const expectedVisualScale = stage === 'Worker'
+                ? forestUnlockVisual.scale
+                : {
+                    __type__: 'cc.Vec3',
+                    x: forestUnlockVisual.scale.y,
+                    y: forestUnlockVisual.scale.y,
+                    z: forestUnlockVisual.scale.y,
+                };
+            assert.deepEqual(
+                unlockVisual.scale,
+                expectedVisualScale,
+                `${fieldRoot._name} ${stage} visual must use the forest visible scale`,
+            );
+            for (const axis of ['x', 'z']) {
+                assertNear(
+                    unlockPoint._lpos[axis] + fieldRoot._lpos[axis],
+                    forestUnlockPoint._lpos[axis] + worldTranslation[axis],
+                    `${fieldRoot._name} ${stage} ${axis.toUpperCase()} must stay inside its dark region`,
+                );
+            }
         }
     }
 
@@ -195,9 +330,171 @@ test('corn storage board and unlock nodes are authored in the scene with the for
     );
     assert.doesNotMatch(
         resourceFieldSource,
-        /visual\?\.setScale\(/,
-        'runtime code must preserve the scene-authored forest unlock scale',
+        /visual\?\.setPosition\(Vec3\.ZERO\)/,
+        'runtime code must preserve the scene-authored forest unlock visual offset',
     );
+    assert.match(
+        resourceFieldSource,
+        /const visualScale = stage === 'worker' \? 0\.9 : 0\.72/,
+        'runtime entrance animation must end at the matching forest visual scale',
+    );
+});
+
+test('corn storage collider stays active before field unlock and mirrors the forest blocker', () => {
+    const forestStorage = nodeNamed('woodStackArea');
+    const forestSolidCollider = forestStorage?._components
+        ?.map(nodeAt)
+        .find((component) => component.__type__ === 'cc.BoxCollider' && !component._isTrigger);
+    const configureCollectionPickup = resourceFieldSource.match(
+        /private configureCollectionPickup[\s\S]*?\n    private ensureSellStorage/,
+    )?.[0] ?? '';
+    const createField = resourceFieldSource.match(
+        /private createField\([\s\S]*?\n    private configureStorage/,
+    )?.[0] ?? '';
+
+    assert.ok(forestSolidCollider, 'forest storage must expose a non-trigger blocking collider');
+    assert.deepEqual(
+        { x: forestSolidCollider._size.x, y: forestSolidCollider._size.y, z: forestSolidCollider._size.z },
+        { x: 1.8, y: 1, z: 1.6 },
+    );
+    assert.doesNotMatch(resourceFieldSource, /configureStorageBoardCollider/);
+    assert.match(configureCollectionPickup, /collectionStorage\.node\.getComponents\(BoxCollider\)/);
+    assert.match(configureCollectionPickup, /solidCollider\.isTrigger = false/);
+    assert.match(configureCollectionPickup, /solidCollider\.center\.set\(0, 0, 0\)/);
+    assert.match(configureCollectionPickup, /solidCollider\.size\.set\(1\.8, 1, 1\.6\)/);
+    assert.match(configureCollectionPickup, /solidCollider\.enabled = true/);
+    assert.doesNotMatch(configureCollectionPickup, /RigidBody|ERigidBodyType/);
+    assert.match(createField, /collectionStorage\.node\.active = true/);
+    assert.doesNotMatch(createField, /collectionStorage\.node\.active = false/);
+
+    for (const [fieldRootRef, , , collectionStorageRef] of unlockBindings) {
+        const collectionStorageComponent = nodeAt(collectionStorageRef);
+        const collectionStorageNode = nodeAt(collectionStorageComponent.node);
+        const colliders = collectionStorageNode._components
+            .map(nodeAt)
+            .filter(component => component.__type__ === 'cc.BoxCollider');
+        const triggerCollider = colliders.find(component => component._isTrigger);
+        const blockingCollider = colliders.find(component => !component._isTrigger);
+
+        assert.ok(triggerCollider, `${nodeAt(fieldRootRef)._name} must author the forest pickup trigger`);
+        assert.ok(blockingCollider, `${nodeAt(fieldRootRef)._name} must author the forest blocking collider`);
+        assert.equal(collectionStorageNode._active, true, `${nodeAt(fieldRootRef)._name} blocker must be active before unlock`);
+        assert.deepEqual(triggerCollider._center, forestStorage._components.map(nodeAt)
+            .find(component => component.__type__ === 'cc.BoxCollider' && component._isTrigger)._center);
+        assert.deepEqual(triggerCollider._size, forestStorage._components.map(nodeAt)
+            .find(component => component.__type__ === 'cc.BoxCollider' && component._isTrigger)._size);
+        assert.deepEqual(blockingCollider._center, forestSolidCollider._center);
+        assert.deepEqual(blockingCollider._size, forestSolidCollider._size);
+    }
+});
+
+test('corn storage applies a post-movement barrier when inactive storage physics cannot block reliably', () => {
+    const updateMethod = resourceFieldSource.match(
+        /protected update\(deltaTime: number\)[\s\S]*?\n    protected onDestroy/,
+    )?.[0] ?? '';
+    const barrierMethod = resourceFieldSource.match(
+        /private keepPlayerOutsideCollectionStorage[\s\S]*?\n    private createField/,
+    )?.[0] ?? '';
+
+    assert.match(resourceFieldSource, /const \{ ccclass, property, executionOrder \} = _decorator/);
+    assert.match(resourceFieldSource, /@executionOrder\(50\)/);
+    assert.match(updateMethod, /this\.keepPlayerOutsideCollectionStorage\(field\)/);
+    assert.match(barrierMethod, /field\.collectionStorage\.node\.activeInHierarchy/);
+    assert.match(barrierMethod, /getComponent\(CapsuleCollider\)\?\.radius \?\? 0\.25/);
+    assert.match(barrierMethod, /const halfX = Math\.abs\(storageScale\.x\) \* 0\.9 \+ playerRadius/);
+    assert.match(barrierMethod, /const halfZ = Math\.abs\(storageScale\.z\) \* 0\.8 \+ playerRadius/);
+    assert.match(barrierMethod, /this\._player\.setWorldPosition\(correctedPosition\)/);
+    assert.match(barrierMethod, /rigidBody\.setLinearVelocity\(velocity\)/);
+});
+
+test('corn unlock interaction distance follows the displayed unlock visual', () => {
+    const showUnlockStage = resourceFieldSource.match(
+        /private showUnlockStage[\s\S]*?\n    private resolveUnlockVisual/,
+    )?.[0] ?? '';
+
+    assert.match(
+        showUnlockStage,
+        /interactionNode: visual \?\? padNode/,
+        'the unlock component must receive the displayed visual as its interaction node',
+    );
+    assert.match(
+        cornUnlockSource,
+        /interactionNode: Node/,
+    );
+    assert.match(cornUnlockSource, /this\._interactionNode = config\.interactionNode/);
+    assert.match(
+        cornUnlockSource,
+        /this\._interactionNode\?\.worldPosition \?\? this\.node\.worldPosition/,
+    );
+    assert.doesNotMatch(
+        cornUnlockSource,
+        /Vec3\.distance\(this\._player\.worldPosition, this\.node\.worldPosition\)/,
+    );
+});
+
+test('corn unlock pad contents keep the forest layout at the corn ground height', () => {
+    const alignUnlockVisual = resourceFieldSource.match(
+        /private alignUnlockVisualToCornGround[\s\S]*?\n    private resolveUnlockVisual/,
+    )?.[0] ?? '';
+
+    assert.match(
+        resourceFieldSource,
+        /this\.alignUnlockVisualToCornGround\(field, visual\)/,
+        'each displayed corn unlock pad must use the forest layout at its own ground height',
+    );
+    assert.match(alignUnlockVisual, /visual\.getChildByName\('icon'\)/);
+    assert.match(alignUnlockVisual, /iconGroup\.setPosition\(0, 0, 0\.088\)/);
+    assert.match(alignUnlockVisual, /iconGroup\.setScale\(1\.6, 1\.6, 1\.6\)/);
+    assert.match(alignUnlockVisual, /const groundHeight = field\.collectionStorage\.node\.worldPosition\.y/);
+    assert.match(alignUnlockVisual, /iconWorldPosition\.y = groundHeight/);
+    assert.match(alignUnlockVisual, /iconGroup\.setWorldPosition\(iconWorldPosition\)/);
+    assert.doesNotMatch(alignUnlockVisual, /-0\.509/);
+    assert.doesNotMatch(
+        resourceFieldSource,
+        /configureUnlockPadCollider/,
+        'the step-on unlock pad must stay traversable like the forest pad',
+    );
+});
+
+test('corn field reveal preserves its entry camera angle without changing internal unlock cameras', () => {
+    const cameraMoveMethod = finishNodeSource.match(
+        /private executeCameraMove[\s\S]*?\n    private onCameraMoveComplete/,
+    )?.[0] ?? '';
+
+    assert.match(cameraMoveMethod, /const preservedRotation = this\.camera\.node\.worldRotation\.clone\(\)/);
+    assert.match(cameraMoveMethod, /this\.camera\.node\.setWorldRotation\(preservedRotation\)/);
+    assert.match(cameraMoveMethod, /const fieldCenter = this\.getUnlockFieldCenter\(\)/);
+    assert.match(cameraMoveMethod, /const cameraForward = this\.camera\.node\.forward\.clone\(\)/);
+    assert.match(cameraMoveMethod, /const focusDistance = Vec3\.distance\(this\.cameraEndPoint\.worldPosition, fieldCenter\)/);
+    assert.match(cameraMoveMethod, /Vec3\.scaleAndAdd\(endPosition, fieldCenter, cameraForward, -focusDistance\)/);
+    assert.match(cameraMoveMethod, /Vec3\.subtract\(pathOffset, endPosition, this\.cameraEndPoint\.worldPosition\)/);
+    assert.match(cameraMoveMethod, /const startPosition = this\.cameraStartPoint\.worldPosition\.clone\(\)/);
+    assert.match(cameraMoveMethod, /Vec3\.add\(startPosition, startPosition, pathOffset\)/);
+    assert.match(cameraMoveMethod, /this\.camera\.node\.setWorldPosition\(startPosition\)/);
+    assert.match(cameraMoveMethod, /position: endPosition/);
+    assert.doesNotMatch(cameraMoveMethod, /startDistance/);
+    assert.doesNotMatch(cameraMoveMethod, /rotation:|\.lookAt\(/);
+    assert.doesNotMatch(resourceFieldSource, /playUnlockCameraFocus|maintainUnlockCameraAngle/);
+    assert.match(resourceFieldSource, /cameraController\.target = focusWorker/);
+    assert.match(resourceFieldSource, /cameraController\.target = field\.vehicle\.node/);
+    assert.match(resourceFieldSource, /cameraController\.target = field\.hauler/);
+
+    const revealComponents = scene.filter((entry) =>
+        entry?.cameraStartPoint && entry?.cameraEndPoint && Array.isArray(entry?.targetNodes),
+    );
+    assert.equal(revealComponents.length, 2, 'left and right corn fields need separate reveal controllers');
+    const fieldRoots = new Set();
+    for (const reveal of revealComponents) {
+        const controllerNode = nodeAt(reveal.node);
+        const fieldRoot = nodeAt(controllerNode._parent);
+        const focusField = nodeAt(reveal.targetNodes[0]);
+        assert.ok(
+            isDescendantOf(focusField, fieldRoot),
+            `${fieldRoot._name} reveal must calculate focus from its own corn field`,
+        );
+        fieldRoots.add(fieldRoot);
+    }
+    assert.equal(fieldRoots.size, 2, 'left and right reveals must not share one field center');
 });
 
 test('corn storage uses the forest capacity and stack rules without sharing inventory', () => {
@@ -266,8 +563,8 @@ test('corn unlock pads consume the same mounted coin storage as forest pads', ()
     );
     assert.match(
         cornUnlockSource,
-        /removeResourceWithAnimation\(this\.node\.worldPosition,\s*'parabola'\)/,
-        'corn unlock must animate physical coins from the player stack to the pad',
+        /removeResourceWithAnimation\(interactionWorldPosition,\s*'parabola'\)/,
+        'corn unlock must animate physical coins from the player stack to the displayed pad',
     );
     assert.equal(
         fieldSystem.coinsPerTick,

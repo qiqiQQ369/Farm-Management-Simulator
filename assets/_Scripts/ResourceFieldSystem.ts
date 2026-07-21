@@ -33,7 +33,7 @@ import { MainUI } from './MainUI';
 import { MultiResourceBackpack } from './MultiResourceBackpack';
 import { PlayerController } from './PlayerController';
 
-const { ccclass, property } = _decorator;
+const { ccclass, property, executionOrder } = _decorator;
 
 type UnlockStage = 'worker' | 'vehicle' | 'hauler' | 'complete';
 type PurchasableUnlockStage = Exclude<UnlockStage, 'complete'>;
@@ -90,6 +90,7 @@ type FieldRuntime = {
  * forest production scripts, so the existing forest loop remains isolated.
  */
 @ccclass('ResourceFieldSystem')
+@executionOrder(50)
 export class ResourceFieldSystem extends Component {
     public static inst: ResourceFieldSystem | null = null;
 
@@ -180,7 +181,7 @@ export class ResourceFieldSystem extends Component {
     @property({ group: 'Left field' }) public leftHitsPerPlant = 1;
     @property({ group: 'Left field' }) public leftYieldPerPlant = 3;
     @property({ group: 'Left field' }) public leftRespawnSeconds = 10;
-    @property({ group: 'Left field' }) public leftInventoryCapacity = Number.MAX_SAFE_INTEGER;
+    @property({ group: 'Left field' }) public leftInventoryCapacity = 42;
     @property({ group: 'Left field' }) public leftWorkerSpeed = 2;
     @property({ group: 'Left field' }) public leftVehicleSpeed = 2;
     @property({ group: 'Left field' }) public leftHaulerSpeed = 3;
@@ -214,7 +215,7 @@ export class ResourceFieldSystem extends Component {
     @property({ group: 'Right field' }) public rightHitsPerPlant = 1;
     @property({ group: 'Right field' }) public rightYieldPerPlant = 3;
     @property({ group: 'Right field' }) public rightRespawnSeconds = 10;
-    @property({ group: 'Right field' }) public rightInventoryCapacity = Number.MAX_SAFE_INTEGER;
+    @property({ group: 'Right field' }) public rightInventoryCapacity = 42;
     @property({ group: 'Right field' }) public rightWorkerSpeed = 2;
     @property({ group: 'Right field' }) public rightVehicleSpeed = 2;
     @property({ group: 'Right field' }) public rightHaulerSpeed = 3;
@@ -346,7 +347,7 @@ export class ResourceFieldSystem extends Component {
     }
 
     protected update(deltaTime: number): void {
-        if (this._finished || this._fields.length === 0) {
+        if (this._fields.length === 0) {
             return;
         }
 
@@ -355,7 +356,8 @@ export class ResourceFieldSystem extends Component {
                 continue;
             }
 
-            this.updatePlayerDeposit(field, deltaTime);
+            this.keepPlayerOutsideCollectionStorage(field);
+            if (!this._finished) this.updatePlayerDeposit(field, deltaTime);
         }
     }
 
@@ -387,6 +389,43 @@ export class ResourceFieldSystem extends Component {
         }
 
         return this._finished;
+    }
+
+    private keepPlayerOutsideCollectionStorage(field: FieldRuntime): void {
+        if (!this._player || !field.collectionStorage.node.activeInHierarchy) return;
+
+        const storageNode = field.collectionStorage.node;
+        const storageCenter = storageNode.worldPosition;
+        const storageScale = storageNode.worldScale;
+        const playerRadius = this._player.getComponent(CapsuleCollider)?.radius ?? 0.25;
+        const halfX = Math.abs(storageScale.x) * 0.9 + playerRadius;
+        const halfZ = Math.abs(storageScale.z) * 0.8 + playerRadius;
+        const playerPosition = this._player.worldPosition;
+        const offsetX = playerPosition.x - storageCenter.x;
+        const offsetZ = playerPosition.z - storageCenter.z;
+        if (Math.abs(offsetX) >= halfX || Math.abs(offsetZ) >= halfZ) return;
+
+        const penetrationX = halfX - Math.abs(offsetX);
+        const penetrationZ = halfZ - Math.abs(offsetZ);
+        const correctedPosition = playerPosition.clone();
+        const rigidBody = this._player.getComponent(RigidBody);
+        const velocity = new Vec3();
+        if (penetrationX < penetrationZ) {
+            correctedPosition.x = storageCenter.x + (offsetX >= 0 ? halfX : -halfX);
+            if (rigidBody) {
+                rigidBody.getLinearVelocity(velocity);
+                velocity.x = 0;
+            }
+        } else {
+            correctedPosition.z = storageCenter.z + (offsetZ >= 0 ? halfZ : -halfZ);
+            if (rigidBody) {
+                rigidBody.getLinearVelocity(velocity);
+                velocity.z = 0;
+            }
+        }
+
+        this._player.setWorldPosition(correctedPosition);
+        if (rigidBody) rigidBody.setLinearVelocity(velocity);
     }
 
     private createField(
@@ -441,7 +480,9 @@ export class ResourceFieldSystem extends Component {
         collectionStorage.autoStack = true;
         collectionStorage.showCapacityInfo = true;
         this.configureCollectionPickup(collectionStorage, id);
-        collectionStorage.node.active = false;
+        // The board is visible before the field is purchased, so its forest-style
+        // solid collider must also stay in the physics world before unlock.
+        collectionStorage.node.active = true;
         workerUnlockPoint.active = false;
         vehicleUnlockPoint.active = false;
         haulerUnlockPoint.active = false;
@@ -612,6 +653,17 @@ export class ResourceFieldSystem extends Component {
         this.scheduleOnce(() => {
             padNode.active = false;
         }, 0.5);
+
+        const cameraController = find('Main Camera')?.getComponent(CameraController) ?? null;
+        const joystickController = find('Canvas/JoystickContainer')?.getComponent(JoystickController) ?? null;
+        if (cameraController && field.hauler) cameraController.target = field.hauler;
+        if (joystickController) joystickController._lock = true;
+        this._playerController?.stopMovement();
+
+        this.scheduleOnce(() => {
+            if (cameraController && this._player) cameraController.target = this._player;
+            if (joystickController) joystickController._lock = false;
+        }, 6);
     }
 
     private showUnlockStage(
@@ -630,13 +682,14 @@ export class ResourceFieldSystem extends Component {
         if (!visual) {
             console.error(`ResourceFieldSystem: scene visual missing from ${padNode.name}.`);
         }
-        visual?.setPosition(Vec3.ZERO);
+        const visualScale = stage === 'worker' ? 0.9 : 0.72;
         if (visual) {
             visual.active = true;
+            this.alignUnlockVisualToCornGround(field, visual);
             if (animateEntrance) {
                 visual.setScale(0, 1, 0);
                 tween(visual)
-                    .to(0.5, { scale: new Vec3(0.72, 0.72, 0.72) }, { easing: 'linear' })
+                    .to(0.5, { scale: new Vec3(visualScale, visualScale, visualScale) }, { easing: 'linear' })
                     .start();
             }
         }
@@ -649,6 +702,7 @@ export class ResourceFieldSystem extends Component {
             unlockPad.configure({
                 player: this._player,
                 coinBackpack: this._coinBackpack,
+                interactionNode: visual ?? padNode,
                 cost,
                 coinsPerTick: this.coinsPerTick,
                 consumeInterval: this.consumeInterval,
@@ -656,6 +710,17 @@ export class ResourceFieldSystem extends Component {
             });
         }
         field.unlockPad = unlockPad;
+    }
+
+    private alignUnlockVisualToCornGround(field: FieldRuntime, visual: Node): void {
+        const iconGroup = visual.getChildByName('icon');
+        if (!iconGroup) return;
+        iconGroup.setPosition(0, 0, 0.088);
+        iconGroup.setScale(1.6, 1.6, 1.6);
+        const groundHeight = field.collectionStorage.node.worldPosition.y;
+        const iconWorldPosition = iconGroup.worldPosition.clone();
+        iconWorldPosition.y = groundHeight;
+        iconGroup.setWorldPosition(iconWorldPosition);
     }
 
     private resolveUnlockVisual(padNode: Node): Node | null {
@@ -933,12 +998,20 @@ export class ResourceFieldSystem extends Component {
     }
 
     private configureCollectionPickup(collectionStorage: CornStoragePoint, resourceId: string): void {
-        const collider = collectionStorage.node.getComponent(BoxCollider)
+        const existingColliders = collectionStorage.node.getComponents(BoxCollider);
+        const collider = existingColliders.find((candidate) => candidate.isTrigger)
             ?? collectionStorage.node.addComponent(BoxCollider);
         collider.isTrigger = true;
         collider.center.set(0.1, 0, 0);
         collider.size.set(2, 1, 1.8);
         collider.enabled = true;
+
+        const solidCollider = existingColliders.find((candidate) => !candidate.isTrigger)
+            ?? collectionStorage.node.addComponent(BoxCollider);
+        solidCollider.isTrigger = false;
+        solidCollider.center.set(0, 0, 0);
+        solidCollider.size.set(1.8, 1, 1.6);
+        solidCollider.enabled = true;
 
         const pickupDetector = collectionStorage.node.getComponent(CornPickupDetector)
             ?? collectionStorage.node.addComponent(CornPickupDetector);

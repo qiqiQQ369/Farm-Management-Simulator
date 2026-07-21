@@ -12,6 +12,8 @@ const scene = JSON.parse(text('../assets/Scenes/DevScene.scene'));
 
 const fieldSystem = scene.find((entry) => entry?.leftFieldRoot && entry?.rightFieldRoot);
 assert.ok(fieldSystem, 'ResourceFieldSystem scene binding must exist');
+const woodBackpackStorage = scene.find(entry => entry?.storageName === '玩家背包');
+assert.ok(woodBackpackStorage, 'player wood backpack storage must exist');
 
 const gitBlobHash = (buffer) => {
     const normalized = Buffer.from(buffer.toString('utf8').replace(/\r\n/g, '\n'));
@@ -28,7 +30,10 @@ test('corn production matches the forest player, worker, vehicle, and respawn va
     assert.match(productionSource, /public vehicleReward = 3/);
     assert.match(productionSource, /public respawnSeconds = 10/);
     assert.match(productionSource, /this\.updateRespawns\(Date\.now\(\) \/ 1000\)/);
-    assert.match(fieldSystemSource, /Number\.MAX_SAFE_INTEGER/);
+    assert.match(fieldSystemSource, /leftInventoryCapacity = 42/);
+    assert.match(fieldSystemSource, /rightInventoryCapacity = 42/);
+    assert.equal(fieldSystem.leftInventoryCapacity, woodBackpackStorage.capacity);
+    assert.equal(fieldSystem.rightInventoryCapacity, woodBackpackStorage.capacity);
 });
 
 test('corn chopper priority is vehicle then player then worker', () => {

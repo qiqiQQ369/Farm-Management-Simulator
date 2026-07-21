@@ -1,10 +1,10 @@
 {
-  "ver": "2.3.14",
+  "ver": "2.3.13",
   "importer": "fbx",
   "imported": true,
   "uuid": "56a715ed-66d5-41b3-a445-190081a638cb",
   "files": [
-    "__original-animation-0.bin"
+    "__original-animation-0.cconb"
   ],
   "subMetas": {
     "11873": {
@@ -57,10 +57,10 @@
         },
         "events": []
       },
-      "ver": "1.0.18",
+      "ver": "1.0.17",
       "imported": true,
       "files": [
-        ".bin"
+        ".cconb"
       ],
       "subMetas": {}
     },
