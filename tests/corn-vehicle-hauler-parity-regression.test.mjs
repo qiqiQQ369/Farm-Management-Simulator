@@ -102,19 +102,22 @@ test('corn hauler is empty before activation and mounts corn like the player', (
     assert.doesNotMatch(spawnMethod, /new Node\('CornCarryStorage'\)|resourcePerRow = 2|resourcePerCol = 2/);
 });
 
-test('corn hauler spawns at the player ground height instead of the unlock pad height', () => {
+test('corn hauler uses the forest-style unlock anchor for spawn and idle positions', () => {
     const spawnMethod = source.match(
         /private spawnHauler[\s\S]*?\n    private clearInheritedHaulerCargo/,
     )?.[0] ?? '';
     const spawnPositionMethod = source.match(
-        /private getCornHaulerSpawnWorldPosition[\s\S]*?\n    private spawnHauler/,
+        /private getCornHaulerUnlockAnchor[\s\S]*?\n    private spawnHauler/,
     )?.[0] ?? '';
 
-    assert.match(spawnMethod, /actor\.setWorldPosition\(this\.getCornHaulerSpawnWorldPosition\(padNode\)\)/);
-    assert.match(spawnPositionMethod, /const spawnPosition = padNode\.worldPosition\.clone\(\)/);
+    assert.match(spawnMethod, /const spawnAnchor = this\.getCornHaulerUnlockAnchor\(padNode\)/);
+    assert.match(spawnMethod, /actor\.setWorldPosition\(this\.getCornHaulerSpawnWorldPosition\(spawnAnchor\)\)/);
+    assert.match(spawnMethod, /behavior\.idlePoint = spawnAnchor/);
+    assert.match(spawnPositionMethod, /padNode\.getChildByName\('pos'\)/);
+    assert.match(spawnPositionMethod, /padNode\.getChildByName\('view'\)/);
     assert.match(spawnPositionMethod, /spawnPosition\.y = this\._player\.worldPosition\.y/);
     assert.match(spawnPositionMethod, /return spawnPosition/);
-    assert.doesNotMatch(spawnMethod, /actor\.setWorldPosition\(padNode\.worldPosition\)/);
+    assert.doesNotMatch(spawnMethod, /behavior\.idlePoint = padNode/);
 });
 
 test('corn tractor owns a copy of the forest path loop and contact harvest settings', () => {
@@ -282,7 +285,14 @@ test('forest and corn tractors translate the full route one grid toward the play
     }
 
     assert.match(vehicleSpawn, /behavior\.setPathPoints\(path\.start, path\.end\)/);
-    assert.match(vehicleSpawn, /actor\.setPosition\(behavior\.getSafeStartPosition\(\)\)/);
+    assert.match(vehicleSpawn, /actor\.setWorldPosition\(this\.getCornTractorSpawnWorldPosition\(field, behavior\)\)/);
+    const spawnPositionMethod = source.match(
+        /private getCornTractorSpawnWorldPosition[\s\S]*?\n    private getCornHaulerSpawnWorldPosition/,
+    )?.[0] ?? '';
+    assert.match(spawnPositionMethod, /field\.vehicleStartPoint\.worldPosition/);
+    assert.match(spawnPositionMethod, /field\.vehicleEndPoint\.worldPosition/);
+    assert.match(spawnPositionMethod, /this\.cornTractorFrontSpawnOffset/);
+    assert.match(source, /public cornTractorFrontSpawnOffset = 9\.974/);
 });
 
 test('corn tractor unlock uses the forest MACHINE presentation', () => {

@@ -258,6 +258,9 @@ export class ResourceFieldSystem extends Component {
     @property({ tooltip: 'Visual scale of side-field stock inside its sell slot, matching the forest wood slot.', group: 'Shared gameplay' })
     public sellStorageScale = 0.9;
 
+    @property({ tooltip: "Distance from the route start to the forest truck's front spawn position.", group: 'Shared gameplay' })
+    public cornTractorFrontSpawnOffset = 9.974;
+
     @property({ tooltip: 'Local rotation of side-field stock inside its sell slot, matching the forest wood slot.', group: 'Shared gameplay' })
     public sellStorageRotation = new Vec3(0, -90, 0);
 
@@ -855,7 +858,7 @@ export class ResourceFieldSystem extends Component {
         behavior.startPoint = path.start;
         behavior.endPoint = path.end;
         behavior.setPathPoints(path.start, path.end);
-        actor.setPosition(behavior.getSafeStartPosition());
+        actor.setWorldPosition(this.getCornTractorSpawnWorldPosition(field, behavior));
         behavior.moveSpeed = field.vehicleSpeed;
         behavior.chopRange = this.vehicleChopRange;
         behavior.waitAfterChop = 0.1;
@@ -899,8 +902,24 @@ export class ResourceFieldSystem extends Component {
         return point;
     }
 
-    private getCornHaulerSpawnWorldPosition(padNode: Node): Vec3 {
-        const spawnPosition = padNode.worldPosition.clone();
+    /** Preserve the forest truck's front-end spawn after entering a side-field hierarchy. */
+    private getCornTractorSpawnWorldPosition(field: FieldRuntime, _behavior: CornTractor): Vec3 {
+        const start = field.vehicleStartPoint.worldPosition;
+        const end = field.vehicleEndPoint.worldPosition;
+        const direction = start.clone().subtract(end);
+        if (direction.lengthSqr() <= 0.000001) return start.clone();
+        direction.normalize();
+        return start.clone().add(direction.multiplyScalar(this.cornTractorFrontSpawnOffset));
+    }
+
+    private getCornHaulerUnlockAnchor(padNode: Node): Node {
+        return padNode.getChildByName('pos')
+            ?? padNode.getChildByName('view')
+            ?? padNode;
+    }
+
+    private getCornHaulerSpawnWorldPosition(spawnAnchor: Node): Vec3 {
+        const spawnPosition = spawnAnchor.worldPosition.clone();
         if (this._player?.isValid) {
             spawnPosition.y = this._player.worldPosition.y;
         } else if (!this._reportedMissingPlayerForHaulerSpawn) {
@@ -914,10 +933,11 @@ export class ResourceFieldSystem extends Component {
         const fallback = this.haulerTemplate ?? this.workerTemplate?.children[0] ?? this.workerTemplate;
         const actor = field.haulerPrefab ? instantiate(field.haulerPrefab) : fallback ? instantiate(fallback) : null;
         if (!actor) return;
+        const spawnAnchor = this.getCornHaulerUnlockAnchor(padNode);
         actor.name = `${field.id}_Hauler`;
         actor.active = false;
         actor.setParent(field.root);
-        actor.setWorldPosition(this.getCornHaulerSpawnWorldPosition(padNode));
+        actor.setWorldPosition(this.getCornHaulerSpawnWorldPosition(spawnAnchor));
         this.disableActorGameplayComponents(actor);
         for (const storage of actor.getComponentsInChildren(CornStoragePoint)) storage.clearStorage();
 
@@ -951,7 +971,7 @@ export class ResourceFieldSystem extends Component {
         behavior.skeletonAnimation = actor.getComponentInChildren(SkeletalAnimation);
         behavior.collectionPoint = field.collectionStorage.node;
         behavior.sellPoint = field.sellNode;
-        behavior.idlePoint = padNode;
+        behavior.idlePoint = spawnAnchor;
         behavior.collectionStorage = field.collectionStorage;
         behavior.sellStorage = field.sellStorage;
         behavior.carryStorage = carryStorage;

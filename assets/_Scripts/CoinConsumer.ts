@@ -410,6 +410,16 @@ export class CoinConsumer extends Component {
             }
 
             if (this.targetLevel === UpgradeTarget.HAULER) {
+                const cameraController = find('Main Camera').getComponent(CameraController);
+                const joystickController = find('Canvas/JoystickContainer').getComponent(JoystickController);
+                if (this.finishNode) cameraController.target = this.finishNode;
+                joystickController._lock = true;
+                find('Player').getComponent(PlayerController).stopMovement();
+
+                cameraController.scheduleOnce(() => {
+                    cameraController.target = find('Player');
+                    joystickController._lock = false;
+                }, 6);
                 this.node.active = false;
             } else {
                 this.scheduleOnce(() => {
