@@ -44,6 +44,9 @@ export class FinishNode extends Component {
     @property({ tooltip: "摄像机移动延迟时间（秒）" })
     public cameraMoveDelay: number = 2.0;
 
+    @property({ tooltip: "玉米田解锁镜头平移距离比例" })
+    public cornRevealPanScale: number = 0.6;
+
     @property({ tooltip: "是否自动开始" })
     public autoStart: boolean = true;
     
@@ -251,15 +254,24 @@ export class FinishNode extends Component {
 
         const fieldCenter = this.getUnlockFieldCenter();
         const cameraForward = this.camera.node.forward.clone();
-        const focusDistance = Vec3.distance(this.cameraEndPoint.worldPosition, fieldCenter);
+        const cameraController = this.camera.getComponent(CameraController);
+        const focusDistance = cameraController?.followDistance
+            ?? Vec3.distance(
+                this.camera.node.worldPosition,
+                cameraController?.target?.worldPosition ?? fieldCenter,
+            );
         const endPosition = new Vec3();
         Vec3.scaleAndAdd(endPosition, fieldCenter, cameraForward, -focusDistance);
 
-        // 起点和终点使用相同偏移量，完整保留场景原本定义的移动方向与距离。
-        const pathOffset = new Vec3();
-        Vec3.subtract(pathOffset, endPosition, this.cameraEndPoint.worldPosition);
-        const startPosition = this.cameraStartPoint.worldPosition.clone();
-        Vec3.add(startPosition, startPosition, pathOffset);
+        // 只保留屏幕平面内的路径移动，去掉镜头前后方向分量，避免产生视觉缩放。
+        const authoredMovement = new Vec3();
+        Vec3.subtract(authoredMovement, this.cameraEndPoint.worldPosition, this.cameraStartPoint.worldPosition);
+        const forwardMovement = Vec3.dot(authoredMovement, cameraForward);
+        const panMovement = new Vec3();
+        Vec3.scaleAndAdd(panMovement, authoredMovement, cameraForward, -forwardMovement);
+        Vec3.multiplyScalar(panMovement, panMovement, this.cornRevealPanScale);
+        const startPosition = new Vec3();
+        Vec3.subtract(startPosition, endPosition, panMovement);
         this.camera.node.setWorldPosition(startPosition);
         
         // 触发事件
