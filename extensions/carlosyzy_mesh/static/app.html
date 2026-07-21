@@ -1,0 +1,114 @@
+<div class="counter">
+    <div class="menu">
+        <div class="menu-item" v-for="(item,index) in menuItems" :key="index" :style="{backgroundColor:item.color}"
+            @click="onChangeNemu(index)">
+            {{item.title}}
+        </div>
+    </div>
+    <div class="body">
+        <div class="body-operate">
+            <!-- <div class="body-operate-area nodes-mesh-merge" :style="{display:menuItems[0].display}"> -->
+            <div class="body-operate-area" :style="{display:menuItems[0].display}">
+                <div class="operate-config">
+                    <div class="operate-config-tips">配置：</div>
+                    <ui-checkbox class="operate-config-item" :value="meshIsForce"
+                        @change="onOperateMeshForce($event.target.value)">：强制合并</ui-checkbox>
+                    <ui-checkbox class="operate-config-item" :value="meshIsWorld"
+                        @change="onOperateMeshWorld($event.target.value)">：世界坐标系</ui-checkbox>
+                </div>
+
+                <div class="operate-title">
+                    <div class="operate-title-tips">添加操作节点：</div>
+                    <ui-icon class="operate-title-btn" value="add" color @click="addNodeMeshMerge()"></ui-icon>
+                </div>
+
+                <div class="operate-panle">
+                    <div class="operate-panle-item" v-for="(data,index) in nodesMeshMergeDatas" :key="index">
+                        <ui-node class="ccnode" droppable="cc.Node"
+                            @change="bindNodeMeshMergeNode(index,$event.target.value)"></ui-node>
+                        <ui-checkbox class="childs" :value="data.childs"
+                            @change="changeNodeMeshMergeNodeChilds(index,$event.target.value)">子节点</ui-checkbox>
+                        <ui-icon class="del" color value="del" @click="delNodeMeshMerge(index)"></ui-icon>
+
+                    </div>
+                </div>
+            </div>
+            <!-- <div class="body-operate-area sub-mesh-split" :style="{display:menuItems[1].display}"> -->
+            <div class="body-operate-area" :style="{display:menuItems[1].display}">
+                <div class="operate-config">
+                    <div class="operate-config-tips">配置：</div>
+                    <ui-checkbox class="operate-config-item" :value="meshIsWorld"
+                        @change="onOperateMeshWorld($event.target.value)">：世界坐标系</ui-checkbox>
+                </div>
+                <div class="operate-title">
+                    <div class="operate-title-tips">添加操作节点：</div>
+                </div>
+                <ui-node class="sub-mesh-split-node" droppable="cc.Node"
+                    @change="bindSubMeshSplit($event.target.value)"></ui-node>
+                <div class="sub-mesh-split-mid">
+                    <div class="sub-mesh-split-mid-item" v-for="(data,index) in subMeshSplitDatas" :key="index">
+                        <ui-checkbox :value="data.select"
+                            @change="onSubMeshSplitSelect(index,$event.target.value)">{{data.name}}</ui-checkbox>
+                    </div>
+                </div>
+            </div>
+            <!-- <div class="body-operate-area terrain-convert-mesh" :style="{display:menuItems[2].display}"> -->
+            <div class="body-operate-area" :style="{display:menuItems[2].display}">
+                <div class="operate-config">
+                    <div class="operate-config-tips">配置：</div>
+                    <ui-checkbox class="operate-config-item" :value="meshIsWorld"
+                        @change="onOperateMeshWorld($event.target.value)">：世界坐标系</ui-checkbox>
+                    <!-- <ui-checkbox class="operate-config-item" :value="meshIsWorld"
+                        @change="onOperateMegerTerrain($event.target.value)">：合并Terrain</ui-checkbox> -->
+                </div>
+                <div class="operate-title">
+                    <div class="operate-title-tips">添加操作Terrain节点：</div>
+                    <ui-icon class="operate-title-btn" value="add" color @click="addTerrainNode()"></ui-icon>
+                </div>
+
+                <div class="operate-panle">
+                    <div class="operate-panle-item" v-for="(data,index) in terrianConvertMeshData" :key="index">
+                        <ui-node class="ccnode" droppable="cc.Node"
+                            @change="bindNodeTerrainConvertMesh(index,$event.target.value)"></ui-node>
+                        <ui-icon class="del" color value="del" @click="delNodeTerrainConvertMesh(index)"></ui-icon>
+
+                    </div>
+                </div>
+            </div>
+            <div class="body-operate-area" :style="{display:menuItems[3].display}">
+                <div class="operate-title">
+                    <div class="operate-title-tips">uv 查看：</div>
+                </div>
+                <div class="uv-panle-node">
+                    <ui-node class="sub-mesh-split-node" droppable="cc.Node"
+                        @change="bindUVLookNode($event.target.value)"></ui-node>
+                    <ui-select placeholder="" value="0" class="uv-panle-node-select" ref="uvSubMeshSelect"
+                        @change="onUvSubUvSelect($event.target.value)">
+                        <option v-for="(item,index) in uvSubUV" :key="index" :value="item.value">{{item.label}}
+                        </option>
+                    </ui-select>
+                    <div class="uv-panle-node-select-tips">uv：</div>
+                    <ui-select placeholder="" value="0" class="uv-panle-node-select" ref="uvSubUvSelect"
+                        @change="onUVSubMeshSelect($event.target.value)">
+                        <option v-for="(item,index) in uvSubMesh" :key="index" :value="item.value">{{item.label}}
+                        </option>
+                    </ui-select>
+                    <div class="uv-panle-node-select-tips">网格：</div>
+                </div>
+
+                <div class="operate-uv-panle" ref="canvas_parent">
+                    <canvas class="operate-uv-canvas" ref="canvas"></canvas>
+                </div>
+            </div>
+        </div>
+        <div style="width:100%;height:1px;background-color:#000000;border: 1px solid #000000;"></div>
+        <div class="body-save" :style="{display:saveData.isShowSave}">
+            <div class="body-save-titles">网格数据导出：</div>
+            <ui-checkbox class="body-save-obj" :value="saveData.isObj"
+                @change="changeSaveObjFormat($event.target.value)">:Obj</ui-checkbox>
+            <ui-checkbox class="body-save-glTF" :value="saveData.isGlTF"
+                @change="changeSaveGlTFFormat($event.target.value)">:glTF</ui-checkbox>
+            <ui-button type="danger" class="body-save-btn" @click="onSaveMesh()">保存</ui-button>
+        </div>
+    </div>
+</div>

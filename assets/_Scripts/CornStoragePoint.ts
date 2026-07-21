@@ -52,7 +52,11 @@ export class CornStoragePoint extends Component {
         const index = this.takeFirstRemovedIndex() ?? this.amount;
         const position = this.calculateStackPosition(index);
         const startWorldPosition = resource.worldPosition.clone();
-        const stored: StoredCorn = { position, node: resource, canMove: animationType !== 4 };
+        const stored: StoredCorn = {
+            position,
+            node: resource,
+            canMove: animationType < 1 || animationType > 4,
+        };
         this._resources.set(index, stored);
         resource.setParent(this.stackAreaNode);
         resource.setWorldPosition(startWorldPosition);
@@ -65,7 +69,11 @@ export class CornStoragePoint extends Component {
             resource.setPosition(heightPosition);
             tween(resource)
                 .to(0.1, { position }, { easing: 'bounceOut' })
-                .call(() => this.playAudio())
+                .call(() => {
+                    const current = this._resources.get(index);
+                    if (current) current.canMove = true;
+                    this.playAudio();
+                })
                 .start();
         } else if (animationType === 2) {
             const heightPosition = position.clone();
@@ -76,6 +84,8 @@ export class CornStoragePoint extends Component {
                 .to(0.5, { position }, { easing: 'bounceOut' })
                 .call(() => {
                     resource.setPosition(position);
+                    const current = this._resources.get(index);
+                    if (current) current.canMove = true;
                     this.playAudio();
                 })
                 .start();
@@ -104,6 +114,8 @@ export class CornStoragePoint extends Component {
                 .call(() => {
                     resource.setPosition(position);
                     resource.rotation = new Quat();
+                    const current = this._resources.get(index);
+                    if (current) current.canMove = true;
                     this.playAudio();
                 })
                 .start();

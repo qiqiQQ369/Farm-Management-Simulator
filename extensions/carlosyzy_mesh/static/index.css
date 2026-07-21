@@ -1,0 +1,192 @@
+.counter {
+    position: absolute;
+    width: 100% !important;
+    height: 100% !important;
+}
+
+.menu {
+    width: 100px;
+    height: 97%;
+    background-color: rgb(37, 37, 37);
+    float: left;
+    margin-top: 2px;
+    margin-left: 2px;
+    border: 2px solid rgb(0, 0, 0);
+}
+
+.menu-item {
+    width: 100px;
+    height: 35px;
+    text-align: center;
+    line-height: 35px;
+}
+
+.body {
+    width: calc(97% - 105px);
+    height: 97%;
+    background-color: rgb(37, 37, 37);
+    float: left;
+    margin-top: 2px;
+    margin-left: 5px;
+    border: 2px solid rgb(0, 0, 0);
+}
+
+.body-operate {
+    width: 99%;
+    height: calc(99% - 43px);
+    margin-top: 0px;
+}
+
+.body-operate-area {
+    width: 100%;
+    height: 100%;
+}
+
+.body-save {
+    width: 99%;
+    height: 40px;
+    margin-bottom: 0px;
+}
+
+.body-save-titles {
+    float: left;
+    margin-left: 10px;
+    margin-top: 10px;
+}
+
+.body-save-obj {
+    float: left;
+    margin-left: 20px;
+    margin-top: 10px;
+}
+
+.body-save-glTF {
+    float: left;
+    margin-left: 10px;
+    margin-top: 10px;
+}
+
+.body-save-btn {
+    width: 100px;
+    height: 25px;
+    margin-top: 10px;
+    float: right;
+    margin-right: 5px;
+}
+.operate-config {
+    width: 100%;
+    height: 30px;
+}
+
+.operate-config-tips {
+    height: 30px;
+    line-height: 30px;
+    float: left;
+    margin-left: 8px;
+}
+
+.operate-config-item {
+    float: left;
+    margin-top: 5px;
+    margin-left: 10px;
+}
+.operate-title {
+    width: 100%;
+    height: 30px;
+    background-color: rgb(53, 53, 53);
+}
+.operate-title-tips {
+    height: 30px;
+    background-color: rgb(53, 53, 53);
+    line-height: 30px;
+    float: left;
+    margin-left: 8px;
+}
+.operate-title-btn {
+    width: 30px;
+    height: 30px;
+    float: right;
+    margin-top: 5px;
+}
+.operate-panle{
+    width: 100%;
+    height: calc(96% - 60px);
+    margin-top: 5px;
+    overflow: auto;  
+}
+
+.operate-panle-item {
+    width: 100%;
+    height: 35px;
+    margin-top: 5px;
+    margin-bottom: 1px;
+}
+
+.operate-panle-item .ccnode {
+    width: 50%;
+    height: 26px;
+    margin-top: 3px;
+    margin-left: 3px;
+    float: left;
+}
+
+.operate-panle-item .childs {
+    margin-top: 2px;
+    float: left;
+    margin-left: 10px;
+}
+.operate-panle-item .del {
+    width: 30px;
+    height: 30px;
+    margin-top: 2px;
+    margin-right: 3px;
+    float: right;
+}
+
+
+.sub-mesh-split-node {
+    width: 50%;
+    height: 26px;
+    margin-top: 13px;
+    margin-left: 3px;
+}
+
+.sub-mesh-split-mid {
+    width: 100%;
+    height: calc(96% - 120px);
+    margin-top: 10px;
+    overflow: auto;
+}
+
+.sub-mesh-split-mid-item {
+    width: calc(96% - 30px);
+    height: 25px;
+    margin-top: 3px;
+    margin-left: 30px;
+
+}
+.uv-panle-node{
+    width: 100%;
+    height: 30px;
+}
+.operate-uv-panle{
+    width: 100% !important;;
+    height: calc(96% - 70px) !important;;
+    margin-top: 5px;
+    overflow: auto;  
+}
+.operate-uv-canvas{
+    width: 96%;
+    height: 96%;
+}
+.uv-panle-node-select-tips{
+    float: right;
+    margin-top: 10px;
+    margin-right: 5px;
+}
+.uv-panle-node-select{
+    width: 65px;
+    float: right;
+    margin-top: 10px;
+    margin-right: 5px;
+}

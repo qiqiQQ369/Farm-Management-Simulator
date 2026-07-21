@@ -93,6 +93,29 @@ test('CornStoragePoint 独立实现四种入槽动画', () => {
     assert.match(resourceFieldSource, /sellStorage\.addResource\(item,\s*2\)/);
 });
 
+test('玉米入出售槽的动画完成前不可被顾客购买', () => {
+    const addResourceMethod = cornStorageSource.match(
+        /public addResource[\s\S]*?\n    public removeResource/,
+    )?.[0] ?? '';
+
+    assert.match(
+        addResourceMethod,
+        /canMove: animationType < 1 \|\| animationType > 4/,
+        'animated corn must stay locked until its sell-slot tween completes',
+    );
+    for (const animationType of [1, 2, 3, 4]) {
+        const branchPrefix = animationType === 1 ? 'if' : 'else if';
+        const branch = addResourceMethod.match(
+            new RegExp(`${branchPrefix} \\(animationType === ${animationType}\\)[\\s\\S]*?(?=else if \\(animationType ===|else \\{|return true;)`),
+        )?.[0] ?? '';
+        assert.match(
+            branch,
+            /current\.canMove = true/,
+            `animation type ${animationType} must unlock only after its tween completes`,
+        );
+    }
+});
+
 test('场景中仅玉米区迁移为 CornCustomerScheduler 且奖励为三枚金币', () => {
     const cornRoots = ['Finish', 'Finish-001'].map((name) =>
         scene.find((entry) => entry?.__type__ === 'cc.Node' && entry._name === name),
