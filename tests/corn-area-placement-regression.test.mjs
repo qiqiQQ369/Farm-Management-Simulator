@@ -497,6 +497,17 @@ test('corn field reveal preserves its entry camera angle without changing intern
     assert.equal(fieldRoots.size, 2, 'left and right reveals must not share one field center');
 });
 
+test('corn field reveal only translates the camera without changing its view size', () => {
+    const cameraMoveMethod = finishNodeSource.match(
+        /private executeCameraMove[\s\S]*?\n    private onCameraMoveComplete/,
+    )?.[0] ?? '';
+
+    assert.match(cameraMoveMethod, /tween\(this\.camera\.node\)/);
+    assert.match(cameraMoveMethod, /position: endPosition/);
+    assert.doesNotMatch(cameraMoveMethod, /orthoHeight|\.fov\s*=|tween\(this\.camera\)/);
+    assert.doesNotMatch(finishNodeSource, /cornRevealOrthoHeight|_cameraOriginalOrthoHeight/);
+});
+
 test('corn storage uses the forest capacity and stack rules without sharing inventory', () => {
     const forestStorageNode = nodeNamed('woodStackArea');
     const forestStorage = forestStorageNode._components

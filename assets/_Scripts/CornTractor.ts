@@ -26,6 +26,7 @@ export class CornTractor extends Component {
     @property public pathWidth = 5.0;
     @property public turnSpeed = 90.0;
     @property public waitAfterTurn = 0.5;
+    @property public routeBoundaryOffset = 2.0;
     @property({ tooltip: 'Extra crop radius around the authored forest front cutter.' })
     public frontContactPadding = 0.35;
 
@@ -57,10 +58,10 @@ export class CornTractor extends Component {
                 this.handleIdleState();
                 break;
             case CornTractorState.MovingToStart:
-                this.handleMovingState(deltaTime, this.startPoint.position);
+                this.handleMovingState(deltaTime, this.getSafeStartPosition());
                 break;
             case CornTractorState.MovingToEnd:
-                this.handleMovingState(deltaTime, this.endPoint.position);
+                this.handleMovingState(deltaTime, this.getSafeEndPosition());
                 break;
             case CornTractorState.Turning:
                 this.handleTurningState(deltaTime);
@@ -79,6 +80,35 @@ export class CornTractor extends Component {
 
     public getCurrentState(): string { return this._currentState; }
     public getMoveDirection(): string { return this._isMovingToEnd ? 'to_end' : 'to_start'; }
+    public getSafeStartPosition(): Vec3 {
+        if (!this.startPoint || !this.endPoint) return this.node.position.clone();
+
+        const startPosition = this.startPoint.position;
+        const endPosition = this.endPoint.position;
+        const direction = new Vec3();
+        Vec3.subtract(direction, startPosition, endPosition);
+        if (direction.length() <= 0.0001) return startPosition.clone();
+
+        direction.normalize();
+        const safeStart = new Vec3();
+        Vec3.scaleAndAdd(safeStart, startPosition, direction, this.routeBoundaryOffset);
+        return safeStart;
+    }
+
+    public getSafeEndPosition(): Vec3 {
+        if (!this.startPoint || !this.endPoint) return this.node.position.clone();
+
+        const startPosition = this.startPoint.position;
+        const endPosition = this.endPoint.position;
+        const direction = new Vec3();
+        Vec3.subtract(direction, startPosition, endPosition);
+        if (direction.length() <= 0.0001) return endPosition.clone();
+
+        direction.normalize();
+        const safeEnd = new Vec3();
+        Vec3.scaleAndAdd(safeEnd, endPosition, direction, this.routeBoundaryOffset);
+        return safeEnd;
+    }
     public pauseTractor(): void { this._currentState = CornTractorState.Idle; this.autoStart = false; }
     public resumeTractor(): void { this.autoStart = true; this.startTractorCycle(); }
 
@@ -134,7 +164,7 @@ export class CornTractor extends Component {
 
     private startTurning(moveToEnd: boolean): void {
         this._isMovingToEnd = moveToEnd;
-        const destination = moveToEnd ? this.endPoint.position : this.startPoint.position;
+        const destination = moveToEnd ? this.getSafeEndPosition() : this.getSafeStartPosition();
         const direction = new Vec3();
         Vec3.subtract(direction, destination, this.node.position);
         const angle = Math.atan2(direction.x, direction.z);

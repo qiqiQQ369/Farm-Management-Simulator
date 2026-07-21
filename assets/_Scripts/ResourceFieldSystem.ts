@@ -809,8 +809,6 @@ export class ResourceFieldSystem extends Component {
             actor.destroy();
             return;
         }
-        actor.setPosition(path.start.position);
-
         const collider = actor.getComponent(BoxCollider) ?? actor.addComponent(BoxCollider);
         collider.isTrigger = true;
         collider.enabled = false;
@@ -819,6 +817,8 @@ export class ResourceFieldSystem extends Component {
         behavior.enabled = true;
         behavior.startPoint = path.start;
         behavior.endPoint = path.end;
+        behavior.setPathPoints(path.start, path.end);
+        actor.setPosition(behavior.getSafeStartPosition());
         behavior.moveSpeed = field.vehicleSpeed;
         behavior.chopRange = this.vehicleChopRange;
         behavior.waitAfterChop = 0.1;

@@ -59,6 +59,9 @@ export class LoggingTruck extends Component {
     
     @property({ tooltip: "转向完成后的等待时间" })
     public waitAfterTurn: number = 0.5;
+
+    @property({ tooltip: "整条路线朝主角侧平移的距离" })
+    public routeBoundaryOffset: number = 2.0;
     
     // 私有属性
     private _currentState: LoggingTruckState = LoggingTruckState.Idle;
@@ -158,10 +161,10 @@ export class LoggingTruck extends Component {
         // 选择下一个移动目标
         if (this._isMovingToEnd) {
             this._currentState = LoggingTruckState.MovingToEnd;
-            this._currentPathTarget = this.endPoint.position.clone();
+            this._currentPathTarget = this.getSafeEndPosition();
         } else {
             this._currentState = LoggingTruckState.MovingToStart;
-            this._currentPathTarget = this.startPoint.position.clone();
+            this._currentPathTarget = this.getSafeStartPosition();
         }
     }
 
@@ -169,14 +172,14 @@ export class LoggingTruck extends Component {
      * 处理向起点移动状态
      */
     private handleMovingToStartState(deltaTime: number): void {
-        this.handleMovingState(deltaTime, this.startPoint.position);
+        this.handleMovingState(deltaTime, this.getSafeStartPosition());
     }
 
     /**
      * 处理向终点移动状态
      */
     private handleMovingToEndState(deltaTime: number): void {
-        this.handleMovingState(deltaTime, this.endPoint.position);
+        this.handleMovingState(deltaTime, this.getSafeEndPosition());
     }
 
     /**
@@ -236,13 +239,13 @@ export class LoggingTruck extends Component {
         if (moveToEnd) {
             // 转向终点方向
             const direction = new Vec3();
-            Vec3.subtract(direction, this.endPoint.position, this.node.position);
+            Vec3.subtract(direction, this.getSafeEndPosition(), this.node.position);
             const angle = Math.atan2(direction.x, direction.z);
             this._targetRotation = new Vec3(0, angle * 180 / Math.PI - 180, 0);
         } else {
             // 转向起点方向
             const direction = new Vec3();
-            Vec3.subtract(direction, this.startPoint.position, this.node.position);
+            Vec3.subtract(direction, this.getSafeStartPosition(), this.node.position);
             const angle = Math.atan2(direction.x, direction.z);
             this._targetRotation = new Vec3(0, angle * 180 / Math.PI - 180, 0);
         }
@@ -522,6 +525,36 @@ export class LoggingTruck extends Component {
         console.log('设置伐木车路径点');
     }
 
+    public getSafeStartPosition(): Vec3 {
+        if (!this.startPoint || !this.endPoint) return this.node.position.clone();
+
+        const startPosition = this.startPoint.position;
+        const endPosition = this.endPoint.position;
+        const direction = new Vec3();
+        Vec3.subtract(direction, startPosition, endPosition);
+        if (direction.length() <= 0.0001) return startPosition.clone();
+
+        direction.normalize();
+        const safeStart = new Vec3();
+        Vec3.scaleAndAdd(safeStart, startPosition, direction, this.routeBoundaryOffset);
+        return safeStart;
+    }
+
+    public getSafeEndPosition(): Vec3 {
+        if (!this.startPoint || !this.endPoint) return this.node.position.clone();
+
+        const startPosition = this.startPoint.position;
+        const endPosition = this.endPoint.position;
+        const direction = new Vec3();
+        Vec3.subtract(direction, startPosition, endPosition);
+        if (direction.length() <= 0.0001) return endPosition.clone();
+
+        direction.normalize();
+        const safeEnd = new Vec3();
+        Vec3.scaleAndAdd(safeEnd, endPosition, direction, this.routeBoundaryOffset);
+        return safeEnd;
+    }
+
     /**
      * 设置移动速度
      */
@@ -628,10 +661,10 @@ export class LoggingTruck extends Component {
         
         // 重置到起点位置
         if (this.startPoint && this.startPoint.isValid) {
-            this.node.setPosition(this.startPoint.position);
+            this.node.setPosition(this.getSafeStartPosition());
             // 面向终点方向
             const direction = new Vec3();
-            Vec3.subtract(direction, this.endPoint.position, this.startPoint.position);
+            Vec3.subtract(direction, this.getSafeEndPosition(), this.getSafeStartPosition());
             const angle = Math.atan2(direction.x, direction.z);
             this.node.setRotationFromEuler(0, angle * 180 / Math.PI - 180, 0);
         }

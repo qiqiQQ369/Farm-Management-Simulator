@@ -43,7 +43,7 @@ export class FinishNode extends Component {
     
     @property({ tooltip: "摄像机移动延迟时间（秒）" })
     public cameraMoveDelay: number = 2.0;
-    
+
     @property({ tooltip: "是否自动开始" })
     public autoStart: boolean = true;
     

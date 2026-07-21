@@ -15,11 +15,13 @@ const source = readFileSync(
     'utf8',
 );
 const cornTractorPath = new URL('../assets/_Scripts/CornTractor.ts', import.meta.url);
+const loggingTruckPath = new URL('../assets/_Scripts/LoggingTruck.ts', import.meta.url);
 const cornHaulerPath = new URL('../assets/_Scripts/CornHauler.ts', import.meta.url);
 const cornHaulerBackpackPath = new URL('../assets/_Scripts/CornHaulerBackpack.ts', import.meta.url);
 const cornStoragePath = new URL('../assets/_Scripts/CornStoragePoint.ts', import.meta.url);
 const cornUnlockPath = new URL('../assets/_Scripts/CornUnlockPad.ts', import.meta.url);
 const cornTractorSource = existsSync(cornTractorPath) ? readFileSync(cornTractorPath, 'utf8') : '';
+const loggingTruckSource = readFileSync(loggingTruckPath, 'utf8');
 const cornHaulerSource = existsSync(cornHaulerPath) ? readFileSync(cornHaulerPath, 'utf8') : '';
 const cornHaulerBackpackSource = existsSync(cornHaulerBackpackPath)
     ? readFileSync(cornHaulerBackpackPath, 'utf8')
@@ -230,6 +232,57 @@ test('each corn tractor copies the forest tractor safe endpoint margins', () => 
             `${side} corn tractor end must keep the forest tractor's body-length margin`,
         );
     }
+});
+
+test('forest and corn tractors translate the full route one grid toward the player', () => {
+    const vehicleSpawn = source.match(
+        /private spawnVehicle[\s\S]*?\n    private clampVehiclePath/,
+    )?.[0] ?? '';
+
+    const forestBehavior = scene.find((entry) => {
+        const actor = scene[entry?.node?.__id__];
+        return actor?._name === 'Truck' && entry?.startPoint && entry?.endPoint;
+    });
+    assert.ok(forestBehavior, 'forest tractor path binding must exist');
+    const forestStart = scene[forestBehavior.startPoint.__id__]._lpos;
+    const forestEnd = scene[forestBehavior.endPoint.__id__]._lpos;
+    const routeLength = Math.abs(forestEnd.z - forestStart.z);
+    const towardPlayer = Math.sign(forestStart.z - forestEnd.z);
+
+    assert.equal(forestStart.z, -6);
+    assert.equal(forestEnd.z, -14);
+    assert.equal(forestStart.z + towardPlayer * 2, -4);
+    assert.equal(forestEnd.z + towardPlayer * 2, -12);
+    assert.equal(
+        Math.abs((forestEnd.z + towardPlayer * 2) - (forestStart.z + towardPlayer * 2)),
+        routeLength,
+        'moving both endpoints must preserve the complete route length',
+    );
+
+    for (const [name, tractorSource] of [
+        ['forest', loggingTruckSource],
+        ['corn', cornTractorSource],
+    ]) {
+        assert.match(
+            tractorSource,
+            /public routeBoundaryOffset(?:\s*:\s*number)?\s*=\s*2(?:\.0)?/,
+            `${name} tractor must shift the route one two-unit grid`,
+        );
+        const safeStartMethod = tractorSource.match(
+            /public getSafeStartPosition[\s\S]*?\n    (?:private|public) [a-zA-Z]/,
+        )?.[0] ?? '';
+        const safeEndMethod = tractorSource.match(
+            /public getSafeEndPosition[\s\S]*?\n    (?:private|public) [a-zA-Z]/,
+        )?.[0] ?? '';
+        assert.match(safeStartMethod, /Vec3\.subtract\(direction, startPosition, endPosition\)/);
+        assert.match(safeStartMethod, /Vec3\.scaleAndAdd\(safeStart, startPosition, direction, this\.routeBoundaryOffset\)/);
+        assert.match(safeEndMethod, /Vec3\.scaleAndAdd\(safeEnd, endPosition, direction, this\.routeBoundaryOffset\)/);
+        assert.match(tractorSource, /handleMovingState\(deltaTime, this\.getSafeStartPosition\(\)\)/);
+        assert.match(tractorSource, /handleMovingState\(deltaTime, this\.getSafeEndPosition\(\)\)/);
+    }
+
+    assert.match(vehicleSpawn, /behavior\.setPathPoints\(path\.start, path\.end\)/);
+    assert.match(vehicleSpawn, /actor\.setPosition\(behavior\.getSafeStartPosition\(\)\)/);
 });
 
 test('corn tractor unlock uses the forest MACHINE presentation', () => {
