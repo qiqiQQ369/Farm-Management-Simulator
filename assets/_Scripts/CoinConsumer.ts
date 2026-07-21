@@ -5,6 +5,7 @@ import { ChopAction } from './ChopAction';
 import { CoinBackpack } from './CoinBackpack';
 import { HaulerNPC } from './HaulerNPC';
 import { JoystickController } from './JoystickController';
+import { MultiResourceBackpack } from './MultiResourceBackpack';
 import { PlayerController } from './PlayerController';
 import { StoragePoint } from './Resource/StoragePoint';
 import { WoodBackpack } from './WoodBackpack';
@@ -471,6 +472,7 @@ export class CoinConsumer extends Component {
                 parent: existingHauler.parent?.name ?? 'null',
                 spawnAnchor: spawnAnchor.name,
             });
+            this.preparePlayerSkinHauler(existingHauler);
             this.configureHaulerNode(existingHauler, unlockPad, spawnAnchor);
             return existingHauler;
         }
@@ -483,10 +485,10 @@ export class CoinConsumer extends Component {
                 templateWorldPosition: template.worldPosition.clone(),
             });
             const hauler = instantiate(template);
+            hauler.active = false;
             hauler.name = 'HaulerNPC';
             hauler.setParent(unlockPad.parent ?? this.loggerNode?.parent ?? this.node.scene!);
             hauler.setWorldPosition(spawnWorldPosition);
-            hauler.active = false;
             this.preparePlayerSkinHauler(hauler);
 
             console.log('[HAULER-DEBUG] instantiated hauler from scene template', {
@@ -507,10 +509,10 @@ export class CoinConsumer extends Component {
 
         console.log('[HAULER-DEBUG] using logger prefab fallback');
         const hauler = instantiate(this.loggerPrefab);
+        hauler.active = false;
         hauler.name = 'HaulerNPC';
         hauler.setParent(unlockPad.parent ?? this.loggerNode?.parent ?? this.node.scene!);
         hauler.setWorldPosition(spawnWorldPosition);
-        hauler.active = false;
 
         console.log('[HAULER-DEBUG] instantiated hauler from prefab fallback', {
             worldPosition: hauler.worldPosition.clone(),
@@ -519,6 +521,7 @@ export class CoinConsumer extends Component {
             spawnAnchor: spawnAnchor.name,
         });
 
+        this.preparePlayerSkinHauler(hauler);
         this.configureHaulerNode(hauler, unlockPad, spawnAnchor);
 
         return hauler;
@@ -551,15 +554,27 @@ export class CoinConsumer extends Component {
     }
 
     private preparePlayerSkinHauler(hauler: Node): void {
-        const woodBackpack = hauler.getComponent(WoodBackpack);
-        woodBackpack?.backpackMount?.getComponent(StoragePoint)?.clearStorage();
+        for (const storage of hauler.getComponentsInChildren(StoragePoint)) {
+            const stackArea = storage.stackAreaNode ?? storage.node;
+            for (const item of [...stackArea.children]) {
+                item.active = false;
+                item.destroy();
+            }
+            storage.clearStorage();
+        }
 
+        const woodBackpack = hauler.getComponent(WoodBackpack);
         const coinBackpack = hauler.getComponent(CoinBackpack);
-        coinBackpack?.coinBackpackMount?.getComponent(StoragePoint)?.clearStorage();
+        const multiResourceBackpack = hauler.getComponent(MultiResourceBackpack);
 
         hauler.getComponent(PlayerController)?.destroy();
         hauler.getComponent(ChopAction)?.destroy();
+        if (woodBackpack) woodBackpack.enabled = false;
+        woodBackpack?.destroy();
+        if (coinBackpack) coinBackpack.enabled = false;
         coinBackpack?.destroy();
+        if (multiResourceBackpack) multiResourceBackpack.enabled = false;
+        hauler.getComponent(MultiResourceBackpack)?.destroy();
         hauler.getComponent(CharacterController)?.destroy();
         hauler.getComponent(RigidBody)?.destroy();
         hauler.getComponent(Collider)?.destroy();
@@ -569,7 +584,12 @@ export class CoinConsumer extends Component {
             node.getComponent(CharacterController)?.destroy();
             node.getComponent(RigidBody)?.destroy();
 
-            for (const child of node.children) {
+            for (const child of [...node.children]) {
+                if (child.name.startsWith('ResourceBackpack_')) {
+                    child.active = false;
+                    child.destroy();
+                    continue;
+                }
                 stripPhysicsRecursively(child);
             }
         };
