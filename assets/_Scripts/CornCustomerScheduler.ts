@@ -414,14 +414,14 @@ export class CornCustomerScheduler extends Component {
             if (targetStoragePoint.amount > 0 && npcStoragePoint.hasSpace(1)) {
                 const resource = targetStoragePoint.removeResource(4);
                 let moved = resource
-                    ? npcStoragePoint.addResource(resource, 4, Vec3.ZERO)
+                    ? this.movePurchasedProductToCustomer(resource, npcStoragePoint)
                     : false;
                 if (!moved) {
                     stalledDuration += this.collectInterval * 0.5;
                     if (stalledDuration >= 1) {
                         const stalledResource = targetStoragePoint.releaseStalledResource();
                         moved = stalledResource
-                            ? npcStoragePoint.addResource(stalledResource, 4, Vec3.ZERO)
+                            ? this.movePurchasedProductToCustomer(stalledResource, npcStoragePoint)
                             : false;
                         stalledDuration = 0;
                     }
@@ -451,6 +451,20 @@ export class CornCustomerScheduler extends Component {
             }
             await this.delay(Math.max(0.01, this.collectInterval * 0.5));
         }
+    }
+
+    /**
+     * Normalize corn product local scale before the customer carry animation.
+     * Sell-slot ancestry can leave a non-unit local scale that looks correct on
+     * the tray but wrong once reparented onto the customer body mount.
+     */
+    private movePurchasedProductToCustomer(
+        resource: Node,
+        npcStoragePoint: CornStoragePoint,
+    ): boolean {
+        if (!resource?.isValid) return false;
+        resource.setScale(Vec3.ONE);
+        return npcStoragePoint.addResource(resource, 4, Vec3.ZERO);
     }
 
     private delay(seconds: number): Promise<void> {

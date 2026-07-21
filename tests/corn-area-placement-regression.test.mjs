@@ -598,6 +598,22 @@ test('the first corn field stays playable and opening the second ends the game',
 
     assert.match(
         revealMethod,
+        /this\.revealCornSellPresentation\(field\)/,
+        'corn fields must restore Sell1/CoinPlace unit scale before customer purchases',
+    );
+    assert.match(
+        resourceFieldSource,
+        /sellNode\.setScale\(1, 1, 1\)/,
+        'collapsed corn Sell1 must expand to unit scale for product body display',
+    );
+    assert.match(
+        resourceFieldSource,
+        /item\.setScale\(1, 1, 1\)/,
+        'corn products deposited into sell storage must use unit local scale',
+    );
+
+    assert.match(
+        revealMethod,
         /if \(this\._openedSideFields >= 2\) \{\s*this\.finishGame\(\);/,
         'the first corn field must stay playable and the second field reveal must end the game',
     );

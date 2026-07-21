@@ -141,6 +141,11 @@ export class CornHauler extends Component {
         }
 
         const resource = from.removeResource(4);
+        if (resource) {
+            // Keep transferred corn product local scale stable across backpack,
+            // sell tray, and customer body mounts.
+            resource.setScale(1, 1, 1);
+        }
         if (!resource || !to.addResource(resource, 4, Vec3.ZERO)) {
             if (resource) from.addResource(resource, 1);
             return;

@@ -57,7 +57,9 @@ test('玉米顾客买满四个玉米后生成三枚金币', () => {
     assert.match(source, /coinReward:\s*number\s*=\s*3/);
     assert.match(collectMethod, /capacity\s*=\s*4|capacity:\s*4/);
     assert.match(collectMethod, /removeResource\(4\)/);
-    assert.match(collectMethod, /addResource\(resource,\s*4,\s*Vec3\.ZERO\)/);
+    assert.match(collectMethod, /this\.movePurchasedProductToCustomer\(/);
+    assert.match(source, /resource\.setScale\(Vec3\.ONE\)/);
+    assert.match(source, /npcStoragePoint\.addResource\(resource, 4, Vec3\.ZERO\)/);
     assert.match(collectMethod, /this\.dropCoins\(\)/);
     assert.match(dropMethod, /for\s*\(let i = 0; i < this\.coinReward; i\+\+\)/);
     assert.match(dropMethod, /i \* 0\.1/);
@@ -283,4 +285,16 @@ test('玉米金币堆对齐本地白色底板中心', () => {
         /dropArea\.setPosition\(visualCenter\.x - 0\.017, 0\.03, visualCenter\.z \+ 0\.086\)/,
     );
     assert.match(coinAreaMethod, /stackArea\.setPosition\(0\.5, 0, 0\)/);
+});
+
+
+test('customer-carried corn products use unit local scale after purchase', () => {
+    const source = readFileSync(scriptUrl, 'utf8');
+    assert.match(source, /private movePurchasedProductToCustomer/);
+    assert.match(source, /resource\.setScale\(Vec3\.ONE\)/);
+    assert.match(
+        source,
+        /movePurchasedProductToCustomer\([\s\S]*?addResource\(resource, 4, Vec3\.ZERO\)/,
+    );
+    assert.doesNotMatch(source, /from '\.\/NPCScheduler'|from '\.\/Resource\/StoragePoint'/);
 });

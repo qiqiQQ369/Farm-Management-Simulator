@@ -382,6 +382,11 @@ export class ResourceFieldSystem extends Component {
         this._openedSideFields++;
         field.collectionStorage.node.active = true;
         field.production.activateProduction();
+        // Side-field Sell1/CoinPlace start collapsed for the reveal intro. The
+        // second corn field skips FinishNode's scale tween once the game ends,
+        // so corn gameplay must restore unit scale here itself. Forest Sell is
+        // never owned by this path.
+        this.revealCornSellPresentation(field);
         this.showUnlockStage(field, 'worker', true);
 
         if (this._openedSideFields >= 2) {
@@ -390,6 +395,35 @@ export class ResourceFieldSystem extends Component {
 
         return this._finished;
     }
+
+    /** Restore corn sell/customer presentation after the field reveal intro. */
+    private revealCornSellPresentation(field: FieldRuntime): void {
+        const sellNode = field.sellNode;
+        if (sellNode?.isValid) {
+            sellNode.active = true;
+            sellNode.setScale(1, 1, 1);
+        }
+
+        const sellStorageNode = field.sellStorage?.node;
+        if (sellStorageNode?.isValid) {
+            sellStorageNode.setPosition(this.sellStoragePosition);
+            sellStorageNode.setScale(this.sellStorageScale, this.sellStorageScale, this.sellStorageScale);
+            sellStorageNode.setRotationFromEuler(this.sellStorageRotation);
+            field.sellStorage.recoverInterruptedTransfers();
+        }
+
+        const coinPlace = field.root.getChildByName('CoinPlace');
+        if (coinPlace?.isValid) {
+            coinPlace.active = true;
+            coinPlace.setScale(1, 1, 1);
+        }
+
+        const customerScheduler = field.root.getChildByName('NPCScheduler-001');
+        if (customerScheduler?.isValid) {
+            customerScheduler.active = true;
+        }
+    }
+
 
     private keepPlayerOutsideCollectionStorage(field: FieldRuntime): void {
         if (!this._player || !field.collectionStorage.node.activeInHierarchy) return;
@@ -571,6 +605,9 @@ export class ResourceFieldSystem extends Component {
 
         const item = this._resourceBackpack.takeResource(field.id);
         if (item) {
+            // Keep corn product local scale unit-size so customer body display
+            // matches forest wood after leaving the sell tray.
+            item.setScale(1, 1, 1);
             field.sellStorage.addResource(item, 2);
         }
     }
