@@ -10,11 +10,12 @@ import {
     Vec3,
     instantiate,
 } from 'cc';
+import { EDITOR_NOT_IN_PREVIEW } from 'cc/env';
 import { CornCustomerScheduler } from './CornCustomerScheduler';
 import { CUSTOMER_APPEARANCE_COUNT, buildCustomerAppearanceOrder } from './CustomerAppearanceOrder';
 import { NPCScheduler } from './NPCScheduler';
 
-const { ccclass, executionOrder, property } = _decorator;
+const { ccclass, executeInEditMode, executionOrder, property } = _decorator;
 
 type CustomerAppearanceVariant = {
     prefab: Prefab;
@@ -31,12 +32,13 @@ const REQUIRED_ANIMATION_CLIPS = [
 /** Replaces only customer model visuals; queue, storage, emoji and purchase logic stay intact. */
 @ccclass('CustomerAppearanceRandomizer')
 @executionOrder(-100)
+@executeInEditMode
 export class CustomerAppearanceRandomizer extends Component {
     @property({ type: Prefab }) public malePrefab: Prefab = null!;
     @property({ type: Prefab }) public femalePrefab: Prefab = null!;
     @property({ type: [Texture2D] }) public maleTextures: Texture2D[] = [];
     @property({ type: [Texture2D] }) public femaleTextures: Texture2D[] = [];
-    @property public customerModelScale = 1.1;
+    @property public customerModelScale = 1.2;
     @property public customerModelYaw = 180;
 
     private _reportedInvalidConfiguration = false;
@@ -49,7 +51,9 @@ export class CustomerAppearanceRandomizer extends Component {
         const variants = this.buildVariants();
         if (!this.hasCompleteConfiguration(variants)) return;
 
-        const order = buildCustomerAppearanceOrder(customers.length);
+        const order = EDITOR_NOT_IN_PREVIEW
+            ? this.buildEditorAppearanceOrder(customers.length)
+            : buildCustomerAppearanceOrder(customers.length);
         customers.forEach((customer, index) => {
             const variant = variants[order[index]];
             if (customer?.isValid && variant) this.replaceVisual(customer, variant);
@@ -69,6 +73,14 @@ export class CustomerAppearanceRandomizer extends Component {
         ];
     }
 
+    /** Keep the editor preview deterministic while the game remains random. */
+    private buildEditorAppearanceOrder(customerCount: number): number[] {
+        return Array.from(
+            { length: customerCount },
+            (_, index) => index % CUSTOMER_APPEARANCE_COUNT,
+        );
+    }
+
     private hasCompleteConfiguration(variants: CustomerAppearanceVariant[]): boolean {
         const isComplete = variants.length === CUSTOMER_APPEARANCE_COUNT
             && this.maleTextures.length === 3
@@ -83,12 +95,19 @@ export class CustomerAppearanceRandomizer extends Component {
     }
 
     private replaceVisual(npc: Node, variant: CustomerAppearanceVariant): void {
+        // Customer roots only own two non-visual children. Remove every other
+        // child so nested prefab visuals and stale editor previews cannot stack.
         const existingVisuals = npc.children.filter(child =>
             child.name !== 'StoragePoint'
-            && child.name !== 'emoji'
-            && (child.getComponentInChildren(SkeletalAnimation)
-                || child.getComponentInChildren(MeshRenderer)),
+            && child.name !== 'emoji',
         );
+
+        for (const existingVisual of existingVisuals) {
+            if (!existingVisual?.isValid) continue;
+            existingVisual.active = false;
+            existingVisual.removeFromParent();
+            existingVisual.destroy();
+        }
 
         const model = instantiate(variant.prefab);
         model.name = 'RandomCustomerVisual';
@@ -101,16 +120,8 @@ export class CustomerAppearanceRandomizer extends Component {
             this.customerModelScale,
         );
         model.updateWorldTransform();
-
         this.applyTexture(model, variant);
         this.validateAnimations(model);
-
-        for (const existingVisual of existingVisuals) {
-            if (!existingVisual?.isValid) continue;
-            existingVisual.active = false;
-            existingVisual.removeFromParent();
-            existingVisual.destroy();
-        }
     }
 
     private applyTexture(model: Node, variant: CustomerAppearanceVariant): void {

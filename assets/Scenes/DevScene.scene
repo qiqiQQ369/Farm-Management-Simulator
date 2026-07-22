@@ -30721,7 +30721,7 @@
     "fillTip": {
       "__id__": 1864
     },
-    "fillTipHeadOffsetY": 2.1,
+    "fillTipHeadOffsetY": 2.4,
     "completionEmojiFrame": {
       "__uuid__": "40b66e3b-98b4-4c1f-b5f6-fcc745ad3c04@f9941",
       "__expectedType__": "cc.SpriteFrame"
@@ -30963,7 +30963,7 @@
         "__expectedType__": "cc.Texture2D"
       }
     ],
-    "customerModelScale": 1.1,
+    "customerModelScale": 1.2,
     "customerModelYaw": 180,
     "_id": "B6H/tewMo4kdBsYo1DVK0g"
   },
@@ -37212,7 +37212,7 @@
     "fillTip": {
       "__id__": 2188
     },
-    "fillTipHeadOffsetY": 2.1,
+    "fillTipHeadOffsetY": 2.4,
     "completionEmojiFrame": {
       "__uuid__": "40b66e3b-98b4-4c1f-b5f6-fcc745ad3c04@f9941",
       "__expectedType__": "cc.SpriteFrame"
@@ -37454,7 +37454,7 @@
         "__expectedType__": "cc.Texture2D"
       }
     ],
-    "customerModelScale": 1.1,
+    "customerModelScale": 1.2,
     "customerModelYaw": 180,
     "_id": "u4MGHSj3ppKQLigz82q/3g"
   },
@@ -47134,7 +47134,7 @@
     "fillTip": {
       "__id__": 2566
     },
-    "fillTipHeadOffsetY": 2.1,
+    "fillTipHeadOffsetY": 2.4,
     "coinPrefab": {
       "__uuid__": "496d89d8-176e-401a-911d-76ee1450436c",
       "__expectedType__": "cc.Prefab"
@@ -47230,7 +47230,7 @@
         "__expectedType__": "cc.Texture2D"
       }
     ],
-    "customerModelScale": 1.1,
+    "customerModelScale": 1.2,
     "customerModelYaw": 180,
     "_id": "ffIOT4zy8zZoi/6zcHhu1w"
   },

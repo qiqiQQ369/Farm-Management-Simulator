@@ -51,7 +51,7 @@ type StorageLike = Component & {
 export class CornCustomerScheduler extends Component {
     @property({ type: Component }) public sellZone: Component = null!;
     @property({ type: Node }) public fillTip: Node = null!;
-    @property public fillTipHeadOffsetY = 2.1;
+    @property public fillTipHeadOffsetY = 2.4;
     @property({ type: SpriteFrame }) public completionEmojiFrame: SpriteFrame = null!;
 
     @property({ type: Prefab }) public coinPrefab: Prefab = null!;

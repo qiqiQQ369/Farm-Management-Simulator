@@ -17,7 +17,7 @@ export class NPCScheduler extends Component {
     @property({ type: Node})
     fillTip: Node = null!;
     @property({ group: { name: '参数' }, tooltip: '购买提示框相对 NPC 头顶的高度偏移' })
-    fillTipHeadOffsetY: number = 2.1;
+    fillTipHeadOffsetY: number = 2.4;
 
     @property({ type: Prefab, group: { name: '金币预制件' } })
     coinPrefab: Prefab = null!;
