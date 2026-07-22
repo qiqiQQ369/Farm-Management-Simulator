@@ -412,17 +412,26 @@ export class CornCustomerScheduler extends Component {
 
         while (this.enabled && npc.isValid) {
             if (targetStoragePoint.amount > 0 && npcStoragePoint.hasSpace(1)) {
-                const resource = targetStoragePoint.removeResource(4);
+                let resource = targetStoragePoint.removeResource(4);
                 let moved = resource
                     ? this.movePurchasedProductToCustomer(resource, npcStoragePoint)
                     : false;
+                if (resource && !moved) {
+                    targetStoragePoint.addResource(resource, 0, Vec3.ZERO);
+                    resource = null;
+                }
                 if (!moved) {
                     stalledDuration += this.collectInterval * 0.5;
                     if (stalledDuration >= 1) {
                         const stalledResource = targetStoragePoint.releaseStalledResource();
+                        resource = stalledResource;
                         moved = stalledResource
                             ? this.movePurchasedProductToCustomer(stalledResource, npcStoragePoint)
                             : false;
+                        if (stalledResource && !moved) {
+                            targetStoragePoint.addResource(stalledResource, 0, Vec3.ZERO);
+                            resource = null;
+                        }
                         stalledDuration = 0;
                     }
                 } else {
@@ -430,6 +439,7 @@ export class CornCustomerScheduler extends Component {
                 }
 
                 if (moved) {
+                    if (resource) targetStoragePoint.finalizeResourceTransfer(resource);
                     this.updateFillTip(npcStoragePoint.amount, npcStoragePoint.capacity);
                     this.playLoad(npc);
                 }

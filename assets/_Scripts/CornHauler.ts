@@ -161,6 +161,7 @@ export class CornHauler extends Component {
             if (resource) from.addResource(resource, 1);
             return;
         }
+        if (from instanceof CornStoragePoint) from.finalizeResourceTransfer(resource);
     }
 
     private tryRecoverBlockedStorage(storage: CornTransferStorage): boolean {

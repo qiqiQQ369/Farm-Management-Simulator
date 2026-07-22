@@ -808,7 +808,7 @@ export class ResourceFieldSystem extends Component {
             collider.enabled = true;
 
             const controller = actor.getComponent(CornWorker) ?? actor.addComponent(CornWorker);
-            controller.enabled = true;
+            controller.enabled = false;
             controller.moveSpeed = field.workerSpeed;
             controller.chopRange = field.workerChopRange;
             controller.waitAfterChop = field.workerWaitAfterChop;
@@ -837,7 +837,8 @@ export class ResourceFieldSystem extends Component {
             );
             if (laneStart) actor.setWorldPosition(laneStart);
             controller.setHarvestTargets(assignments[index] ?? []);
-            restoreCornVisualHierarchy(actor);
+            restoreCornVisualHierarchy(actor, false);
+            controller.enabled = true;
             actor.active = true;
         });
     }
@@ -873,8 +874,8 @@ export class ResourceFieldSystem extends Component {
         behavior.waitAtStartPoint = 0.1;
         behavior.turnSpeed = 360;
         behavior.waitAfterTurn = 0;
+        restoreCornVisualHierarchy(actor, false);
         behavior.enabled = true;
-        restoreCornVisualHierarchy(actor);
         actor.active = true;
 
         field.vehicle = { node: actor, behavior };
@@ -989,7 +990,7 @@ export class ResourceFieldSystem extends Component {
         }
 
         const carryStorage = actor.getComponent(CornHaulerBackpack) ?? actor.addComponent(CornHaulerBackpack);
-        carryStorage.enabled = true;
+        carryStorage.enabled = false;
         carryStorage.resourcePrefab = field.resourcePrefab;
         carryStorage.stackAreaNode = carryNode;
         carryStorage.capacity = 42;
@@ -1002,7 +1003,7 @@ export class ResourceFieldSystem extends Component {
         carryStorage.clearStorage();
 
         const behavior = actor.getComponent(CornHauler) ?? actor.addComponent(CornHauler);
-        behavior.enabled = true;
+        behavior.enabled = false;
         behavior.skeletonAnimation = actor.getComponentInChildren(SkeletalAnimation);
         behavior.collectionPoint = collectionServicePoint;
         behavior.sellPoint = field.sellNode;
@@ -1015,7 +1016,9 @@ export class ResourceFieldSystem extends Component {
         behavior.transferInterval = 0.15;
         behavior.collectionStopDistance = 0.05;
         behavior.sellStopDistance = 0.2;
-        restoreCornVisualHierarchy(actor);
+        restoreCornVisualHierarchy(actor, false);
+        carryStorage.enabled = true;
+        behavior.enabled = true;
         actor.active = true;
         field.hauler = actor;
         field.haulerBehavior = behavior;

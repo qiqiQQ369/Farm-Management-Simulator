@@ -84,6 +84,7 @@ export class CornPickupDetector extends Component {
 
         const sourceWorldPosition = item.worldPosition.clone();
         if (this.backpack.addResource(this.resourceId, sourceWorldPosition)) {
+            this.collectionStorage.finalizeResourceTransfer(item);
             item.destroy();
             return;
         }

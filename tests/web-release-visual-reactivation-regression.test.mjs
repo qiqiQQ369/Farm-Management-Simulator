@@ -12,13 +12,13 @@ test('HTML 中动态创建的玉米角色在启用前恢复完整模型层级', 
 
     assert.match(helper, /export function restoreCornVisualHierarchy/);
     assert.match(helper, /node\.active = true/);
-    assert.match(field, /restoreCornVisualHierarchy\(actor\)/);
+    assert.match(field, /restoreCornVisualHierarchy\(actor(?:, false)?\)/);
 
     const spawnWorkers = field.match(/private spawnWorkers[\s\S]*?\n    private spawnVehicle/)?.[0] ?? '';
     const spawnVehicle = field.match(/private spawnVehicle[\s\S]*?\n    private clampVehiclePath/)?.[0] ?? '';
     const spawnHauler = field.match(/private spawnHauler[\s\S]*?\n    private clearInheritedHaulerCargo/)?.[0] ?? '';
     for (const method of [spawnWorkers, spawnVehicle, spawnHauler]) {
-        assert.match(method, /restoreCornVisualHierarchy\(actor\)/);
+        assert.match(method, /restoreCornVisualHierarchy\(actor(?:, false)?\)/);
     }
 });
 
