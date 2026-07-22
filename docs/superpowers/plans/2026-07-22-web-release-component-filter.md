@@ -54,16 +54,14 @@ Expected: FAIL，因为四个文件仍使用 `constructor.name`。
 - Modify: `assets/_Scripts/MultiResourceBackpack.ts:1,255-268`
 
 **Interfaces:**
-- Consumes: Cocos `Animation`、`SkeletalAnimation`、`MeshRenderer`、`SkinnedMeshRenderer`、`AudioSource` 和项目 `ChopAction`。
+- Consumes: Cocos `Animation`、`Renderer`、`AudioSource` 和项目 `ChopAction`；两个基类覆盖所有骨骼动画和网格渲染子类。
 - Produces: 不受 Web 压缩影响的组件保留结果。
 
 - [ ] **Step 1: Implement stable checks**
 
 ```ts
 const keepEnabled = component instanceof Animation
-    || component instanceof SkeletalAnimation
-    || component instanceof MeshRenderer
-    || component instanceof SkinnedMeshRenderer;
+    || component instanceof Renderer;
 ```
 
 - [ ] **Step 2: Preserve harvest components where required**
@@ -108,4 +106,3 @@ Expected: 本轮四个文件无新增错误；允许记录 Cocos 3.8.6 引擎声
 - [ ] **Step 4: Verify release output**
 
 确认构建成功、浏览器无 `ResourceFieldSystem` 初始化错误，并确认构建代码不包含四处 `constructor.name` 筛选。
-

@@ -13,7 +13,7 @@
 - `CornHaulerBackpack`：搬运工携带的玉米。
 - `MultiResourceBackpack`：玩家携带的玉米。
 
-渲染和动画组件使用 `instanceof Animation`、`instanceof SkeletalAnimation`、`instanceof MeshRenderer`、`instanceof SkinnedMeshRenderer` 判断。需要保留砍伐能力时，额外使用 `instanceof ChopAction` 和 `instanceof AudioSource`。不依赖构造函数名称，因此调试版和压缩发布版行为一致。
+渲染和动画组件使用基类 `instanceof Animation`、`instanceof Renderer` 判断，因此同时覆盖 `SkeletalAnimation`、`MeshRenderer` 和 `SkinnedMeshRenderer`。需要保留砍伐能力时，额外使用 `instanceof ChopAction` 和 `instanceof AudioSource`。不依赖构造函数名称，因此调试版和压缩发布版行为一致。
 
 ## 验证
 
@@ -21,4 +21,3 @@
 2. 完整 Node 回归测试通过。
 3. TypeScript 检查确认本轮文件无新增错误。
 4. 重新生成 `debug: false` 的 Web Mobile 构建，确认构建脚本中不再包含基于类名的筛选逻辑，并用浏览器运行验证无初始化错误。
-

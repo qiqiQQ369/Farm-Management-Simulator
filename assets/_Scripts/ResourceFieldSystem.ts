@@ -1,6 +1,7 @@
 import {
     _decorator,
     Animation,
+    AudioSource,
     BoxCollider,
     CapsuleCollider,
     Component,
@@ -10,6 +11,7 @@ import {
     Label,
     Node,
     Prefab,
+    Renderer,
     RigidBody,
     SkeletalAnimation,
     Sprite,
@@ -1067,9 +1069,11 @@ export class ResourceFieldSystem extends Component {
     private disableActorGameplayComponents(root: Node, preserveChopAction = false): void {
         const visit = (node: Node): void => {
             for (const component of node.components) {
-                const name = component.constructor.name;
-                const keepEnabled = name.includes('Animation') || name.includes('Renderer') ||
-                    (preserveChopAction && (name.includes('ChopAction') || name.includes('AudioSource')));
+                const keepVisualComponent = component instanceof Animation
+                    || component instanceof Renderer;
+                const keepHarvestComponent = preserveChopAction
+                    && (component instanceof ChopAction || component instanceof AudioSource);
+                const keepEnabled = keepVisualComponent || keepHarvestComponent;
                 if (!keepEnabled) component.enabled = false;
             }
             for (const child of node.children) visit(child);
