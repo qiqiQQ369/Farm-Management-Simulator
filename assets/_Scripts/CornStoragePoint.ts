@@ -1,4 +1,5 @@
 import { _decorator, AudioSource, Component, Node, Quat, tween, Vec3 } from 'cc';
+import { restoreCornVisualHierarchy } from './CornVisualState';
 
 const { ccclass, property } = _decorator;
 
@@ -48,6 +49,7 @@ export class CornStoragePoint extends Component {
 
     public addResource(resource: Node, animationType = 1, rotation: Vec3 = Vec3.ZERO): boolean {
         if (!resource?.isValid || !this.hasSpace(1)) return false;
+        restoreCornVisualHierarchy(resource);
 
         const index = this.takeFirstRemovedIndex() ?? this.amount;
         const position = this.calculateStackPosition(index);

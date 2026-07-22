@@ -21,6 +21,7 @@ import { CameraFacingUI } from './CameraFacingUI';
 import { CoinBackpack } from './CoinBackpack';
 import { CornCoinCollector } from './CornCoinCollector';
 import { CornStoragePoint } from './CornStoragePoint';
+import { restoreCornVisualHierarchy } from './CornVisualState';
 import { PlayerController } from './PlayerController';
 
 const { ccclass, property } = _decorator;
@@ -462,6 +463,7 @@ export class CornCustomerScheduler extends Component {
         npcStoragePoint: CornStoragePoint,
     ): boolean {
         if (!resource?.isValid) return false;
+        restoreCornVisualHierarchy(resource);
         resource.setScale(Vec3.ONE);
         return npcStoragePoint.addResource(resource, 4, Vec3.ZERO);
     }

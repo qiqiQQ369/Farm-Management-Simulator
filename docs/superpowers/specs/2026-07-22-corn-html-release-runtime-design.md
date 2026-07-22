@@ -1,48 +1,35 @@
-# 玉米区 HTML 安全构建设计
+# 玉米区 HTML Release 模型恢复设计
 
-## 边界
+## 目标与边界
 
-本次只修复 Cocos Creator 构建出的 HTML 包。编辑器预览和本地运行已经正确，因此：
+修复仅在压缩后的 HTML Release 中出现的第二关模型状态问题，同时保持编辑器预览、本地运行、路线、数值和森林区逻辑不变。
 
-- 不修改 `assets/_Scripts` 中的任何游戏逻辑。
-- 不修改森林区或玉米区的玩法、数值、路线、动画代码。
-- 不修改 `assets/Scenes/DevScene.scene` 的场景内容。
-- 只新增可复现的 Web 构建配置、构建命令和构建产物验证。
+## 根因
 
-## 已确认差异
+玉米重生问题此前通过“恢复根节点及模型后代的激活状态”解决。第二关动态创建和转移的其他对象存在相同缺口：逻辑组件和库存记录已经存在，但克隆来源或父节点留下的 inactive 模型后代会被 Release 场景序列化保留。
 
-当前 Web Mobile 任务使用：
+受影响链路包括：
 
-- `debug: false`
-- `inlineEnum: true`
-- Release 脚本与 UUID 压缩
+- 玉米工人、拖拉机和搬运工生成。
+- 玉米产物进入售卖槽。
+- 顾客从售卖槽取走玉米。
 
-Cocos Creator 3.8 官方说明指出，关闭 Debug Mode 会压缩并混淆引擎脚本、项目脚本和资源 UUID；开启 Debug Mode 则保留调试结构。第二关依赖的动态组件和运行时对象明显多于第一关，因此只在压缩后的 HTML 中出现工人缺失、玉米入槽异常和顾客不购买，而编辑器预览正常。
+此外，作物根节点仍通过字符串组件名称查找；压缩后这类反射不稳定。
 
 ## 方案
 
-项目新增一份受版本控制的 Web Mobile 安全构建配置：
+新增 `CornVisualState.restoreCornVisualHierarchy(root)`：
 
-- `platform: web-mobile`
-- `debug: true`
-- `inlineEnum: false`
-- `mangleProperties: false`
-- `experimentalEraseModules: false`
-- `sourceMaps: true`
-- 保持当前起始场景、参与构建场景、物理模块、异步函数兼容和 Web Mobile 方向配置不变。
+- 使用 `instanceof Animation` 和 `instanceof Renderer` 识别可视分支。
+- 递归激活包含动画或渲染器的节点及其祖先。
+- 不启用任何森林玩法脚本，不改变移动、收获、库存或购买数值。
 
-再新增一个 PowerShell 构建入口，固定调用本机 Cocos Creator 3.8.6，并通过 `configPath` 使用上述配置。脚本在构建前清理自己的目标目录，在构建后验证退出码、`index.html`、项目脚本包、场景包以及第二关关键类名是否存在。
-
-构建输出写到独立目录 `build/web-mobile-safe`，不会覆盖用户现有的 `build/web-mobile`，验证通过后再由用户选择使用安全包。
+在动态角色全部配置完成、正式激活前调用该函数；玉米进入售卖槽和顾客背包前也调用同一函数。作物根节点直接使用场景中已经绑定的第一个作物根，不再通过 `getComponentInChildren('FinishNode')` 字符串反射。
 
 ## 验证
 
-自动测试检查：
-
-- 安全配置必须开启 Debug Mode，并关闭枚举内联、属性混淆和模块擦除。
-- 起始场景仍为 `DevScene`。
-- 配置仍包含 Web Mobile 所需物理模块与 Async Functions polyfill。
-- 构建脚本必须使用 `configPath`，且不能修改或复制游戏脚本。
-- 构建产物必须包含 `ResourceFieldSystem`、`CornWorker`、`CornStoragePoint` 和 `CornCustomerScheduler`。
-
-最终通过本地 HTTP 启动 `build/web-mobile-safe`，检查页面启动、资源请求和控制台错误。
+- 回归测试检查三类动态角色在激活前恢复模型。
+- 回归测试检查售卖槽和顾客携带玉米恢复模型。
+- 回归测试禁止第二关作物根继续使用字符串组件反射。
+- 运行全部测试并生成 `debug=false` Web Mobile Release。
+- 检查压缩包中保留 `CornVisualState` 及全部调用点。

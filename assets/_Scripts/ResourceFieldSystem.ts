@@ -29,6 +29,7 @@ import { CornPickupDetector } from './CornPickupDetector';
 import { CornStoragePoint } from './CornStoragePoint';
 import { CornTractor } from './CornTractor';
 import { CornUnlockPad } from './CornUnlockPad';
+import { restoreCornVisualHierarchy } from './CornVisualState';
 import { CornWorker } from './CornWorker';
 import { JoystickController } from './JoystickController';
 import { MainUI } from './MainUI';
@@ -526,8 +527,7 @@ export class ResourceFieldSystem extends Component {
         vehicleUnlockPoint.active = false;
         haulerUnlockPoint.active = false;
         const sellStorage = this.ensureSellStorage(sellNode, id);
-        const finishComponent = root.getComponentInChildren('FinishNode') as unknown as { targetNodes?: Node[] } | null;
-        const cropRoot = finishComponent?.targetNodes?.[0] ?? root.children[0] ?? null;
+        const cropRoot = root.children[0] ?? null;
         if (!cropRoot || !this._player || !this._resourceBackpack) {
             console.error(`ResourceFieldSystem: ${id} disabled; crop root or player resource binding is missing.`);
             return null;
@@ -837,6 +837,7 @@ export class ResourceFieldSystem extends Component {
             );
             if (laneStart) actor.setWorldPosition(laneStart);
             controller.setHarvestTargets(assignments[index] ?? []);
+            restoreCornVisualHierarchy(actor);
             actor.active = true;
         });
     }
@@ -873,6 +874,7 @@ export class ResourceFieldSystem extends Component {
         behavior.turnSpeed = 360;
         behavior.waitAfterTurn = 0;
         behavior.enabled = true;
+        restoreCornVisualHierarchy(actor);
         actor.active = true;
 
         field.vehicle = { node: actor, behavior };
@@ -1013,6 +1015,7 @@ export class ResourceFieldSystem extends Component {
         behavior.transferInterval = 0.15;
         behavior.collectionStopDistance = 0.05;
         behavior.sellStopDistance = 0.2;
+        restoreCornVisualHierarchy(actor);
         actor.active = true;
         field.hauler = actor;
         field.haulerBehavior = behavior;
