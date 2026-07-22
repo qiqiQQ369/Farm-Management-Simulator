@@ -629,8 +629,6 @@ export class ResourceFieldSystem extends Component {
     }
 
     private completeWorkerUnlock(field: FieldRuntime, padNode: Node): void {
-        this.spawnWorkers(field);
-
         const currentVisual = this.resolveUnlockVisual(padNode);
         if (currentVisual) {
             tween(currentVisual)
@@ -642,6 +640,10 @@ export class ResourceFieldSystem extends Component {
             this.showUnlockStage(field, 'vehicle', true);
             padNode.active = false;
         }, 1.5);
+
+        // Native mobile physics must not be allowed to interrupt the paid
+        // unlock transaction before the pad animation and next stage exist.
+        this.spawnWorkers(field);
 
         const focusWorker = field.workers[2]?.node ?? field.workers[0]?.node ?? null;
         const cameraController = find('Main Camera')?.getComponent(CameraController) ?? null;
@@ -786,6 +788,7 @@ export class ResourceFieldSystem extends Component {
                 field.workerPrefab,
                 this.workerTemplate?.children[index] ?? this.workerTemplate?.children[0] ?? this.workerTemplate,
                 true,
+                false,
             );
             if (!actor) continue;
             actor.name = `${field.id}_Worker_${index + 1}`;
@@ -832,6 +835,7 @@ export class ResourceFieldSystem extends Component {
             );
             if (laneStart) actor.setWorldPosition(laneStart);
             controller.setHarvestTargets(assignments[index] ?? []);
+            actor.active = true;
         });
     }
 
@@ -1019,11 +1023,16 @@ export class ResourceFieldSystem extends Component {
         return mountTemplate;
     }
 
-    private createActor(prefab: Prefab | null, fallback: Node | null, preserveChopAction = false): Node | null {
+    private createActor(
+        prefab: Prefab | null,
+        fallback: Node | null,
+        preserveChopAction = false,
+        activate = true,
+    ): Node | null {
         const actor = prefab ? instantiate(prefab) : fallback ? instantiate(fallback) : null;
         if (!actor) return null;
         this.disableActorGameplayComponents(actor, preserveChopAction);
-        actor.active = true;
+        actor.active = activate;
         return actor;
     }
 

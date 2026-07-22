@@ -375,16 +375,15 @@ export class CornCustomerScheduler extends Component {
         this._loadingAtB = null;
         this._bReserved = false;
         this.tryDispatchFromAToB();
-        this.playLoadMove(npc);
         this.moveTo(npc, this.pointC, () => {
             this.moveTo(npc, this.pointD, () => {
                 this.moveTo(npc, this.startPoint, () => {
                     this._activeDeparted.delete(npc);
                     this.playIdle(npc);
                     this.enqueueAtStart(npc);
-                });
-            });
-        });
+                }, true);
+            }, true);
+        }, true);
     }
 
     private enqueueAtStart(npc: Node): void {
@@ -539,23 +538,39 @@ export class CornCustomerScheduler extends Component {
         return true;
     }
 
-    private moveTo(npc: Node, targetNode: Node | null, onComplete?: () => void): void {
+    private moveTo(
+        npc: Node,
+        targetNode: Node | null,
+        onComplete?: () => void,
+        carrying = false,
+    ): void {
         if (!targetNode) {
             onComplete?.();
             return;
         }
-        this.moveToPosition(npc, targetNode.worldPosition.clone(), onComplete);
+        this.moveToPosition(npc, targetNode.worldPosition.clone(), onComplete, carrying);
     }
 
-    private moveToPosition(npc: Node, target: Vec3, onComplete?: () => void): void {
+    private moveToPosition(
+        npc: Node,
+        target: Vec3,
+        onComplete?: () => void,
+        carrying = false,
+    ): void {
         const duration = Vec3.distance(npc.worldPosition, target) / Math.max(this.moveSpeed, 0.01);
         this.faceTarget(npc, target);
-        this.playTween(npc, target, duration, onComplete);
+        this.playTween(npc, target, duration, onComplete, carrying);
     }
 
-    private playTween(npc: Node, target: Vec3, duration: number, onComplete?: () => void): void {
+    private playTween(
+        npc: Node,
+        target: Vec3,
+        duration: number,
+        onComplete?: () => void,
+        carrying = false,
+    ): void {
         this.stopTween(npc);
-        this.playMove(npc);
+        carrying ? this.playLoadMove(npc) : this.playMove(npc);
         const movement = tween(npc)
             .to(duration, { worldPosition: target })
             .call(() => {

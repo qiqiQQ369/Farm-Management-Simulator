@@ -195,6 +195,33 @@ test('corn worker unlock uses the forest LOGGER presentation', () => {
     assert.match(showUnlockStage, /scale: new Vec3\(visualScale, visualScale, visualScale\)/);
 });
 
+test('mobile worker unlock commits the paid pad before native worker creation', () => {
+    const workerUnlock = source.match(
+        /private completeWorkerUnlock[\s\S]*?\n    private completeVehicleUnlock/,
+    )?.[0] ?? '';
+
+    const spawnIndex = workerUnlock.indexOf('this.spawnWorkers(field)');
+    const advanceIndex = workerUnlock.indexOf("this.showUnlockStage(field, 'vehicle', true)");
+    assert.ok(spawnIndex >= 0, 'worker creation must still run');
+    assert.ok(advanceIndex >= 0, 'paid worker pad must advance to the vehicle stage');
+    assert.ok(
+        advanceIndex < spawnIndex,
+        'paid unlock state must be committed before mobile-native worker creation can fail',
+    );
+});
+
+test('mobile workers enter the scene only after physics and harvest setup completes', () => {
+    const workerSpawn = source.match(
+        /private spawnWorkers[\s\S]*?\n    private spawnVehicle/,
+    )?.[0] ?? '';
+
+    assert.match(workerSpawn, /this\.createActor\([\s\S]*?true,\s*false,?\s*\)/);
+    const targetSetupIndex = workerSpawn.indexOf('controller.setHarvestTargets');
+    const activateIndex = workerSpawn.lastIndexOf('actor.active = true');
+    assert.ok(targetSetupIndex >= 0);
+    assert.ok(activateIndex > targetSetupIndex, 'native physics actor must activate after target setup');
+});
+
 test('corn workers keep crop output isolated from forest wood storage', () => {
     const workerHarvest = cornProductionSource.match(
         /private harvestByWorker[\s\S]*?\n    private canPlayerHarvest/,
