@@ -42,6 +42,11 @@ export class CornTractor extends Component {
         this.initializePathPoints();
     }
 
+    protected onEnable(): void {
+        this.initializePathPoints();
+        this.initializeRouteFacing();
+    }
+
     protected start(): void {
         this.scheduleOnce(() => {
             this.autoStart = true;
@@ -76,6 +81,7 @@ export class CornTractor extends Component {
         this.startPoint = start;
         this.endPoint = end;
         this.initializePathPoints();
+        this.initializeRouteFacing();
     }
 
     public getCurrentState(): string { return this._currentState; }
@@ -132,13 +138,23 @@ export class CornTractor extends Component {
         if (!this.endPoint) this.endPoint = find('CornTruckEnd') ?? this.node;
     }
 
+    /** Set the visual heading before a newly unlocked tractor is revealed. */
+    private initializeRouteFacing(): void {
+        const target = this._isMovingToEnd
+            ? this.getSafeEndPosition()
+            : this.getSafeStartPosition();
+        this.faceTarget(target);
+    }
+
     private startTractorCycle(): void {
         this._currentState = CornTractorState.Idle;
         this._isMovingToEnd = true;
+        this.initializeRouteFacing();
     }
 
     private handleIdleState(): void {
         if (!this.autoStart) return;
+        this.initializeRouteFacing();
         this._currentState = this._isMovingToEnd ? CornTractorState.MovingToEnd : CornTractorState.MovingToStart;
     }
 

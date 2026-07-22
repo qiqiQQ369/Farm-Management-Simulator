@@ -30,7 +30,8 @@ type StorageLike = Component & {
 @ccclass('CornCoinCollector')
 export class CornCoinCollector extends Component {
     @property({ type: Node }) public coinLoadArea: Node = null!;
-    @property public collectInterval = 0.05;
+    @property public collectInterval = 0.035;
+    @property public coinsPerCollection = 1;
     @property public collectAnimationTime = 0.05;
     @property public coinFlyHeight = 2;
 
@@ -65,9 +66,13 @@ export class CornCoinCollector extends Component {
         this.refreshPlayerProximity();
         if (!this._isPlayerInTrigger && !this._isPlayerWithinBounds) return;
         this._collectTimer += deltaTime;
-        if (this._collectTimer < this.collectInterval) return;
-        this._collectTimer = 0;
-        this.collectCoin();
+        const collectionInterval = Math.max(0.01, this.collectInterval);
+        if (this._collectTimer < collectionInterval) return;
+        this._collectTimer = Math.min(
+            this._collectTimer - collectionInterval,
+            collectionInterval,
+        );
+        this.collectCoins();
     }
 
     public configure(
@@ -150,29 +155,34 @@ export class CornCoinCollector extends Component {
         money.setScale(Vec3.ONE);
     }
 
-    private collectCoin(): void {
+    private collectCoins(): void {
         const sourceStorage = this._sourceStorage;
         const destination = this.findPlayerStorage();
         if (!sourceStorage || !destination || !destination.node?.isValid) return;
 
-        const nextCoin = this.coinLoadArea?.children[this.coinLoadArea.children.length - 1] ?? null;
-        if (!nextCoin || nextCoin.scale.lengthSqr() < 2.7) return;
+        let collectedCount = 0;
+        const batchSize = Math.max(1, Math.floor(this.coinsPerCollection));
+        for (let index = 0; index < batchSize; index++) {
+            const money = sourceStorage.removeResource(4);
+            if (!money) break;
 
-        const money = sourceStorage.removeResource(4);
-        if (!money) return;
-
-        const sourceScale = money.scale.clone();
-        this.normalizeCarriedMoneyScale(money);
-        if (!destination.addResource(money, 4, new Vec3(0, 0, 360), false)) {
-            money.setScale(sourceScale);
-            sourceStorage.addResource(money, 1);
-            return;
+            const sourceScale = money.scale.clone();
+            this.normalizeCarriedMoneyScale(money);
+            if (!destination.addResource(money, 4, new Vec3(0, 0, 360), false)) {
+                money.setScale(sourceScale);
+                sourceStorage.addResource(money, 1);
+                break;
+            }
+            collectedCount++;
         }
 
+        if (collectedCount > 0) this.updateCoinLabel(collectedCount * 5);
+    }
+
+    private updateCoinLabel(delta: number): void {
         const coinAmountLabel = find('Canvas/CoinLabel/coinAmount')?.getComponent(Label) ?? null;
-        if (coinAmountLabel) {
-            const currentAmount = Number.parseInt(coinAmountLabel.string, 10) || 0;
-            coinAmountLabel.string = String(currentAmount + 5);
-        }
+        if (!coinAmountLabel) return;
+        const currentAmount = Number.parseInt(coinAmountLabel.string, 10) || 0;
+        coinAmountLabel.string = String(currentAmount + delta);
     }
 }

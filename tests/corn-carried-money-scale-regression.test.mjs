@@ -50,3 +50,51 @@ test('corn-area money uses the same backpack-local scale as forest money', () =>
         'a rejected backpack transfer must restore the source display scale',
     );
 });
+
+test('forest and corn money collectors drain ready notes continuously without tween callback queues', () => {
+    assert.match(
+        forestCollectorSource,
+        /public collectInterval:\s*number\s*=\s*0\.035/,
+        'forest pickup must keep a short visual cadence between individual notes',
+    );
+    assert.match(
+        collectorSource,
+        /public collectInterval\s*=\s*0\.035/,
+        'corn pickup must keep a short visual cadence between individual notes',
+    );
+    assert.match(forestCollectorSource, /private collectCoins\(\): void/);
+    assert.match(forestCollectorSource, /private findReadyCoin\(\): Node \| null/);
+    assert.match(
+        forestCollectorSource,
+        /if \(ResourceManager\.tweenDicCoin\.has\(coin\)\) continue/,
+        'a falling note must be skipped, not queued repeatedly on its tween',
+    );
+    assert.doesNotMatch(
+        forestCollectorSource,
+        /tweenDicCoin\.get\(coin\)\.call/,
+        'pickup must never append duplicate transfer callbacks to a falling note',
+    );
+    assert.match(collectorSource, /private collectCoins\(\): void/);
+    for (const source of [forestCollectorSource, collectorSource]) {
+        assert.match(
+            source,
+            /this\._collectTimer - collectionInterval/,
+            'one-note cadence must retain elapsed time instead of restarting a full interval',
+        );
+        assert.match(
+            source,
+            /Math\.min\([\s\S]*?collectionInterval[\s\S]*?collectionInterval[\s\S]*?\)/,
+            'slow frames must not build a burst that makes all notes fly at once',
+        );
+    }
+    assert.doesNotMatch(
+        collectorSource,
+        /nextCoin\.scale\.lengthSqr\(\)/,
+        'an unfinished top note must not block already-ready corn notes below it',
+    );
+    assert.match(
+        collectorSource,
+        /for \(let index = 0; index < batchSize; index\+\+\)/,
+        'corn collector must process a continuous bounded batch each frame',
+    );
+});

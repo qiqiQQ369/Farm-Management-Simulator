@@ -22,6 +22,10 @@ const cornUnlockSource = readFileSync(
     new URL('../assets/_Scripts/CornUnlockPad.ts', import.meta.url),
     'utf8',
 );
+const forestCoinConsumerSource = readFileSync(
+    new URL('../assets/_Scripts/CoinConsumer.ts', import.meta.url),
+    'utf8',
+);
 const finishNodeSource = readFileSync(
     new URL('../assets/_Scripts/FinishNode.ts', import.meta.url),
     'utf8',
@@ -586,6 +590,24 @@ test('corn unlock pads consume the same mounted coin storage as forest pads', ()
         5,
         'one physical coin must contribute the same five points used by forest unlock pads',
     );
+});
+
+test('corn unlock pads fill at the same per-coin cadence as forest unlock pads', () => {
+    const forestCoinDelay = Number(
+        forestCoinConsumerSource.match(
+            /await new Promise\(resolve => setTimeout\(resolve, (\d+)\)\)/,
+        )?.[1],
+    );
+    assert.equal(forestCoinDelay, 100, 'forest unlocks must transfer one physical coin every 100 ms');
+
+    const expectedInterval = forestCoinDelay / 1000;
+    assert.equal(
+        fieldSystem.consumeInterval,
+        expectedInterval,
+        'corn unlocks must use the same per-coin fill interval as forest unlocks',
+    );
+    assert.match(cornUnlockSource, /public consumeInterval = 0\.1;/);
+    assert.match(resourceFieldSource, /public consumeInterval = 0\.1;/);
 });
 
 test('the first corn field stays playable and opening the second ends the game', () => {

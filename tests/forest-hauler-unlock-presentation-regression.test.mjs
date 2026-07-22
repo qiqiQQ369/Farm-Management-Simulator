@@ -19,5 +19,5 @@ test('forest hauler unlock uses the same reveal sequence as corn hauler unlock',
     assert.match(unlockMethod, /joystickController\._lock = true/);
     assert.match(unlockMethod, /find\('Player'\)\.getComponent\(PlayerController\)\.stopMovement\(\)/);
     assert.match(unlockMethod, /cameraController\.target = find\('Player'\)/);
-    assert.match(unlockMethod, /}, 6\)/);
+    assert.match(unlockMethod, /}, 3\)/);
 });

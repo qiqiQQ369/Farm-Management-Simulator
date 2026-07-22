@@ -36,7 +36,7 @@ export class CustomerAppearanceRandomizer extends Component {
     @property({ type: Prefab }) public femalePrefab: Prefab = null!;
     @property({ type: [Texture2D] }) public maleTextures: Texture2D[] = [];
     @property({ type: [Texture2D] }) public femaleTextures: Texture2D[] = [];
-    @property public customerModelScale = 1;
+    @property public customerModelScale = 1.1;
     @property public customerModelYaw = 180;
 
     private _reportedInvalidConfiguration = false;

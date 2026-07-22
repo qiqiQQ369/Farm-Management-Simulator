@@ -232,7 +232,7 @@ export class ResourceFieldSystem extends Component {
     public coinsPerTick = 5;
 
     @property({ tooltip: 'Seconds between unlock consumption ticks.', group: 'Shared gameplay' })
-    public consumeInterval = 0.2;
+    public consumeInterval = 0.1;
 
     @property({ tooltip: 'Corn worker chop range.', group: 'Shared gameplay' })
     public workerChopRange = 0.7;
@@ -655,7 +655,7 @@ export class ResourceFieldSystem extends Component {
         this.scheduleOnce(() => {
             if (cameraController && this._player) cameraController.target = this._player;
             if (joystickController) joystickController._lock = false;
-        }, 6);
+        }, 3);
     }
 
     private completeVehicleUnlock(field: FieldRuntime, padNode: Node): void {
@@ -681,7 +681,7 @@ export class ResourceFieldSystem extends Component {
         this.scheduleOnce(() => {
             if (cameraController && this._player) cameraController.target = this._player;
             if (joystickController) joystickController._lock = false;
-        }, 4);
+        }, 3);
     }
 
     private completeHaulerUnlock(field: FieldRuntime, padNode: Node): void {
@@ -705,7 +705,7 @@ export class ResourceFieldSystem extends Component {
         this.scheduleOnce(() => {
             if (cameraController && this._player) cameraController.target = this._player;
             if (joystickController) joystickController._lock = false;
-        }, 6);
+        }, 3);
     }
 
     private showUnlockStage(
@@ -858,11 +858,11 @@ export class ResourceFieldSystem extends Component {
         collider.enabled = false;
 
         const behavior = actor.getComponent(CornTractor) ?? actor.addComponent(CornTractor);
-        behavior.enabled = true;
+        behavior.enabled = false;
+        actor.setWorldPosition(this.getCornTractorSpawnWorldPosition(field, behavior));
         behavior.startPoint = path.start;
         behavior.endPoint = path.end;
         behavior.setPathPoints(path.start, path.end);
-        actor.setWorldPosition(this.getCornTractorSpawnWorldPosition(field, behavior));
         behavior.moveSpeed = field.vehicleSpeed;
         behavior.chopRange = this.vehicleChopRange;
         behavior.waitAfterChop = 0.1;
@@ -870,6 +870,7 @@ export class ResourceFieldSystem extends Component {
         behavior.waitAtStartPoint = 0.1;
         behavior.turnSpeed = 360;
         behavior.waitAfterTurn = 0;
+        behavior.enabled = true;
         actor.active = true;
 
         field.vehicle = { node: actor, behavior };
@@ -933,11 +934,37 @@ export class ResourceFieldSystem extends Component {
         return spawnPosition;
     }
 
+    /**
+     * The corn stack grows into a tall solid-looking wall.  Unlike the forest
+     * collection pile, its visual footprint can cover the storage-node center,
+     * so a hauler must use a dedicated service point on the open, unlock-pad
+     * side instead of walking toward the stack center.
+     */
+    private createCornHaulerCollectionServicePoint(field: FieldRuntime, spawnAnchor: Node): Node {
+        const servicePoint = this.ensurePathPoint(field.root, 'CornHaulerCollectionServicePoint');
+        const storagePosition = field.collectionStorage.node.worldPosition.clone();
+        const direction = spawnAnchor.worldPosition.clone().subtract(storagePosition);
+        direction.y = 0;
+        if (direction.lengthSqr() <= 0.000001) {
+            direction.set(1, 0, 0);
+        } else {
+            direction.normalize();
+        }
+
+        // Keep the same 1.8-unit storage clearance as the forest hauler, but
+        // lock the corn hauler to the open side instead of the stack center.
+        const servicePosition = storagePosition.add(direction.multiplyScalar(1.8));
+        servicePosition.y = spawnAnchor.worldPosition.y;
+        servicePoint.setWorldPosition(servicePosition);
+        return servicePoint;
+    }
+
     private spawnHauler(field: FieldRuntime, padNode: Node): void {
         const fallback = this.haulerTemplate ?? this.workerTemplate?.children[0] ?? this.workerTemplate;
         const actor = field.haulerPrefab ? instantiate(field.haulerPrefab) : fallback ? instantiate(fallback) : null;
         if (!actor) return;
         const spawnAnchor = this.getCornHaulerUnlockAnchor(padNode);
+        const collectionServicePoint = this.createCornHaulerCollectionServicePoint(field, spawnAnchor);
         actor.name = `${field.id}_Hauler`;
         actor.active = false;
         actor.setParent(field.root);
@@ -973,15 +1000,16 @@ export class ResourceFieldSystem extends Component {
         const behavior = actor.getComponent(CornHauler) ?? actor.addComponent(CornHauler);
         behavior.enabled = true;
         behavior.skeletonAnimation = actor.getComponentInChildren(SkeletalAnimation);
-        behavior.collectionPoint = field.collectionStorage.node;
+        behavior.collectionPoint = collectionServicePoint;
         behavior.sellPoint = field.sellNode;
         behavior.idlePoint = spawnAnchor;
+        behavior.homeFieldRoot = field.root;
         behavior.collectionStorage = field.collectionStorage;
         behavior.sellStorage = field.sellStorage;
         behavior.carryStorage = carryStorage;
         behavior.moveSpeed = field.haulerSpeed;
         behavior.transferInterval = 0.15;
-        behavior.collectionStopDistance = 1.1;
+        behavior.collectionStopDistance = 0.05;
         behavior.sellStopDistance = 0.2;
         actor.active = true;
         field.hauler = actor;

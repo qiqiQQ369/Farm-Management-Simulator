@@ -166,6 +166,40 @@ test('corn tractor owns a copy of the forest path loop and contact harvest setti
     }
 });
 
+test('corn tractor is positioned and faces its first route target before the unlock reveal', () => {
+    const vehicleSpawn = source.match(
+        /private spawnVehicle[\s\S]*?\n    private clampVehiclePath/,
+    )?.[0] ?? '';
+    const setPathPoints = cornTractorSource.match(
+        /public setPathPoints[\s\S]*?\n    public getCurrentState/,
+    )?.[0] ?? '';
+
+    assert.match(
+        setPathPoints,
+        /this\.initializeRouteFacing\(\)/,
+        'assigning a runtime path must also set the initial visual direction',
+    );
+    assert.match(
+        cornTractorSource,
+        /private initializeRouteFacing\(\): void[\s\S]*?this\.faceTarget\(target\)/,
+        'the initial direction must use the first movement target rather than the prefab rotation',
+    );
+
+    const spawnPositionIndex = vehicleSpawn.indexOf('actor.setWorldPosition');
+    const pathSetupIndex = vehicleSpawn.indexOf('behavior.setPathPoints(path.start, path.end)');
+    const enabledIndex = vehicleSpawn.indexOf('behavior.enabled = true');
+    const revealIndex = vehicleSpawn.lastIndexOf('actor.active = true');
+    assert.ok(spawnPositionIndex >= 0 && pathSetupIndex >= 0 && enabledIndex >= 0 && revealIndex >= 0);
+    assert.ok(
+        spawnPositionIndex < pathSetupIndex,
+        'the actor position must be known before the initial route-facing calculation',
+    );
+    assert.ok(
+        pathSetupIndex < enabledIndex && enabledIndex < revealIndex,
+        'the configured direction must be in place before the tractor is revealed',
+    );
+});
+
 test('corn tractor harvests only when its forest-shaped front collider reaches a crop', () => {
     const colliderCenter = { x: 0, y: 0, z: -4.8 };
     const colliderSize = { x: 9.564268112182617, y: 2.132222, z: 0.553972 };
@@ -303,7 +337,7 @@ test('corn tractor unlock uses the forest MACHINE presentation', () => {
     assert.match(method, /this\.showUnlockStage\(field, 'hauler', true(?:, padNode)?\)/);
     assert.match(method, /cameraController\.target = field\.vehicle\.node/);
     assert.match(method, /joystickController\._lock = true/);
-    assert.match(method, /}, 4\)/);
+    assert.match(method, /}, 3\)/);
 });
 
 test('corn hauler, storage, and unlock pad are dedicated copies of forest behavior', () => {
@@ -352,7 +386,7 @@ test('corn hauler, storage, and unlock pad are dedicated copies of forest behavi
     assert.match(method, /this\._playerController\?\.stopMovement\(\)/);
     assert.match(method, /cameraController\.target = this\._player/);
     assert.match(method, /joystickController\._lock = false/);
-    assert.match(method, /}, 6\)/);
+    assert.match(method, /}, 3\)/);
 
     const spawnMethod = source.match(
         /private spawnHauler[\s\S]*?\n    private createActor/,

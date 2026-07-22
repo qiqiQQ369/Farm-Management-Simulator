@@ -23,15 +23,17 @@ export class CornHauler extends Component {
     @property({ type: Node }) public collectionPoint: Node = null!;
     @property({ type: Node }) public sellPoint: Node = null!;
     @property({ type: Node }) public idlePoint: Node = null!;
+    @property({ type: Node }) public homeFieldRoot: Node = null!;
     @property({ type: CornStoragePoint }) public collectionStorage: CornStoragePoint = null!;
     @property({ type: CornStoragePoint }) public sellStorage: CornStoragePoint = null!;
     @property({ type: CornHaulerBackpack }) public carryStorage: CornHaulerBackpack = null!;
     @property public moveSpeed = 3;
     @property public transferInterval = 0.15;
-    @property public collectionStopDistance = 1.1;
+    @property public collectionStopDistance = 0.05;
     @property public sellStopDistance = 0.2;
     @property public facingYawOffset = 180;
     @property public transferStallTimeout = 1.5;
+    @property public routeStallResetSeconds = 0.5;
 
     private _state = CornHaulerState.WaitingForCorn;
     private _transferTimer = 0;
@@ -42,6 +44,10 @@ export class CornHauler extends Component {
     private _monitoredFromAmount = -1;
     private _monitoredToAmount = -1;
     private _lastTransferProgressAt = 0;
+    private _moveStallTimer = 0;
+    private _lastMoveDistance = Number.POSITIVE_INFINITY;
+    private readonly _lastMoveTarget = new Vec3(Number.NaN, Number.NaN, Number.NaN);
+    private _reportedInvalidFieldBinding = false;
 
     protected onLoad(): void {
         if (!this.skeletonAnimation) this.skeletonAnimation = this.node.getComponentInChildren(SkeletalAnimation);
@@ -49,12 +55,14 @@ export class CornHauler extends Component {
 
     protected onEnable(): void {
         game.on(Game.EVENT_SHOW, this.onApplicationShow, this);
+        this.homeFieldRoot ??= this.node.parent ?? this.node;
         this._state = CornHaulerState.WaitingForCorn;
         this._transferTimer = 0;
         this._isMoving = false;
         this.resetTransferWatchdog();
         this.resetTransferProgressMonitor();
-        if (this.idlePoint) {
+        this.resetMovementWatchdog();
+        if (this.hasValidFieldBindings() && this.idlePoint) {
             const spawnPosition = this.idlePoint.worldPosition.clone();
             spawnPosition.y = this.node.worldPosition.y;
             this.node.setWorldPosition(spawnPosition);
@@ -67,7 +75,8 @@ export class CornHauler extends Component {
     }
 
     protected update(deltaTime: number): void {
-        if (!this.collectionPoint || !this.sellPoint || !this.collectionStorage || !this.sellStorage || !this.carryStorage) return;
+        if (!this.hasValidFieldBindings()
+            || !this.collectionStorage || !this.sellStorage || !this.carryStorage) return;
         this.monitorTransferProgress();
 
         switch (this._state) {
@@ -102,13 +111,15 @@ export class CornHauler extends Component {
     }
 
     public recoverAfterSceneTransition(): void {
-        if (!this.collectionPoint || !this.collectionStorage || !this.sellStorage || !this.carryStorage) return;
+        if (!this.hasValidFieldBindings()
+            || !this.collectionStorage || !this.sellStorage || !this.carryStorage) return;
         this.collectionStorage.recoverInterruptedTransfers();
         this.carryStorage.recoverInterruptedTransfers();
         this.sellStorage.recoverInterruptedTransfers();
         this._transferTimer = 0;
         this.resetTransferWatchdog();
         this.resetTransferProgressMonitor();
+        this.resetMovementWatchdog();
 
         if (this.carryStorage.amount > 0) {
             this._state = CornHaulerState.Delivering;
@@ -166,21 +177,12 @@ export class CornHauler extends Component {
     }
 
     private monitorTransferProgress(): void {
-        let from: CornTransferStorage | null = null;
-        let to: CornTransferStorage | null = null;
-        let completedState: CornHaulerState | null = null;
-        if (this._state === CornHaulerState.Loading) {
-            from = this.collectionStorage;
-            to = this.carryStorage;
-            completedState = CornHaulerState.Delivering;
-        } else if (this._state === CornHaulerState.Unloading) {
-            from = this.carryStorage;
-            to = this.sellStorage;
-            completedState = CornHaulerState.Returning;
-        } else {
+        if (this._state !== CornHaulerState.Loading && this._state !== CornHaulerState.Unloading) {
             this.resetTransferProgressMonitor();
             return;
         }
+        const from = this._state === CornHaulerState.Loading ? this.collectionStorage : this.carryStorage;
+        const to = this._state === CornHaulerState.Loading ? this.carryStorage : this.sellStorage;
 
         const now = Date.now();
         if (this._monitoredState !== this._state) {
@@ -196,13 +198,8 @@ export class CornHauler extends Component {
             this._lastTransferProgressAt = now;
             return;
         }
-        if (now - this._lastTransferProgressAt < Math.max(this.transferStallTimeout, 0.7) * 1000) return;
-        from.recoverInterruptedTransfers();
-        to.recoverInterruptedTransfers();
-        this._transferTimer = 0;
-        this.resetTransferWatchdog();
-        if (from.amount === 0 || (this._state === CornHaulerState.Loading && to.amount > 0)) this._state = completedState;
-        this.resetTransferProgressMonitor();
+        if (now - this._lastTransferProgressAt < Math.max(this.routeStallResetSeconds, 0.05) * 1000) return;
+        this.resetStalledRouteInPlace();
     }
 
     private isAtSellTarget(): boolean {
@@ -230,15 +227,79 @@ export class CornHauler extends Component {
         const distance = direction.length();
         const stop = Math.max(stopDistance, 0.05);
         if (distance <= stop) {
+            this.resetMovementWatchdog();
             this.playIdleAnimation();
             this.faceTowardsDirection(direction);
             return true;
+        }
+        if (this.recoverStalledMovement(flattenedTarget, distance, deltaTime)) {
+            this.playIdleAnimation();
+            return false;
         }
         this.playRunAnimation();
         direction.normalize();
         this.node.setWorldPosition(current.add(direction.multiplyScalar(Math.min(this.moveSpeed * deltaTime, distance - stop))));
         this.faceTowardsDirection(direction);
         return false;
+    }
+
+    private hasValidFieldBindings(): boolean {
+        const valid = !!this.homeFieldRoot?.isValid
+            && this.belongsToHomeField(this.collectionPoint)
+            && this.belongsToHomeField(this.sellPoint)
+            && this.belongsToHomeField(this.idlePoint);
+        if (!valid && !this._reportedInvalidFieldBinding) {
+            console.error('CornHauler: collection, sell, and idle points must belong to the same corn field.');
+            this._reportedInvalidFieldBinding = true;
+        }
+        return valid;
+    }
+
+    private belongsToHomeField(node: Node | null): boolean {
+        for (let current = node; current; current = current.parent) {
+            if (current === this.homeFieldRoot) return true;
+        }
+        return false;
+    }
+
+    /**
+     * Keep the same progress detection as the forest hauler.  A stalled
+     * corn route resets only its watchdog in place, so it never picks up an
+     * anchor from another area's coordinates.
+     */
+    private recoverStalledMovement(targetPosition: Vec3, distance: number, deltaTime: number): boolean {
+        const targetChanged = !Number.isFinite(this._lastMoveTarget.x)
+            || Vec3.distance(this._lastMoveTarget, targetPosition) > 0.01;
+        if (targetChanged) {
+            this._lastMoveTarget.set(targetPosition);
+            this._lastMoveDistance = distance;
+            this._moveStallTimer = 0;
+            return false;
+        }
+        if (distance < this._lastMoveDistance - 0.01) {
+            this._lastMoveDistance = distance;
+            this._moveStallTimer = 0;
+            return false;
+        }
+
+        this._lastMoveDistance = distance;
+        this._moveStallTimer += Math.max(0, deltaTime);
+        if (this._moveStallTimer < Math.max(this.routeStallResetSeconds, 0.05)) return false;
+
+        this.resetStalledRouteInPlace();
+        return true;
+    }
+
+    private resetStalledRouteInPlace(): void {
+        const currentPosition = this.node.worldPosition.clone();
+        this.recoverAfterSceneTransition();
+        this.node.setWorldPosition(currentPosition);
+    }
+
+    private resetMovementWatchdog(): void {
+        this._moveStallTimer = 0;
+        this._lastMoveDistance = Number.POSITIVE_INFINITY;
+        this._lastMoveTarget.set(Number.NaN, Number.NaN, Number.NaN);
     }
 
     private onApplicationShow(): void { this.recoverAfterSceneTransition(); }

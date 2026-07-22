@@ -23,7 +23,7 @@ export type CornUnlockPadConfig = {
 export class CornUnlockPad extends Component {
     @property public cost = 0;
     @property public coinsPerTick = 5;
-    @property public consumeInterval = 0.2;
+    @property public consumeInterval = 0.1;
     @property public interactionRadius = 1.6;
 
     private _player: Node | null = null;

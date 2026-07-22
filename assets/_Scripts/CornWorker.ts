@@ -142,6 +142,10 @@ export class CornWorker extends Component {
             currentPosition.y,
         );
         const targetPosition = new Vec3(standPosition.x, standPosition.y, standPosition.z);
+        // The worker can spawn directly inside chop range. Face the crop before
+        // the range branch so first-frame and lane-reversal chops cannot retain
+        // a stale prefab/previous-target rotation.
+        this.faceTarget(this.getTargetPosition(this._currentTarget));
         if (Vec3.distance(currentPosition, targetPosition) <= this.chopRange) {
             this._currentState = CornWorkerState.Chopping;
             this.startChopping();
@@ -156,7 +160,6 @@ export class CornWorker extends Component {
         );
         const newPosition = new Vec3(nextPosition.x, nextPosition.y, nextPosition.z);
         this.node.setPosition(newPosition);
-        this.faceTarget(this.getTargetPosition(this._currentTarget));
     }
 
     private handleChoppingState(): void {
@@ -257,6 +260,7 @@ export class CornWorker extends Component {
 
     private startChopping(): void {
         if (!this._currentTarget) return;
+        this.faceTarget(this.getTargetPosition(this._currentTarget));
         this._isChopping = true;
         void this.playAndRegisterChop();
     }
@@ -282,6 +286,13 @@ export class CornWorker extends Component {
         this._direction = 1;
         this._isCycleActive = false;
         this._currentState = CornWorkerState.Idle;
+
+        // ResourceFieldSystem configures workers while they are inactive, then
+        // reveals them. Set the correct first-frame rotation before activation.
+        const firstAvailable = this._targetList.find(target => this.canChopTarget(target));
+        if (firstAvailable) {
+            this.faceTarget(this.getTargetPosition(firstAvailable));
+        }
     }
 
     public pauseAutoHarvest(): void {

@@ -25102,7 +25102,7 @@
     "_isTrimmedMode": true,
     "_useGrayscale": false,
     "_atlas": null,
-    "_id": "3djxeq2hZA57aITT3NRLZt"
+    "_id": "33PkewNt5JMJnYKX75ptS+"
   },
   {
     "__type__": "cc.Node",
@@ -25157,7 +25157,7 @@
       "y": 0,
       "z": 0
     },
-    "_id": "85HGbVRHVHaaxC1qXvyoK7"
+    "_id": "20WVBmi8xAnrBpRlHFT+7H"
   },
   {
     "__type__": "cc.Node",
@@ -25185,7 +25185,7 @@
       "x": 0.5,
       "y": 0.5
     },
-    "_id": "9a4Xccw3dM+62eqx8+85hM"
+    "_id": "692dPfLxxE04Xgn1VX0cgc"
   },
   {
     "__type__": "cc.CompPrefabInfo",
@@ -25203,7 +25203,7 @@
     "__prefab": {
       "__id__": 1676
     },
-    "_id": "8d9hJHj9pPeb8RzYPJWCI3"
+    "_id": "92P6LRoIhEeLD+C0up3T4t"
   },
   {
     "__type__": "cc.CompPrefabInfo",
@@ -25314,7 +25314,7 @@
     "_isTrimmedMode": true,
     "_useGrayscale": false,
     "_atlas": null,
-    "_id": "2cWbNVOxhIcLUKZSWXVhFG"
+    "_id": "e6nzhYq19DmLdSbSBsQdSg"
   },
   {
     "__type__": "cc.Node",
@@ -25369,7 +25369,7 @@
       "y": 0,
       "z": 0
     },
-    "_id": "ebFrP/m2lEHrWwDzEO9n/f"
+    "_id": "959iXbfLVH3ItauXoOihWv"
   },
   {
     "__type__": "cc.Node",
@@ -25397,7 +25397,7 @@
       "x": 0.5,
       "y": 0.5
     },
-    "_id": "bdZu1+gGdAxYwrrLsYenCV"
+    "_id": "d1zd/sTQROrKQ8vrsokdC+"
   },
   {
     "__type__": "cc.CompPrefabInfo",
@@ -25415,7 +25415,7 @@
     "__prefab": {
       "__id__": 1687
     },
-    "_id": "35EPKalgNO3pJoH2Mtxr2e"
+    "_id": "dfiGISW1xDMbI4rk2NqEhW"
   },
   {
     "__type__": "cc.CompPrefabInfo",
@@ -30963,7 +30963,7 @@
         "__expectedType__": "cc.Texture2D"
       }
     ],
-    "customerModelScale": 1,
+    "customerModelScale": 1.1,
     "customerModelYaw": 180,
     "_id": "B6H/tewMo4kdBsYo1DVK0g"
   },
@@ -32598,7 +32598,7 @@
     "_isTrimmedMode": true,
     "_useGrayscale": false,
     "_atlas": null,
-    "_id": "0fLGUaLC1JHYUbxzSOmkXa"
+    "_id": "26SU5J1qBO3ZFls0r8WiJI"
   },
   {
     "__type__": "cc.Node",
@@ -32653,7 +32653,7 @@
       "y": 0,
       "z": 0
     },
-    "_id": "b6473M275O/5l7OdWpe5us"
+    "_id": "49J3rmUP5IuJW1mtc2J+HL"
   },
   {
     "__type__": "cc.Node",
@@ -32681,7 +32681,7 @@
       "x": 0.5,
       "y": 0.5
     },
-    "_id": "53lKL19OZK0LsB+q6qMOnk"
+    "_id": "87SFmTG6BPELPM1sETP1vU"
   },
   {
     "__type__": "cc.CompPrefabInfo",
@@ -32699,7 +32699,7 @@
     "__prefab": {
       "__id__": 2060
     },
-    "_id": "eeCf0r9vFEjZiICQv4GkWV"
+    "_id": "8a+rfA2ttNEK20lZI0gP2k"
   },
   {
     "__type__": "cc.CompPrefabInfo",
@@ -37454,7 +37454,7 @@
         "__expectedType__": "cc.Texture2D"
       }
     ],
-    "customerModelScale": 1,
+    "customerModelScale": 1.1,
     "customerModelYaw": 180,
     "_id": "u4MGHSj3ppKQLigz82q/3g"
   },
@@ -39089,7 +39089,7 @@
     "_isTrimmedMode": true,
     "_useGrayscale": false,
     "_atlas": null,
-    "_id": "17YZeWaPlG8J/+d2BuYOhr"
+    "_id": "9cPVFbVDRGk6ZwGRxnT1ks"
   },
   {
     "__type__": "cc.Node",
@@ -39144,7 +39144,7 @@
       "y": 0,
       "z": 0
     },
-    "_id": "35s78O1VJK0IyOsHZFDCMz"
+    "_id": "14Wl45dfpKIpDbJkyIG3pU"
   },
   {
     "__type__": "cc.Node",
@@ -39172,7 +39172,7 @@
       "x": 0.5,
       "y": 0.5
     },
-    "_id": "d4S/LUalhGVIQKPk81vakl"
+    "_id": "bcL3NW1wlI/o6NDegNkCD4"
   },
   {
     "__type__": "cc.CompPrefabInfo",
@@ -39190,7 +39190,7 @@
     "__prefab": {
       "__id__": 2384
     },
-    "_id": "7e/n5vdsJE75mhYr0VUgGx"
+    "_id": "92x/LxG5FJOryQUzVuxpfi"
   },
   {
     "__type__": "cc.CompPrefabInfo",
@@ -39793,7 +39793,7 @@
     "harvestRadius": 2.2,
     "sellRadius": 2.6,
     "coinsPerTick": 5,
-    "consumeInterval": 0.2,
+    "consumeInterval": 0.1,
     "workerChopRange": 0.7,
     "workerWaitAfterChop": 0.2,
     "workerStartDelay": 1,
@@ -39832,7 +39832,7 @@
     "playerCoinBackpack": {
       "__id__": 216
     },
-    "collectInterval": 0.05,
+    "collectInterval": 0.035,
     "coinsPerCollection": 1,
     "collectAnimationTime": 0.05,
     "coinFlyHeight": 2,
@@ -47230,7 +47230,7 @@
         "__expectedType__": "cc.Texture2D"
       }
     ],
-    "customerModelScale": 1,
+    "customerModelScale": 1.1,
     "customerModelYaw": 180,
     "_id": "ffIOT4zy8zZoi/6zcHhu1w"
   },
