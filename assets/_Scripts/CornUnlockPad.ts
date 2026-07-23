@@ -66,8 +66,10 @@ export class CornUnlockPad extends Component {
         if (this._progress < this.cost) return;
 
         this._completed = true;
+        const onCompleted = this._onCompleted;
+        this._onCompleted = null;
         this.enabled = false;
-        this._onCompleted?.();
+        onCompleted?.();
     }
 
     private consumeCoins(): number {

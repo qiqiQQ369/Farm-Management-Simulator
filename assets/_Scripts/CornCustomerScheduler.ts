@@ -83,6 +83,7 @@ export class CornCustomerScheduler extends Component {
     private readonly _activeDeparted = new Set<Node>();
     private readonly _runningTweens = new Map<Node, Tween<Node>>();
     private _resolvedSellStoragePoint: CornStoragePoint | null = null;
+    private _boundSellStoragePoint: CornStoragePoint | null = null;
     private _fillTipTargetNpc: Node | null = null;
     private readonly _fillTipOffset = new Vec3();
     private readonly _fillTipWorldPosition = new Vec3();
@@ -91,7 +92,9 @@ export class CornCustomerScheduler extends Component {
     private _reportedMissingCoinStorage = false;
 
     protected onEnable(): void {
-        this._resolvedSellStoragePoint = null;
+        this._resolvedSellStoragePoint = this.isValidStorage(this._boundSellStoragePoint)
+            ? this._boundSellStoragePoint
+            : null;
         this.ensureLocalCoinDropArea();
         this.prepareNpcCarryStorages();
         this.prepareNpcCompletionEmojis();
@@ -124,6 +127,20 @@ export class CornCustomerScheduler extends Component {
 
     private prepareNpcCarryStorages(): void {
         for (const npc of this.npcs) this.ensureNpcCarryStorage(npc);
+    }
+
+    /**
+     * ResourceFieldSystem owns the corn sell storage. Bind it before this
+     * scheduler node is activated so Web Release never has to discover a
+     * dynamically-created component by name or component shape.
+     */
+    public bindSellStorage(storage: CornStoragePoint): void {
+        this._boundSellStoragePoint = storage;
+        this._resolvedSellStoragePoint = storage;
+    }
+
+    private isValidStorage(storage: CornStoragePoint | null): storage is CornStoragePoint {
+        return !!storage?.node?.isValid;
     }
 
     private prepareNpcCompletionEmojis(): void {
@@ -300,7 +317,8 @@ export class CornCustomerScheduler extends Component {
     }
 
     private resolveSellStoragePoint(): CornStoragePoint | null {
-        if (this._resolvedSellStoragePoint?.node?.isValid) return this._resolvedSellStoragePoint;
+        if (this.isValidStorage(this._boundSellStoragePoint)) return this._boundSellStoragePoint;
+        if (this.isValidStorage(this._resolvedSellStoragePoint)) return this._resolvedSellStoragePoint;
         this._resolvedSellStoragePoint = this.findCornStoragePointInNode(this.resolveSellAnchor());
         if (!this._resolvedSellStoragePoint && !this._reportedMissingSellStorage) {
             console.error('CornCustomerScheduler: local Sell1 CornStoragePoint is missing.');

@@ -23,6 +23,7 @@ import { ChopAction } from './ChopAction';
 import { CameraController } from './CameraController';
 import { CoinBackpack } from './CoinBackpack';
 import { CornFieldProduction } from './CornFieldProduction';
+import { CornCustomerScheduler } from './CornCustomerScheduler';
 import { CornHauler } from './CornHauler';
 import { CornHaulerBackpack } from './CornHaulerBackpack';
 import { CornPickupDetector } from './CornPickupDetector';
@@ -527,6 +528,7 @@ export class ResourceFieldSystem extends Component {
         vehicleUnlockPoint.active = false;
         haulerUnlockPoint.active = false;
         const sellStorage = this.ensureSellStorage(sellNode, id);
+        this.bindCornCustomerScheduler(root, sellStorage);
         const cropRoot = root.children[0] ?? null;
         if (!cropRoot || !this._player || !this._resourceBackpack) {
             console.error(`ResourceFieldSystem: ${id} disabled; crop root or player resource binding is missing.`);
@@ -741,7 +743,7 @@ export class ResourceFieldSystem extends Component {
 
         const cost = stage === 'worker' ? field.workerCost : stage === 'vehicle' ? field.vehicleCost : field.haulerCost;
         const unlockPad = padNode.getComponent(CornUnlockPad) ?? padNode.addComponent(CornUnlockPad);
-        unlockPad.enabled = true;
+        unlockPad.enabled = false;
         if (this._player && this._coinBackpack) {
             unlockPad.configure({
                 player: this._player,
@@ -752,6 +754,7 @@ export class ResourceFieldSystem extends Component {
                 consumeInterval: this.consumeInterval,
                 onCompleted: () => this.completeUnlockStage(field, stage),
             });
+            unlockPad.enabled = true;
         }
         field.unlockPad = unlockPad;
     }
@@ -1119,7 +1122,7 @@ export class ResourceFieldSystem extends Component {
 
         const pickupDetector = collectionStorage.node.getComponent(CornPickupDetector)
             ?? collectionStorage.node.addComponent(CornPickupDetector);
-        pickupDetector.enabled = true;
+        pickupDetector.enabled = false;
         pickupDetector.configure({
             player: this._player!,
             backpack: this._resourceBackpack!,
@@ -1127,6 +1130,17 @@ export class ResourceFieldSystem extends Component {
             resourceId,
             collectionInterval: 0.1,
         });
+        pickupDetector.enabled = true;
+    }
+
+    private bindCornCustomerScheduler(root: Node, sellStorage: CornStoragePoint): void {
+        const schedulerNode = root.getChildByName('NPCScheduler-001');
+        const scheduler = schedulerNode?.getComponent(CornCustomerScheduler) ?? null;
+        if (!scheduler) {
+            console.error(`ResourceFieldSystem: ${root.name} CornCustomerScheduler is missing.`);
+            return;
+        }
+        scheduler.bindSellStorage(sellStorage);
     }
 
     private ensureSellStorage(sellNode: Node, resourceId: string): CornStoragePoint {

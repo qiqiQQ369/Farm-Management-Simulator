@@ -86,3 +86,38 @@ test('成功转移后源存放点释放节点所有权', () => {
     assert.match(customer, /targetStoragePoint\.finalizeResourceTransfer\(resource\)/);
     assert.match(customer, /if \(moved\)[\s\S]*?dropCoins/);
 });
+
+test('HTML 第二关在顾客节点激活前直接绑定本区域售卖库存', () => {
+    const fieldSystem = read('../assets/_Scripts/ResourceFieldSystem.ts');
+    const customer = read('../assets/_Scripts/CornCustomerScheduler.ts');
+    const createField = method(fieldSystem, 'createField', 'updatePlayerDeposit');
+
+    assertOrder(
+        createField,
+        'const sellStorage = this.ensureSellStorage(sellNode, id)',
+        'this.bindCornCustomerScheduler(root, sellStorage)',
+    );
+    assert.match(fieldSystem, /scheduler\.bindSellStorage\(sellStorage\)/);
+    assert.match(customer, /public bindSellStorage\(storage: CornStoragePoint\): void/);
+    assert.match(
+        customer,
+        /if \(this\.isValidStorage\(this\._boundSellStoragePoint\)\) return this\._boundSellStoragePoint/,
+    );
+});
+
+test('HTML 第二关动态交互组件全部先配置再启用', () => {
+    const fieldSystem = read('../assets/_Scripts/ResourceFieldSystem.ts');
+    const unlock = method(fieldSystem, 'showUnlockStage', 'alignUnlockVisualToCornGround');
+    const pickup = method(fieldSystem, 'configureCollectionPickup', 'bindCornCustomerScheduler');
+    const unlockPad = read('../assets/_Scripts/CornUnlockPad.ts');
+
+    assertOrder(unlock, 'unlockPad.enabled = false', 'unlockPad.configure({', 'unlockPad.enabled = true');
+    assertOrder(pickup, 'pickupDetector.enabled = false', 'pickupDetector.configure({', 'pickupDetector.enabled = true');
+    assertOrder(
+        unlockPad,
+        'const onCompleted = this._onCompleted',
+        'this._onCompleted = null',
+        'this.enabled = false',
+        'onCompleted?.()',
+    );
+});
