@@ -17,7 +17,7 @@ export class NPCScheduler extends Component {
     @property({ type: Node})
     fillTip: Node = null!;
     @property({ group: { name: '参数' }, tooltip: '购买提示框相对 NPC 头顶的高度偏移' })
-    fillTipHeadOffsetY: number = 2.1;
+    fillTipHeadOffsetY: number = 2.4;
 
     @property({ type: Prefab, group: { name: '金币预制件' } })
     coinPrefab: Prefab = null!;
@@ -223,7 +223,6 @@ export class NPCScheduler extends Component {
         this.loadingAtB = null;
         this.bReserved = false;
         this.tryDispatchFromAToB();
-        this.playLoadMove(npc);
         // B->C->D->Start：每段移动前朝向目标
         this.moveTo(npc, this.pointC, () => {
             this.moveTo(npc, this.pointD, () => {
@@ -233,9 +232,9 @@ export class NPCScheduler extends Component {
                     this.playIdle(npc);
                     this.enqueueAtStart(npc);
                     // npc.getComponentInChildren(StoragePoint).clearStorage();
-                });
-            });
-        });
+                }, true);
+            }, true);
+        }, true);
     }
 
     private moveChain(npc: Node, points: Node[], onComplete?: () => void): void {
@@ -250,13 +249,18 @@ export class NPCScheduler extends Component {
         this.playTween(npc, target, t, () => this.moveChain(npc, rest, onComplete));
     }
 
-    private moveTo(npc: Node, targetNode: Node, onComplete?: () => void): void {
+    private moveTo(
+        npc: Node,
+        targetNode: Node,
+        onComplete?: () => void,
+        carrying = false,
+    ): void {
         const target = targetNode.worldPosition.clone();
         const dist = Vec3.distance(npc.worldPosition, target);
         const t = dist / Math.max(this.moveSpeed, 0.01);
         // 移动前朝向目标
         this.faceTarget(npc, target);
-        this.playTween(npc, target, t, onComplete);
+        this.playTween(npc, target, t, onComplete, carrying);
     }
 
     private moveToPosition(npc: Node, target: Vec3, onComplete?: () => void): void {
@@ -282,10 +286,16 @@ export class NPCScheduler extends Component {
         });
     }
 
-    private playTween(npc: Node, target: Vec3, duration: number, onComplete?: () => void): void {
+    private playTween(
+        npc: Node,
+        target: Vec3,
+        duration: number,
+        onComplete?: () => void,
+        carrying = false,
+    ): void {
         this.stopTween(npc);
         // 播放移动动画
-        this.playMove(npc);
+        carrying ? this.playLoadMove(npc) : this.playMove(npc);
         const tw = tween(npc).to(duration, { worldPosition: target }).call(() => {
             this.runningTweens.delete(npc);
             if (onComplete) {

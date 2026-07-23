@@ -44,7 +44,7 @@ export class HaulerNPC extends Component {
     public transferInterval = 0.15;
 
     @property
-    public collectionStopDistance = 1.1;
+    public collectionStopDistance = 1.8;
 
     @property
     public sellStopDistance = 0.2;
@@ -55,6 +55,9 @@ export class HaulerNPC extends Component {
     @property({ tooltip: 'Seconds without a movable resource before repairing an interrupted stack transfer.' })
     public transferStallTimeout = 1.5;
 
+    @property({ tooltip: 'Seconds without movement before retrying the current route in place.' })
+    public routeStallResetSeconds = 0.5;
+
     private _state = HaulerState.WaitingForWood;
     private _transferTimer = 0;
     private _isMoving = false;
@@ -64,6 +67,9 @@ export class HaulerNPC extends Component {
     private _monitoredFromAmount = -1;
     private _monitoredToAmount = -1;
     private _lastTransferProgressAt = 0;
+    private _moveStallTimer = 0;
+    private _lastMoveDistance = Number.POSITIVE_INFINITY;
+    private readonly _lastMoveTarget = new Vec3(Number.NaN, Number.NaN, Number.NaN);
 
     protected onLoad(): void {
         if (!this.skeletonAnimation) {
@@ -78,6 +84,7 @@ export class HaulerNPC extends Component {
         this._isMoving = false;
         this.resetTransferWatchdog();
         this.resetTransferProgressMonitor();
+        this.resetMovementWatchdog();
         if (this.idlePoint) {
             const spawnPosition = this.idlePoint.worldPosition.clone();
             spawnPosition.y = this.node.worldPosition.y;
@@ -165,6 +172,7 @@ export class HaulerNPC extends Component {
         this._transferTimer = 0;
         this.resetTransferWatchdog();
         this.resetTransferProgressMonitor();
+        this.resetMovementWatchdog();
 
         if (this.carryStorage.amount > 0) {
             this._state = HaulerState.Delivering;
@@ -260,26 +268,16 @@ export class HaulerNPC extends Component {
     }
 
     /**
-     * Detects a transfer phase whose inventory counts stop changing even when
-     * stale dictionary entries still claim that a resource is movable.
+     * Detect a transfer phase whose inventory counts stop changing and rebuild
+     * the complete route state, matching a browser hide/show recovery.
      */
     private monitorTransferProgress(): void {
-        let from: StoragePoint | null = null;
-        let to: StoragePoint | null = null;
-        let completedState: HaulerState | null = null;
-
-        if (this._state === HaulerState.Loading) {
-            from = this.collectionStorage;
-            to = this.carryStorage;
-            completedState = HaulerState.Delivering;
-        } else if (this._state === HaulerState.Unloading) {
-            from = this.carryStorage;
-            to = this.sellStorage;
-            completedState = HaulerState.Returning;
-        } else {
+        if (this._state !== HaulerState.Loading && this._state !== HaulerState.Unloading) {
             this.resetTransferProgressMonitor();
             return;
         }
+        const from = this._state === HaulerState.Loading ? this.collectionStorage : this.carryStorage;
+        const to = this._state === HaulerState.Loading ? this.carryStorage : this.sellStorage;
 
         const now = Date.now();
         if (this._monitoredState !== this._state) {
@@ -297,20 +295,12 @@ export class HaulerNPC extends Component {
             return;
         }
 
-        const timeoutMs = Math.max(this.transferStallTimeout, 0.7) * 1000;
+        const timeoutMs = Math.max(this.routeStallResetSeconds, 0.05) * 1000;
         if (now - this._lastTransferProgressAt < timeoutMs) {
             return;
         }
 
-        from.recoverInterruptedTransfers();
-        to.recoverInterruptedTransfers();
-        this._transferTimer = 0;
-        this.resetTransferWatchdog();
-
-        if (from.amount === 0 || (this._state === HaulerState.Loading && to.amount > 0)) {
-            this._state = completedState;
-        }
-        this.resetTransferProgressMonitor();
+        this.resetStalledRouteInPlace();
     }
 
     private resetTransferProgressMonitor(): void {
@@ -351,9 +341,15 @@ export class HaulerNPC extends Component {
         const distance = direction.length();
         const clampedStopDistance = Math.max(stopDistance, 0.05);
         if (distance <= clampedStopDistance) {
+            this.resetMovementWatchdog();
             this.playIdleAnimation();
             this.faceTowardsDirection(direction);
             return true;
+        }
+
+        if (this.recoverStalledMovement(flattenedTarget, distance, deltaTime)) {
+            this.playIdleAnimation();
+            return false;
         }
 
         this.playRunAnimation();
@@ -368,6 +364,42 @@ export class HaulerNPC extends Component {
         this.node.setWorldPosition(currentPosition.add(direction.multiplyScalar(moveDistance)));
         this.faceTowardsDirection(direction);
         return false;
+    }
+
+    private recoverStalledMovement(targetPosition: Vec3, distance: number, deltaTime: number): boolean {
+        const targetChanged = !Number.isFinite(this._lastMoveTarget.x)
+            || Vec3.distance(this._lastMoveTarget, targetPosition) > 0.01;
+        if (targetChanged) {
+            this._lastMoveTarget.set(targetPosition);
+            this._lastMoveDistance = distance;
+            this._moveStallTimer = 0;
+            return false;
+        }
+
+        if (distance < this._lastMoveDistance - 0.01) {
+            this._lastMoveDistance = distance;
+            this._moveStallTimer = 0;
+            return false;
+        }
+
+        this._lastMoveDistance = distance;
+        this._moveStallTimer += Math.max(0, deltaTime);
+        if (this._moveStallTimer < Math.max(this.routeStallResetSeconds, 0.05)) return false;
+
+        this.resetStalledRouteInPlace();
+        return true;
+    }
+
+    private resetStalledRouteInPlace(): void {
+        const currentPosition = this.node.worldPosition.clone();
+        this.recoverAfterSceneTransition();
+        this.node.setWorldPosition(currentPosition);
+    }
+
+    private resetMovementWatchdog(): void {
+        this._moveStallTimer = 0;
+        this._lastMoveDistance = Number.POSITIVE_INFINITY;
+        this._lastMoveTarget.set(Number.NaN, Number.NaN, Number.NaN);
     }
 
     private faceTowardsDirection(direction: Vec3): void {

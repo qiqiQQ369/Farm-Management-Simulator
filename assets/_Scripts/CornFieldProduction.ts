@@ -1,9 +1,11 @@
 import {
     _decorator,
+    Animation,
     Component,
     instantiate,
     Node,
     Prefab,
+    Renderer,
     tween,
     Tween,
     Vec3,
@@ -382,8 +384,8 @@ export class CornFieldProduction extends Component {
     private disableLegacyGameplayComponents(root: Node): void {
         const visit = (node: Node): void => {
             for (const component of node.components) {
-                const className = component.constructor.name;
-                const keepEnabled = className.includes('Animation') || className.includes('Renderer');
+                const keepEnabled = component instanceof Animation
+                    || component instanceof Renderer;
                 if (!keepEnabled) component.enabled = false;
             }
             for (const child of node.children) visit(child);

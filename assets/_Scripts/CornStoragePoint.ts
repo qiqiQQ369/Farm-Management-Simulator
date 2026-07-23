@@ -1,4 +1,5 @@
-import { _decorator, AudioSource, Component, Node, Quat, tween, Vec3 } from 'cc';
+import { _decorator, AudioSource, Component, Node, Quat, Tween, tween, Vec3 } from 'cc';
+import { restoreCornVisualHierarchy } from './CornVisualState';
 
 const { ccclass, property } = _decorator;
 
@@ -48,6 +49,8 @@ export class CornStoragePoint extends Component {
 
     public addResource(resource: Node, animationType = 1, rotation: Vec3 = Vec3.ZERO): boolean {
         if (!resource?.isValid || !this.hasSpace(1)) return false;
+        Tween.stopAllByTarget(resource);
+        restoreCornVisualHierarchy(resource);
 
         const index = this.takeFirstRemovedIndex() ?? this.amount;
         const position = this.calculateStackPosition(index);
@@ -183,7 +186,18 @@ export class CornStoragePoint extends Component {
         this._resources.delete(key);
         this._removed.set(key, stored);
         this.amount = Math.max(0, this.amount - 1);
+        Tween.stopAllByTarget(stored.node);
+        restoreCornVisualHierarchy(stored.node);
         return stored.node;
+    }
+
+    public finalizeResourceTransfer(resource: Node): void {
+        for (const [key, stored] of this._removed) {
+            if (stored.node === resource) {
+                this._removed.delete(key);
+                return;
+            }
+        }
     }
 
     public hasMovableResource(): boolean {
@@ -198,6 +212,8 @@ export class CornStoragePoint extends Component {
 
         resources.forEach((resource, index) => {
             const position = this.calculateStackPosition(index);
+            Tween.stopAllByTarget(resource);
+            restoreCornVisualHierarchy(resource);
             resource.setParent(stackArea);
             resource.setPosition(position);
             resource.setRotationFromEuler(Vec3.ZERO);
@@ -220,6 +236,8 @@ export class CornStoragePoint extends Component {
         }
         this._removed.set(key, stored);
         this.amount = Math.max(0, this.amount - 1);
+        Tween.stopAllByTarget(stored.node);
+        restoreCornVisualHierarchy(stored.node);
         return stored.node;
     }
 

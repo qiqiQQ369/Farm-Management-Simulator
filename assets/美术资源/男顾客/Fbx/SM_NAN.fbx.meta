@@ -53,13 +53,82 @@
       "uuid": "5e1288d1-37ad-47aa-b898-4b5358220379@73b7f",
       "displayName": "",
       "id": "73b7f",
-      "name": "Take 001.animation",
+      "name": "idle.animation",
       "userData": {
         "gltfIndex": 0,
         "wrapMode": 2,
         "sample": 30,
         "span": {
           "from": 0,
+          "to": 1.6666666666666667
+        },
+        "events": []
+      },
+      "ver": "1.0.17",
+      "imported": true,
+      "files": [
+        ".cconb"
+      ],
+      "subMetas": {}
+    },
+    "a11d0": {
+      "importer": "gltf-animation",
+      "uuid": "5e1288d1-37ad-47aa-b898-4b5358220379@a11d0",
+      "displayName": "",
+      "id": "a11d0",
+      "name": "walk.animation",
+      "userData": {
+        "gltfIndex": 0,
+        "wrapMode": 2,
+        "sample": 30,
+        "span": {
+          "from": 2,
+          "to": 3.1666666666666665
+        },
+        "events": []
+      },
+      "ver": "1.0.17",
+      "imported": true,
+      "files": [
+        ".cconb"
+      ],
+      "subMetas": {}
+    },
+    "b22d0": {
+      "importer": "gltf-animation",
+      "uuid": "5e1288d1-37ad-47aa-b898-4b5358220379@b22d0",
+      "displayName": "",
+      "id": "b22d0",
+      "name": "idle2_NaHeZi.animation",
+      "userData": {
+        "gltfIndex": 0,
+        "wrapMode": 2,
+        "sample": 30,
+        "span": {
+          "from": 3.5,
+          "to": 5.166666666666667
+        },
+        "events": []
+      },
+      "ver": "1.0.17",
+      "imported": true,
+      "files": [
+        ".cconb"
+      ],
+      "subMetas": {}
+    },
+    "c33d0": {
+      "importer": "gltf-animation",
+      "uuid": "5e1288d1-37ad-47aa-b898-4b5358220379@c33d0",
+      "displayName": "",
+      "id": "c33d0",
+      "name": "walk_NaHeZi.animation",
+      "userData": {
+        "gltfIndex": 0,
+        "wrapMode": 2,
+        "sample": 30,
+        "span": {
+          "from": 5.5,
           "to": 6.666666507720947
         },
         "events": []
@@ -158,11 +227,32 @@
         "fps": 30,
         "splits": [
           {
-            "name": "Take 001",
+            "name": "idle",
             "from": 0,
-            "to": 6.666666507720947,
+            "to": 1.6666666666666667,
             "wrapMode": 2,
             "previousId": "73b7f"
+          },
+          {
+            "name": "walk",
+            "from": 2,
+            "to": 3.1666666666666665,
+            "wrapMode": 2,
+            "previousId": "a11d0"
+          },
+          {
+            "name": "idle2_NaHeZi",
+            "from": 3.5,
+            "to": 5.166666666666667,
+            "wrapMode": 2,
+            "previousId": "b22d0"
+          },
+          {
+            "name": "walk_NaHeZi",
+            "from": 5.5,
+            "to": 6.666666507720947,
+            "wrapMode": 2,
+            "previousId": "c33d0"
           }
         ]
       }

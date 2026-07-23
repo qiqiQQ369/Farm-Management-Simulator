@@ -256,7 +256,7 @@ test('玉米金币使用独立库存和收集逻辑', () => {
     assert.doesNotMatch(collectorSource, /from\s*'\.\/CoinCollector'/);
     assert.doesNotMatch(collectorSource, /Resource\/StoragePoint|ResourceManager/);
     assert.match(collectorSource, /sourceStorage\.removeResource\(4\)/);
-    assert.match(collectorSource, /currentAmount \+ 5/);
+    assert.match(collectorSource, /currentAmount \+ delta/);
 
     assert.match(schedulerSource, /storage\.capacity = 54/);
     assert.match(schedulerSource, /dropArea\.addComponent\(CornCoinCollector\)/);

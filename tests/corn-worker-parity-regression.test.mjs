@@ -74,6 +74,43 @@ test('corn worker movement cannot step past its harvest stand position', () => {
     );
 });
 
+test('corn worker always faces the current crop before entering the chop state', () => {
+    const workerMovement = cornWorkerSource.match(
+        /private async handleMovingState[\s\S]*?\n    private handleChoppingState/,
+    )?.[0] ?? '';
+    const faceIndex = workerMovement.indexOf(
+        'this.faceTarget(this.getTargetPosition(this._currentTarget))',
+    );
+    const rangeCheckIndex = workerMovement.indexOf(
+        'Vec3.distance(currentPosition, targetPosition) <= this.chopRange',
+    );
+
+    assert.ok(faceIndex >= 0, 'worker must explicitly face its crop');
+    assert.ok(rangeCheckIndex >= 0, 'movement state must keep the chop-range transition');
+    assert.ok(
+        faceIndex < rangeCheckIndex,
+        'spawned and reversing workers may already be in range, so facing must happen first',
+    );
+
+    const startChopping = cornWorkerSource.match(
+        /private startChopping[\s\S]*?\n    private onPlantHarvested/,
+    )?.[0] ?? '';
+    assert.match(
+        startChopping,
+        /this\.faceTarget\(this\.getTargetPosition\(this\._currentTarget\)\)/,
+        'the chop entry point must enforce facing as a final invariant',
+    );
+
+    const targetSetup = cornWorkerSource.match(
+        /public setHarvestTargets[\s\S]*?\n    public pauseAutoHarvest/,
+    )?.[0] ?? '';
+    assert.match(
+        targetSetup,
+        /firstAvailable[\s\S]*this\.faceTarget\(this\.getTargetPosition\(firstAvailable\)\)/,
+        'inactive worker must face its first crop before ResourceFieldSystem reveals it',
+    );
+});
+
 test('corn workers keep the player ground height while approaching crop roots', () => {
     assert.deepEqual(
         getCornHarvestStandPosition(
@@ -180,12 +217,12 @@ test('corn worker unlock uses the forest LOGGER presentation', () => {
         /private completeWorkerUnlock[\s\S]*?\n    private showUnlockStage/,
     )?.[0] ?? '';
 
-    assert.match(forestUnlockSource, /cameraController\.scheduleOnce\([\s\S]*?, 6\)/);
+    assert.match(forestUnlockSource, /cameraController\.scheduleOnce\([\s\S]*?, 3\)/);
     assert.match(workerUnlock, /scale: new Vec3\(0, 1, 0\)/);
     assert.match(workerUnlock, /this\.showUnlockStage\(field, 'vehicle', true\)/);
     assert.match(workerUnlock, /cameraController\.target = focusWorker/);
     assert.match(workerUnlock, /joystickController\._lock = true/);
-    assert.match(workerUnlock, /}, 6\)/);
+    assert.match(workerUnlock, /}, 3\)/);
 
     const showUnlockStage = source.match(
         /private showUnlockStage[\s\S]*?\n    private resolveUnlockVisual/,
@@ -193,6 +230,33 @@ test('corn worker unlock uses the forest LOGGER presentation', () => {
     assert.match(showUnlockStage, /animateEntrance/);
     assert.match(showUnlockStage, /const visualScale = stage === 'worker' \? 0\.9 : 0\.72/);
     assert.match(showUnlockStage, /scale: new Vec3\(visualScale, visualScale, visualScale\)/);
+});
+
+test('mobile worker unlock commits the paid pad before native worker creation', () => {
+    const workerUnlock = source.match(
+        /private completeWorkerUnlock[\s\S]*?\n    private completeVehicleUnlock/,
+    )?.[0] ?? '';
+
+    const spawnIndex = workerUnlock.indexOf('this.spawnWorkers(field)');
+    const advanceIndex = workerUnlock.indexOf("this.showUnlockStage(field, 'vehicle', true)");
+    assert.ok(spawnIndex >= 0, 'worker creation must still run');
+    assert.ok(advanceIndex >= 0, 'paid worker pad must advance to the vehicle stage');
+    assert.ok(
+        advanceIndex < spawnIndex,
+        'paid unlock state must be committed before mobile-native worker creation can fail',
+    );
+});
+
+test('mobile workers enter the scene only after physics and harvest setup completes', () => {
+    const workerSpawn = source.match(
+        /private spawnWorkers[\s\S]*?\n    private spawnVehicle/,
+    )?.[0] ?? '';
+
+    assert.match(workerSpawn, /this\.createActor\([\s\S]*?true,\s*false,?\s*\)/);
+    const targetSetupIndex = workerSpawn.indexOf('controller.setHarvestTargets');
+    const activateIndex = workerSpawn.lastIndexOf('actor.active = true');
+    assert.ok(targetSetupIndex >= 0);
+    assert.ok(activateIndex > targetSetupIndex, 'native physics actor must activate after target setup');
 });
 
 test('corn workers keep crop output isolated from forest wood storage', () => {

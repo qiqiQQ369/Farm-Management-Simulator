@@ -1,7 +1,8 @@
-import { _decorator, Component, instantiate, Node, Prefab, tween, Tween, Vec3 } from 'cc';
+import { _decorator, Animation, Component, instantiate, Node, Prefab, Renderer, tween, Tween, Vec3 } from 'cc';
 import { CoinBackpack } from './CoinBackpack';
 import { StoragePoint } from './Resource/StoragePoint';
 import { WoodBackpack } from './WoodBackpack';
+import { restoreCornVisualHierarchy } from './CornVisualState';
 
 const { ccclass, property } = _decorator;
 
@@ -130,6 +131,7 @@ export class MultiResourceBackpack extends Component {
 
         const item = instantiate(slot.prefab);
         this.disableLegacyGameplayComponents(item);
+        restoreCornVisualHierarchy(item);
         item.setParent(slot.mount);
 
         const targetPosition = this.calculatePosition(slot.items.length);
@@ -162,12 +164,18 @@ export class MultiResourceBackpack extends Component {
         if (slot.count >= this.maxVisibleItems) {
             const item = instantiate(slot.prefab);
             this.disableLegacyGameplayComponents(item);
+            restoreCornVisualHierarchy(item);
             item.setParent(slot.mount);
             item.setPosition(this.calculatePosition(this.maxVisibleItems - 1));
             return item;
         }
 
-        return slot.items.pop() ?? null;
+        const item = slot.items.pop() ?? null;
+        if (item?.isValid) {
+            Tween.stopAllByTarget(item);
+            restoreCornVisualHierarchy(item);
+        }
+        return item;
     }
 
     /**
@@ -255,8 +263,8 @@ export class MultiResourceBackpack extends Component {
     private disableLegacyGameplayComponents(root: Node): void {
         const visit = (node: Node): void => {
             for (const component of node.components) {
-                const className = component.constructor.name;
-                const keepEnabled = className.includes('Animation') || className.includes('Renderer');
+                const keepEnabled = component instanceof Animation
+                    || component instanceof Renderer;
                 if (!keepEnabled) {
                     component.enabled = false;
                 }

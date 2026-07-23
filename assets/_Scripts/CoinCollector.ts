@@ -19,7 +19,7 @@ export class CoinCollector extends Component {
     public playerCoinBackpack: CoinBackpack = null!;
     
     @property({ tooltip: "收集间隔时间（秒）" })
-    public collectInterval: number = 0.05;
+    public collectInterval: number = 0.035;
     
     @property({ tooltip: "每次收集数量" })
     public coinsPerCollection: number = 1;
@@ -51,12 +51,18 @@ export class CoinCollector extends Component {
 
     protected update(dt: number): void {
         this._collectTimer += dt;
+        const collectionInterval = Math.max(0.01, this.collectInterval);
 
-        if(!this._isPlayerInArea || this._collectTimer < this.collectInterval) return;
+        if(!this._isPlayerInArea || this._collectTimer < collectionInterval) return;
 
-        this._collectTimer = 0;
+        // Preserve the elapsed remainder instead of resetting to zero. This
+        // keeps one-note pickup cadence even when frame durations fluctuate.
+        this._collectTimer = Math.min(
+            this._collectTimer - collectionInterval,
+            collectionInterval,
+        );
 
-        this.collectCoin();
+        this.collectCoins();
     }
 
     /**
@@ -162,32 +168,43 @@ export class CoinCollector extends Component {
     //     }
     // }
 
-    private collectCoin(): void {
-        
-        const coins = this.coinLoadArea.children;
-        if(coins.length == 0) return;
+    private collectCoins(): void {
+        if (!this.coinLoadArea || !this.playerCoinBackpack?.coinBackpackMount) return;
 
-        var coinAmount = find('Canvas/CoinLabel/coinAmount');
+        const storagePoint = this.playerCoinBackpack.coinBackpackMount.getComponent(StoragePoint);
+        const coinStoragePoint = this.node.getComponent(StoragePoint);
+        if (!storagePoint || !coinStoragePoint) return;
 
-        var storagePoint = this.playerCoinBackpack.coinBackpackMount.getComponent(StoragePoint);
-        var coinStoragePoint = this.node.getComponent(StoragePoint);
-
-        var coin = coins[coins.length - 1];
-
-        coinStoragePoint.amount = coins.length - 1;
-
-        if(ResourceManager.tweenDicCoin.has(coin)) {
-            ResourceManager.tweenDicCoin.get(coin).call(() =>{
-                storagePoint.addResource(coin, 4, new Vec3(0, 0, 360), false);
-                var coinAmountLabel = coinAmount.getComponent(Label);
-                coinAmountLabel.string = (parseInt(coinAmountLabel.string) + 5).toString();
-            });
+        let collectedCount = 0;
+        const batchSize = Math.max(1, Math.floor(this.coinsPerCollection));
+        for (let index = 0; index < batchSize; index++) {
+            const coin = this.findReadyCoin();
+            if (!coin) break;
+            if (!storagePoint.addResource(coin, 4, new Vec3(0, 0, 360), false)) break;
+            collectedCount++;
         }
-        else {
-            storagePoint.addResource(coin, 4, new Vec3(0, 0, 360), false);
-            var coinAmountLabel = coinAmount.getComponent(Label);
-            coinAmountLabel.string = (parseInt(coinAmountLabel.string) + 5).toString();
+
+        if (collectedCount === 0) return;
+        coinStoragePoint.amount = this.coinLoadArea.children.length;
+        this.updateCoinLabel(collectedCount * 5);
+    }
+
+    private findReadyCoin(): Node | null {
+        for (let index = this.coinLoadArea.children.length - 1; index >= 0; index--) {
+            const coin = this.coinLoadArea.children[index];
+            if (!coin?.isValid) continue;
+            if (ResourceManager.tweenDicCoin.has(coin)) continue;
+            if (coin.scale.lengthSqr() < 2.7) continue;
+            return coin;
         }
+        return null;
+    }
+
+    private updateCoinLabel(delta: number): void {
+        const coinAmountLabel = find('Canvas/CoinLabel/coinAmount')?.getComponent(Label) ?? null;
+        if (!coinAmountLabel) return;
+        const currentAmount = Number.parseInt(coinAmountLabel.string, 10) || 0;
+        coinAmountLabel.string = String(currentAmount + delta);
     }
 
 }

@@ -112,7 +112,7 @@ test('forest production sources remain at the frozen implementation baseline', (
     const frozen = new Map([
         ['../assets/_Scripts/Tree.ts', '29b8ee58750adfe6f1d4903fd440adf679d3da7b'],
         ['../assets/_Scripts/LoggingTruck.ts', '877ba2ceea390637571fb3bdd6b6a66b28e79281'],
-        ['../assets/_Scripts/HaulerNPC.ts', 'bf31cb2bf92c6f6cf6ea7f17e401afda4aea88ea'],
+        ['../assets/_Scripts/HaulerNPC.ts', '19281356e7df13fd8b66dca8265eda1476531336'],
         ['../assets/_Scripts/Resource/StoragePoint.ts', '2f11afebca3d0e5cab1b94e95f3732d9fc8f0fbf'],
         ['../assets/_Scripts/WoodDropManager.ts', 'ec2371434438922b0209db3642f0666188a6f71e'],
         ['../assets/_Scripts/Woodcutter.ts', '7a7610e5cc3bb2fe1fd787e3a370a3c708e1f502'],

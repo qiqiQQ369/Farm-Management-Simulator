@@ -347,7 +347,7 @@ export class CoinConsumer extends Component {
             cameraController.scheduleOnce(() => {
                 cameraController.target = find('Player');
                 joystickController._lock = false;
-            }, 6);
+            }, 3);
 
             return;
         }
@@ -378,7 +378,7 @@ export class CoinConsumer extends Component {
             cameraController.scheduleOnce(() => {
                 cameraController.target = find('Player');
                 find('Canvas/JoystickContainer').getComponent(JoystickController)._lock = false;
-            }, 4);
+            }, 3);
 
             return;
         }
@@ -419,7 +419,7 @@ export class CoinConsumer extends Component {
                 cameraController.scheduleOnce(() => {
                     cameraController.target = find('Player');
                     joystickController._lock = false;
-                }, 6);
+                }, 3);
                 this.node.active = false;
             } else {
                 this.scheduleOnce(() => {
@@ -643,6 +643,7 @@ export class CoinConsumer extends Component {
             behavior.collectionPoint = collectionStorage.node;
             behavior.sellPoint = sellPoint;
             behavior.idlePoint = spawnAnchor;
+            behavior.collectionStopDistance = 1.8;
 
             console.log('[HAULER-DEBUG] hauler bindings ready', {
                 collectionPoint: behavior.collectionPoint?.name ?? 'null',

@@ -21,6 +21,7 @@ import { CameraFacingUI } from './CameraFacingUI';
 import { CoinBackpack } from './CoinBackpack';
 import { CornCoinCollector } from './CornCoinCollector';
 import { CornStoragePoint } from './CornStoragePoint';
+import { restoreCornVisualHierarchy } from './CornVisualState';
 import { PlayerController } from './PlayerController';
 
 const { ccclass, property } = _decorator;
@@ -51,7 +52,7 @@ type StorageLike = Component & {
 export class CornCustomerScheduler extends Component {
     @property({ type: Component }) public sellZone: Component = null!;
     @property({ type: Node }) public fillTip: Node = null!;
-    @property public fillTipHeadOffsetY = 2.1;
+    @property public fillTipHeadOffsetY = 2.4;
     @property({ type: SpriteFrame }) public completionEmojiFrame: SpriteFrame = null!;
 
     @property({ type: Prefab }) public coinPrefab: Prefab = null!;
@@ -82,6 +83,7 @@ export class CornCustomerScheduler extends Component {
     private readonly _activeDeparted = new Set<Node>();
     private readonly _runningTweens = new Map<Node, Tween<Node>>();
     private _resolvedSellStoragePoint: CornStoragePoint | null = null;
+    private _boundSellStoragePoint: CornStoragePoint | null = null;
     private _fillTipTargetNpc: Node | null = null;
     private readonly _fillTipOffset = new Vec3();
     private readonly _fillTipWorldPosition = new Vec3();
@@ -90,7 +92,9 @@ export class CornCustomerScheduler extends Component {
     private _reportedMissingCoinStorage = false;
 
     protected onEnable(): void {
-        this._resolvedSellStoragePoint = null;
+        this._resolvedSellStoragePoint = this.isValidStorage(this._boundSellStoragePoint)
+            ? this._boundSellStoragePoint
+            : null;
         this.ensureLocalCoinDropArea();
         this.prepareNpcCarryStorages();
         this.prepareNpcCompletionEmojis();
@@ -123,6 +127,20 @@ export class CornCustomerScheduler extends Component {
 
     private prepareNpcCarryStorages(): void {
         for (const npc of this.npcs) this.ensureNpcCarryStorage(npc);
+    }
+
+    /**
+     * ResourceFieldSystem owns the corn sell storage. Bind it before this
+     * scheduler node is activated so Web Release never has to discover a
+     * dynamically-created component by name or component shape.
+     */
+    public bindSellStorage(storage: CornStoragePoint): void {
+        this._boundSellStoragePoint = storage;
+        this._resolvedSellStoragePoint = storage;
+    }
+
+    private isValidStorage(storage: CornStoragePoint | null): storage is CornStoragePoint {
+        return !!storage?.node?.isValid;
     }
 
     private prepareNpcCompletionEmojis(): void {
@@ -299,7 +317,8 @@ export class CornCustomerScheduler extends Component {
     }
 
     private resolveSellStoragePoint(): CornStoragePoint | null {
-        if (this._resolvedSellStoragePoint?.node?.isValid) return this._resolvedSellStoragePoint;
+        if (this.isValidStorage(this._boundSellStoragePoint)) return this._boundSellStoragePoint;
+        if (this.isValidStorage(this._resolvedSellStoragePoint)) return this._resolvedSellStoragePoint;
         this._resolvedSellStoragePoint = this.findCornStoragePointInNode(this.resolveSellAnchor());
         if (!this._resolvedSellStoragePoint && !this._reportedMissingSellStorage) {
             console.error('CornCustomerScheduler: local Sell1 CornStoragePoint is missing.');
@@ -375,16 +394,15 @@ export class CornCustomerScheduler extends Component {
         this._loadingAtB = null;
         this._bReserved = false;
         this.tryDispatchFromAToB();
-        this.playLoadMove(npc);
         this.moveTo(npc, this.pointC, () => {
             this.moveTo(npc, this.pointD, () => {
                 this.moveTo(npc, this.startPoint, () => {
                     this._activeDeparted.delete(npc);
                     this.playIdle(npc);
                     this.enqueueAtStart(npc);
-                });
-            });
-        });
+                }, true);
+            }, true);
+        }, true);
     }
 
     private enqueueAtStart(npc: Node): void {
@@ -412,17 +430,26 @@ export class CornCustomerScheduler extends Component {
 
         while (this.enabled && npc.isValid) {
             if (targetStoragePoint.amount > 0 && npcStoragePoint.hasSpace(1)) {
-                const resource = targetStoragePoint.removeResource(4);
+                let resource = targetStoragePoint.removeResource(4);
                 let moved = resource
                     ? this.movePurchasedProductToCustomer(resource, npcStoragePoint)
                     : false;
+                if (resource && !moved) {
+                    targetStoragePoint.addResource(resource, 0, Vec3.ZERO);
+                    resource = null;
+                }
                 if (!moved) {
                     stalledDuration += this.collectInterval * 0.5;
                     if (stalledDuration >= 1) {
                         const stalledResource = targetStoragePoint.releaseStalledResource();
+                        resource = stalledResource;
                         moved = stalledResource
                             ? this.movePurchasedProductToCustomer(stalledResource, npcStoragePoint)
                             : false;
+                        if (stalledResource && !moved) {
+                            targetStoragePoint.addResource(stalledResource, 0, Vec3.ZERO);
+                            resource = null;
+                        }
                         stalledDuration = 0;
                     }
                 } else {
@@ -430,6 +457,7 @@ export class CornCustomerScheduler extends Component {
                 }
 
                 if (moved) {
+                    if (resource) targetStoragePoint.finalizeResourceTransfer(resource);
                     this.updateFillTip(npcStoragePoint.amount, npcStoragePoint.capacity);
                     this.playLoad(npc);
                 }
@@ -463,6 +491,7 @@ export class CornCustomerScheduler extends Component {
         npcStoragePoint: CornStoragePoint,
     ): boolean {
         if (!resource?.isValid) return false;
+        restoreCornVisualHierarchy(resource);
         resource.setScale(Vec3.ONE);
         return npcStoragePoint.addResource(resource, 4, Vec3.ZERO);
     }
@@ -539,23 +568,39 @@ export class CornCustomerScheduler extends Component {
         return true;
     }
 
-    private moveTo(npc: Node, targetNode: Node | null, onComplete?: () => void): void {
+    private moveTo(
+        npc: Node,
+        targetNode: Node | null,
+        onComplete?: () => void,
+        carrying = false,
+    ): void {
         if (!targetNode) {
             onComplete?.();
             return;
         }
-        this.moveToPosition(npc, targetNode.worldPosition.clone(), onComplete);
+        this.moveToPosition(npc, targetNode.worldPosition.clone(), onComplete, carrying);
     }
 
-    private moveToPosition(npc: Node, target: Vec3, onComplete?: () => void): void {
+    private moveToPosition(
+        npc: Node,
+        target: Vec3,
+        onComplete?: () => void,
+        carrying = false,
+    ): void {
         const duration = Vec3.distance(npc.worldPosition, target) / Math.max(this.moveSpeed, 0.01);
         this.faceTarget(npc, target);
-        this.playTween(npc, target, duration, onComplete);
+        this.playTween(npc, target, duration, onComplete, carrying);
     }
 
-    private playTween(npc: Node, target: Vec3, duration: number, onComplete?: () => void): void {
+    private playTween(
+        npc: Node,
+        target: Vec3,
+        duration: number,
+        onComplete?: () => void,
+        carrying = false,
+    ): void {
         this.stopTween(npc);
-        this.playMove(npc);
+        carrying ? this.playLoadMove(npc) : this.playMove(npc);
         const movement = tween(npc)
             .to(duration, { worldPosition: target })
             .call(() => {

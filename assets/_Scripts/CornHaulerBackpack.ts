@@ -1,9 +1,10 @@
-import { _decorator, Component, instantiate, Node, Prefab, tween, Vec3 } from 'cc';
+import { _decorator, Animation, Component, instantiate, Node, Prefab, Renderer, Tween, tween, Vec3 } from 'cc';
 import {
     getCornHaulerStackPosition,
     planCornHaulerAdd,
     planCornHaulerRemove,
 } from './CornHaulerBackpackInventory';
+import { restoreCornVisualHierarchy } from './CornVisualState';
 
 const { ccclass, property } = _decorator;
 
@@ -43,11 +44,14 @@ export class CornHaulerBackpack extends Component {
 
         this.amount = plan.nextAmount;
         if (!plan.displayIncomingNode) {
+            Tween.stopAllByTarget(resource);
             resource.active = false;
             resource.destroy();
             return true;
         }
 
+        Tween.stopAllByTarget(resource);
+        restoreCornVisualHierarchy(resource);
         const stackArea = this.stackAreaNode ?? this.node;
         const startWorldPosition = resource.worldPosition.clone();
         resource.setParent(stackArea);
@@ -68,13 +72,18 @@ export class CornHaulerBackpack extends Component {
         if (!plan.createTransferNode) {
             while (this._items.length > 0) {
                 const item = this._items.pop() ?? null;
-                if (item?.isValid) return item;
+                if (item?.isValid) {
+                    Tween.stopAllByTarget(item);
+                    restoreCornVisualHierarchy(item);
+                    return item;
+                }
             }
             return null;
         }
 
         const item = instantiate(this.resourcePrefab);
         this.disableLegacyGameplayComponents(item);
+        restoreCornVisualHierarchy(item);
         item.setParent(this.stackAreaNode ?? this.node);
         item.setPosition(this.getStackPosition(Math.max(0, this.maxVisibleItems - 1)));
         return item;
@@ -89,6 +98,8 @@ export class CornHaulerBackpack extends Component {
         this._items.length = 0;
         for (const child of [...stackArea.children].slice(0, this.maxVisibleItems)) {
             if (!child?.isValid) continue;
+            Tween.stopAllByTarget(child);
+            restoreCornVisualHierarchy(child);
             child.setPosition(this.getStackPosition(this._items.length));
             child.setRotationFromEuler(Vec3.ZERO);
             this._items.push(child);
@@ -119,8 +130,8 @@ export class CornHaulerBackpack extends Component {
     private disableLegacyGameplayComponents(root: Node): void {
         const visit = (node: Node): void => {
             for (const component of node.components) {
-                const className = component.constructor.name;
-                const keepEnabled = className.includes('Animation') || className.includes('Renderer');
+                const keepEnabled = component instanceof Animation
+                    || component instanceof Renderer;
                 if (!keepEnabled) component.enabled = false;
             }
             for (const child of node.children) visit(child);
