@@ -121,3 +121,13 @@ test('HTML 第二关动态交互组件全部先配置再启用', () => {
         'onCompleted?.()',
     );
 });
+
+test('玉米搬运工清除主角模板的斧头，并按森林 type-4 速度入槽', () => {
+    const fieldSystem = read('../assets/_Scripts/ResourceFieldSystem.ts');
+    const storage = read('../assets/_Scripts/CornStoragePoint.ts');
+    assert.match(fieldSystem, /node\.name\.includes\('斧'\)/);
+    assert.match(fieldSystem, /carryStorage\.moveAnimationDuration = 0\.6/);
+    const transferBranch = storage.match(/else if \(animationType === 4\)[\s\S]*?\n        } else/)?.[0] ?? '';
+    assert.doesNotMatch(transferBranch, /resource\.setPosition\(position\);\s*const startPosition/);
+    assert.match(transferBranch, /const startPosition = resource\.position\.clone\(\)/);
+});

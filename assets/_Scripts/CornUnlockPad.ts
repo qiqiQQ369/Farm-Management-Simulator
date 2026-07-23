@@ -23,7 +23,7 @@ export type CornUnlockPadConfig = {
 export class CornUnlockPad extends Component {
     @property public cost = 0;
     @property public coinsPerTick = 5;
-    @property public consumeInterval = 0.1;
+    @property public consumeInterval = 0.5;
     @property public interactionRadius = 1.6;
 
     private _player: Node | null = null;
@@ -33,6 +33,7 @@ export class CornUnlockPad extends Component {
     private _timer = 0;
     private _onCompleted: (() => void) | null = null;
     private _completed = false;
+    private _consuming = false;
 
     public configure(config: CornUnlockPadConfig): void {
         this._player = config.player;
@@ -44,6 +45,7 @@ export class CornUnlockPad extends Component {
         this._progress = 0;
         this._timer = 0;
         this._completed = false;
+        this._consuming = false;
         this._onCompleted = config.onCompleted;
         this.updateUI();
     }
@@ -56,20 +58,32 @@ export class CornUnlockPad extends Component {
             return;
         }
         this._timer += deltaTime;
-        if (this._timer < this.consumeInterval) return;
+        if (this._timer < this.consumeInterval || this._consuming) return;
         this._timer = 0;
+        void this.consumeCoinsContinuously();
+    }
 
-        const spentCoins = this.consumeCoins();
-        if (spentCoins <= 0) return;
-        this._progress = Math.min(this.cost, this._progress + spentCoins);
-        this.updateUI();
-        if (this._progress < this.cost) return;
-
-        this._completed = true;
-        const onCompleted = this._onCompleted;
-        this._onCompleted = null;
-        this.enabled = false;
-        onCompleted?.();
+    private async consumeCoinsContinuously(): Promise<void> {
+        this._consuming = true;
+        try {
+            while (!this._completed && this._progress < this.cost) {
+                const spentCoins = this.consumeCoins();
+                if (spentCoins <= 0) break;
+                this._progress = Math.min(this.cost, this._progress + spentCoins);
+                this.updateUI();
+                if (this._progress >= this.cost) {
+                    this._completed = true;
+                    const onCompleted = this._onCompleted;
+                    this._onCompleted = null;
+                    this.enabled = false;
+                    onCompleted?.();
+                    break;
+                }
+                await new Promise<void>(resolve => this.scheduleOnce(resolve, 0.1));
+            }
+        } finally {
+            this._consuming = false;
+        }
     }
 
     private consumeCoins(): number {

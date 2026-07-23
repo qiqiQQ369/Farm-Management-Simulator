@@ -58,7 +58,7 @@ export class CornStoragePoint extends Component {
         const stored: StoredCorn = {
             position,
             node: resource,
-            canMove: animationType < 1 || animationType > 4,
+            canMove: true,
         };
         this._resources.set(index, stored);
         resource.setParent(this.stackAreaNode);
@@ -123,6 +123,10 @@ export class CornStoragePoint extends Component {
                 })
                 .start();
         } else if (animationType === 4) {
+            // Pin to the destination first. The tween below animates from this position
+            // up through controlPoint and back, so on failure the corn stays correct.
+            resource.setPosition(position);
+            resource.setRotationFromEuler(rotation);
             const startPosition = resource.position.clone();
             const controlPoint = new Vec3();
             Vec3.lerp(controlPoint, startPosition, position, 0.5);
@@ -165,14 +169,14 @@ export class CornStoragePoint extends Component {
 
         let key: number | null = null;
         if (animationType === 4) {
-            for (const candidate of [...this._resources.keys()].sort((left, right) => right - left)) {
+            for (const candidate of Array.from(this._resources.keys()).sort((left, right) => right - left)) {
                 if (this._resources.get(candidate)?.canMove) {
                     key = candidate;
                     break;
                 }
             }
         } else {
-            key = [...this._resources.keys()].sort((left, right) => right - left)[0] ?? null;
+            key = Array.from(this._resources.keys()).sort((left, right) => right - left)[0] ?? null;
         }
         if (key === null) return null;
 
@@ -192,7 +196,7 @@ export class CornStoragePoint extends Component {
     }
 
     public finalizeResourceTransfer(resource: Node): void {
-        for (const [key, stored] of this._removed) {
+        for (const [key, stored] of Array.from(this._removed)) {
             if (stored.node === resource) {
                 this._removed.delete(key);
                 return;
@@ -201,7 +205,7 @@ export class CornStoragePoint extends Component {
     }
 
     public hasMovableResource(): boolean {
-        return [...this._resources.values()].some(resource => resource.canMove && resource.node?.isValid);
+        return Array.from(this._resources.values()).some(resource => resource.canMove && resource.node?.isValid);
     }
 
     public recoverInterruptedTransfers(): void {
@@ -223,7 +227,7 @@ export class CornStoragePoint extends Component {
     }
 
     public releaseStalledResource(): Node | null {
-        const key = [...this._resources.keys()].sort((left, right) => right - left)[0] ?? null;
+        const key = Array.from(this._resources.keys()).sort((left, right) => right - left)[0] ?? null;
         if (key === null) {
             this.amount = Math.min(this.amount, this.stackAreaNode?.children.length ?? 0);
             return null;
@@ -242,15 +246,15 @@ export class CornStoragePoint extends Component {
     }
 
     public clearStorage(): void {
-        for (const resource of [...this._resources.values()]) resource.node?.destroy();
-        for (const resource of [...this._removed.values()]) resource.node?.destroy();
+        for (const resource of Array.from(this._resources.values())) resource.node?.destroy();
+        for (const resource of Array.from(this._removed.values())) resource.node?.destroy();
         this._resources.clear();
         this._removed.clear();
         this.amount = 0;
     }
 
     private takeFirstRemovedIndex(): number | null {
-        const key = [...this._removed.keys()].sort((left, right) => left - right)[0] ?? null;
+        const key = Array.from(this._removed.keys()).sort((left, right) => left - right)[0] ?? null;
         if (key !== null) this._removed.delete(key);
         return key;
     }

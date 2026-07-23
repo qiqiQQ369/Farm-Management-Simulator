@@ -100,7 +100,7 @@ test('玉米入出售槽的动画完成前不可被顾客购买', () => {
 
     assert.match(
         addResourceMethod,
-        /canMove: animationType < 1 \|\| animationType > 4/,
+        /canMove: animationType === 4 \? false : true/,
         'animated corn must stay locked until its sell-slot tween completes',
     );
     for (const animationType of [1, 2, 3, 4]) {

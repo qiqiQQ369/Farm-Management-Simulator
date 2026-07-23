@@ -620,7 +620,7 @@ export class CornCustomerScheduler extends Component {
     }
 
     private stopAllTweens(): void {
-        for (const movement of this._runningTweens.values()) movement.stop();
+        for (const movement of Array.from(this._runningTweens.values())) movement.stop();
         this._runningTweens.clear();
     }
 

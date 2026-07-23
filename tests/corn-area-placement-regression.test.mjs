@@ -606,8 +606,9 @@ test('corn unlock pads fill at the same per-coin cadence as forest unlock pads',
         expectedInterval,
         'corn unlocks must use the same per-coin fill interval as forest unlocks',
     );
-    assert.match(cornUnlockSource, /public consumeInterval = 0\.1;/);
-    assert.match(resourceFieldSource, /public consumeInterval = 0\.1;/);
+    assert.match(cornUnlockSource, /public consumeInterval = 0\.5;/);
+    assert.match(resourceFieldSource, /public consumeInterval = 0\.5;/);
+    assert.match(cornUnlockSource, /scheduleOnce\(resolve, 0\.1\)/);
 });
 
 test('the first corn field stays playable and opening the second ends the game', () => {

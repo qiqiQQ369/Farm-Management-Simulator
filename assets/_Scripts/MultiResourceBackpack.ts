@@ -190,7 +190,7 @@ export class MultiResourceBackpack extends Component {
         const hasCoin = this.getCoinInventoryCount() > 0;
         let nextResourceColumn = hasCoin ? 2 : hasWood ? 1 : 0;
 
-        for (const slot of this._slots.values()) {
+        for (const slot of Array.from(this._slots.values())) {
             if (slot.count <= 0) {
                 slot.assignedColumn = null;
                 continue;

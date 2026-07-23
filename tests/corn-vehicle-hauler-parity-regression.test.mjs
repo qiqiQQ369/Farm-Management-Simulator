@@ -97,6 +97,7 @@ test('corn hauler is empty before activation and mounts corn like the player', (
     assert.match(spawnMethod, /carryNode\.setScale\(mountTemplate\.scale\)/);
     assert.match(spawnMethod, /actor\.getComponent\(CornHaulerBackpack\) \?\? actor\.addComponent\(CornHaulerBackpack\)/);
     assert.match(spawnMethod, /carryStorage\.capacity = 42/);
+    assert.match(spawnMethod, /carryStorage\.moveAnimationDuration = 0\.6/);
     assert.match(spawnMethod, /carryStorage\.maxVisibleItems = 42/);
     assert.match(spawnMethod, /carryStorage\.clearStorage\(\)/);
     assert.doesNotMatch(spawnMethod, /new Node\('CornCarryStorage'\)|resourcePerRow = 2|resourcePerCol = 2/);
@@ -398,4 +399,37 @@ test('corn hauler, storage, and unlock pad are dedicated copies of forest behavi
     assert.match(spawnMethod, /behavior\.transferInterval = 0\.15/);
 
     assert.doesNotMatch(source, /private updateHauler|haulerState|haulerTimer/);
+});
+
+test('corn hauler removes inherited axe gameplay while keeping corn hauling behavior', () => {
+    const spawnMethod = source.match(
+        /private spawnHauler[\s\S]*?\n    private clearInheritedHaulerCargo/,
+    )?.[0] ?? '';
+    const cleanupMethod = source.match(
+        /private clearInheritedHaulerCargo[\s\S]*?\n    private createActor/,
+    )?.[0] ?? '';
+
+    assert.match(spawnMethod, /clearInheritedHaulerCargo\(actor\)/);
+    assert.match(cleanupMethod, /getComponentInChildren\(ChopAction\)/);
+    assert.match(cleanupMethod, /getComponentInChildren\(ChopAction\)\?\.destroy\(\)/);
+    assert.match(spawnMethod, /getComponent\(CornHauler\) \?\? actor\.addComponent\(CornHauler\)/);
+});
+
+test('corn hauler hides the inherited axe after visual hierarchy restoration', () => {
+    const spawnMethod = source.match(
+        /private spawnHauler[\s\S]*?\n    private clearInheritedHaulerCargo/,
+    )?.[0] ?? '';
+    const cornHaulerSource = readFileSync(cornHaulerPath, 'utf8');
+
+    assert.match(spawnMethod, /const inheritedAxeNode = this\.getInheritedAxeNode\(actor\)/);
+    assert.ok(
+        spawnMethod.indexOf('restoreCornVisualHierarchy(actor, false)') <
+        spawnMethod.indexOf('removeInheritedAxeVisual(actor, inheritedAxeNode)'),
+        'the axe must be removed after restoring visual descendants',
+    );
+    assert.match(spawnMethod, /behavior\.setHiddenAxeNode\(null\)/);
+    assert.match(source, /private removeInheritedAxeVisual\(actor: Node, inheritedAxeNode: Node \| null\)/);
+    assert.match(source, /inheritedAxeNode\.destroy\(\)/);
+    assert.match(cornHaulerSource, /public setHiddenAxeNode\(node: Node \| null\): void/);
+    assert.match(cornHaulerSource, /if \(this\._futouNode\?\.isValid\) this\._futouNode\.active = false/);
 });

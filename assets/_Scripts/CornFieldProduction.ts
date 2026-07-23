@@ -310,18 +310,17 @@ export class CornFieldProduction extends Component {
         }
     }
 
-    private getWorkerLanes(): CornPlantRuntime[][] {
+        private getWorkerLanes(): CornPlantRuntime[][] {
         const quantize = (value: number): number => Math.round(value * 100);
-        const lanes = new Map<number, CornPlantRuntime[]>();
+        const laneGroups: Record<number, CornPlantRuntime[]> = {};
         for (const plant of this._plants) {
             const laneKey = quantize(plant.node.position.x);
-            const lane = lanes.get(laneKey) ?? [];
+            const lane = laneGroups[laneKey] ?? (laneGroups[laneKey] = []);
             lane.push(plant);
-            lanes.set(laneKey, lane);
         }
 
-        return [...lanes.entries()]
-            .sort(([left], [right]) => left - right)
+        return Object.entries(laneGroups)
+            .sort(([left], [right]) => Number(left) - Number(right))
             .map(([, lane]) => lane.sort((left, right) =>
                 quantize(right.node.position.z) - quantize(left.node.position.z),
             ));

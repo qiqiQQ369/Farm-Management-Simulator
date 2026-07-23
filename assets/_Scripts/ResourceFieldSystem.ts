@@ -236,7 +236,7 @@ export class ResourceFieldSystem extends Component {
     public coinsPerTick = 5;
 
     @property({ tooltip: 'Seconds between unlock consumption ticks.', group: 'Shared gameplay' })
-    public consumeInterval = 0.1;
+    public consumeInterval = 0.5;
 
     @property({ tooltip: 'Corn worker chop range.', group: 'Shared gameplay' })
     public workerChopRange = 0.7;
@@ -980,6 +980,7 @@ export class ResourceFieldSystem extends Component {
         this.disableActorGameplayComponents(actor);
         for (const storage of actor.getComponentsInChildren(CornStoragePoint)) storage.clearStorage();
 
+        const inheritedAxeNode = this.getInheritedAxeNode(actor);
         const mountTemplate = this.clearInheritedHaulerCargo(actor);
         const carryNode = new Node('CornHaulerCarryMount');
         if (mountTemplate?.parent) {
@@ -1001,7 +1002,8 @@ export class ResourceFieldSystem extends Component {
         carryStorage.rowSpacing = 0.2;
         carryStorage.columnSpacing = 0.2;
         carryStorage.layerHeight = 0.2;
-        carryStorage.moveAnimationDuration = 0.32;
+        // Match the forest StoragePoint type-4 transfer duration.
+        carryStorage.moveAnimationDuration = 0.6;
         carryStorage.moveEasing = 'sineOut';
         carryStorage.clearStorage();
 
@@ -1020,6 +1022,8 @@ export class ResourceFieldSystem extends Component {
         behavior.collectionStopDistance = 0.05;
         behavior.sellStopDistance = 0.2;
         restoreCornVisualHierarchy(actor, false);
+        this.removeInheritedAxeVisual(actor, inheritedAxeNode);
+        behavior.setHiddenAxeNode(null);
         carryStorage.enabled = true;
         behavior.enabled = true;
         actor.active = true;
@@ -1027,9 +1031,16 @@ export class ResourceFieldSystem extends Component {
         field.haulerBehavior = behavior;
     }
 
+    private getInheritedAxeNode(actor: Node): Node | null {
+        const chopAction = actor.getComponentInChildren(ChopAction);
+        const axeNode = chopAction ? (chopAction as unknown as { futouNode?: Node }).futouNode : null;
+        return axeNode?.isValid ? axeNode : null;
+    }
+
     private clearInheritedHaulerCargo(actor: Node): Node | null {
         let mountTemplate: Node | null = null;
         const inheritedMounts = new Set<Node>();
+        actor.getComponentInChildren(ChopAction)?.destroy();
         const visit = (node: Node): void => {
             for (const component of node.components) {
                 const owner = component as unknown as CarryMountOwner;
@@ -1085,9 +1096,29 @@ export class ResourceFieldSystem extends Component {
                 const keepEnabled = keepVisualComponent || keepHarvestComponent;
                 if (!keepEnabled) component.enabled = false;
             }
+            if (node !== root && (node.name.includes('斧') || /fuTou/i.test(node.name))) {
+                node.active = false;
+            }
             for (const child of node.children) visit(child);
         };
         visit(root);
+    }
+
+    /** Hide the axe/futou mesh inherited from the Player template. The mesh is attached
+     *  as a sibling of the skeleton bones, so a name-based search can miss it. We rely on
+     *  ChopAction.futouNode (the Player's axe attach point) and a recursive sweep over
+     *  any node whose name contains the axe keywords. */
+    private removeInheritedAxeVisual(actor: Node, inheritedAxeNode: Node | null): void {
+        if (inheritedAxeNode?.isValid) inheritedAxeNode.destroy();
+        const visit = (node: Node): void => {
+            const lower = (node.name || '').toLowerCase();
+            if (lower.includes('斧') || lower.includes('futou') || lower.includes('axe')) {
+                node.destroy();
+                return;
+            }
+            for (const child of [...node.children]) visit(child);
+        };
+        visit(actor);
     }
 
     private configureStorage(node: Node, name: string, capacity: number): CornStoragePoint {

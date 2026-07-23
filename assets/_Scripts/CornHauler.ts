@@ -1,5 +1,6 @@
 import { _decorator, Component, game, Game, math, Node, SkeletalAnimation, Vec3 } from 'cc';
 import { AnimationName } from './PlayerController';
+import { ChopAction } from './ChopAction';
 import { CornHaulerBackpack } from './CornHaulerBackpack';
 import { CornStoragePoint } from './CornStoragePoint';
 
@@ -48,9 +49,18 @@ export class CornHauler extends Component {
     private _lastMoveDistance = Number.POSITIVE_INFINITY;
     private readonly _lastMoveTarget = new Vec3(Number.NaN, Number.NaN, Number.NaN);
     private _reportedInvalidFieldBinding = false;
+    private _futouNode: Node | null = null;
 
     protected onLoad(): void {
         if (!this.skeletonAnimation) this.skeletonAnimation = this.node.getComponentInChildren(SkeletalAnimation);
+        // Cache the axe attach point so we can keep it hidden every frame.
+        const chopAction = this.node.getComponentInChildren(ChopAction);
+        this._futouNode = chopAction ? (chopAction as any).futouNode as Node | null : null;
+    }
+
+    public setHiddenAxeNode(node: Node | null): void {
+        this._futouNode = node;
+        if (node?.isValid) node.active = false;
     }
 
     protected onEnable(): void {
@@ -77,6 +87,8 @@ export class CornHauler extends Component {
     protected update(deltaTime: number): void {
         if (!this.hasValidFieldBindings()
             || !this.collectionStorage || !this.sellStorage || !this.carryStorage) return;
+        // Keep the inherited axe hidden – animation clips may re-enable it each frame.
+        if (this._futouNode?.isValid) this._futouNode.active = false;
         this.monitorTransferProgress();
 
         switch (this._state) {
