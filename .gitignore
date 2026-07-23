@@ -13,3 +13,6 @@
 *.log
 .DS_Store
 Thumbs.db
+
+# WorkBuddy working memory (project-local, not for version control)
+/.workbuddy/

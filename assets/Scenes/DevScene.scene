@@ -32365,7 +32365,7 @@
     },
     "resourceId": "field_left_corn",
     "resourcePrefab": {
-      "__uuid__": "affdf361-b280-4645-b7cd-dd242dbbdc9b",
+      "__uuid__": "c4971d31-a4e3-4024-8c3e-c80ce635c0e2@3bd0a",
       "__expectedType__": "cc.Prefab"
     },
     "playerReward": 3,
@@ -38856,7 +38856,7 @@
     },
     "resourceId": "field_right_corn",
     "resourcePrefab": {
-      "__uuid__": "affdf361-b280-4645-b7cd-dd242dbbdc9b",
+      "__uuid__": "c4971d31-a4e3-4024-8c3e-c80ce635c0e2@3bd0a",
       "__expectedType__": "cc.Prefab"
     },
     "playerReward": 3,
@@ -39742,7 +39742,7 @@
     },
     "leftResourceId": "field_left_corn",
     "leftResourcePrefab": {
-      "__uuid__": "affdf361-b280-4645-b7cd-dd242dbbdc9b",
+      "__uuid__": "c4971d31-a4e3-4024-8c3e-c80ce635c0e2@3bd0a",
       "__expectedType__": "cc.Prefab"
     },
     "leftResourceIcon": {
@@ -39767,7 +39767,7 @@
     "leftVehicleActionInterval": 0.42,
     "rightResourceId": "field_right_corn",
     "rightResourcePrefab": {
-      "__uuid__": "affdf361-b280-4645-b7cd-dd242dbbdc9b",
+      "__uuid__": "c4971d31-a4e3-4024-8c3e-c80ce635c0e2@3bd0a",
       "__expectedType__": "cc.Prefab"
     },
     "rightResourceIcon": {
