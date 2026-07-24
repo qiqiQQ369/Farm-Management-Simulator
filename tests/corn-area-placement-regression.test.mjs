@@ -26,6 +26,10 @@ const forestCoinConsumerSource = readFileSync(
     new URL('../assets/_Scripts/CoinConsumer.ts', import.meta.url),
     'utf8',
 );
+const forestPickupSource = readFileSync(
+    new URL('../assets/_Scripts/PickupDetector.ts', import.meta.url),
+    'utf8',
+);
 const finishNodeSource = readFileSync(
     new URL('../assets/_Scripts/FinishNode.ts', import.meta.url),
     'utf8',
@@ -34,6 +38,10 @@ const cornPickupPath = new URL('../assets/_Scripts/CornPickupDetector.ts', impor
 const cornPickupSource = existsSync(cornPickupPath)
     ? readFileSync(cornPickupPath, 'utf8')
     : '';
+const multiResourceBackpackSource = readFileSync(
+    new URL('../assets/_Scripts/MultiResourceBackpack.ts', import.meta.url),
+    'utf8',
+);
 
 const nodeAt = (reference) => scene[reference.__id__];
 const childrenOf = (node) => (node._children ?? []).map(nodeAt);
@@ -606,8 +614,8 @@ test('corn unlock pads fill at the same per-coin cadence as forest unlock pads',
         expectedInterval,
         'corn unlocks must use the same per-coin fill interval as forest unlocks',
     );
-    assert.match(cornUnlockSource, /public consumeInterval = 0\.5;/);
-    assert.match(resourceFieldSource, /public consumeInterval = 0\.5;/);
+    assert.match(cornUnlockSource, /public consumeInterval = 0\.1;/);
+    assert.match(resourceFieldSource, /public consumeInterval = 0\.1;/);
     assert.match(cornUnlockSource, /scheduleOnce\(resolve, 0\.1\)/);
 });
 
@@ -658,10 +666,33 @@ test('corn products use the sell storage node as their stack anchor like forest 
 });
 
 test('corn collection storage independently mirrors forest player pickup behavior', () => {
+    const forestCollectionInterval = scene.find((entry) =>
+        entry?.__type__ === 'f7468Jhw5ZPE4Y8K1TE0aLr'
+        && nodeAt(entry.node)?._name === 'woodStackArea',
+    )?.collectionInterval;
+    const forestIntervalMultiplier = Number(
+        forestPickupSource.match(/this\.collectionInterval \* (\d+)/)?.[1],
+    );
+    const expectedCornCollectionInterval = forestCollectionInterval * forestIntervalMultiplier / 1000;
+
+    assert.equal(forestCollectionInterval, 0.1, 'forest collection scene interval must remain 0.1 seconds');
+    assert.equal(forestIntervalMultiplier, 500, 'forest pickup converts its interval to milliseconds');
+    assert.equal(expectedCornCollectionInterval, 0.05, 'forest storage pickup cadence is 50 ms');
     assert.ok(existsSync(cornPickupPath), 'corn collection storage needs its own pickup component');
     assert.match(resourceFieldSource, /import \{ CornPickupDetector \} from '\.\/CornPickupDetector'/);
     assert.match(resourceFieldSource, /collectionStorage\.node\.getComponent\(CornPickupDetector\)/);
     assert.match(resourceFieldSource, /pickupDetector\.configure\(\{/);
+    assert.match(resourceFieldSource, /collectionInterval:\s*0\.05/);
+    assert.match(cornPickupSource, /public collectionInterval = 0\.05;/);
+    const pickupAnimation = multiResourceBackpackSource.match(
+        /private playPickupTransferAnimation[\s\S]*?\n    public takeResource/,
+    )?.[0] ?? '';
+    assert.match(pickupAnimation, /Vec3\.lerp\(controlPoint, startPosition, targetPosition, 0\.5\)/);
+    assert.match(pickupAnimation, /controlPoint\.y \+= Math\.max\(1\.5, distance \* 0\.6\)/);
+    assert.match(pickupAnimation, /\.to\(0\.15, \{ position: controlPoint, eulerAngles: halfRotation \}, \{ easing: 'sineOut' \}\)/);
+    assert.match(pickupAnimation, /\.to\(0\.15, \{ position: targetPosition, eulerAngles: Vec3\.ZERO \}, \{ easing: 'sineIn' \}\)/);
+    assert.match(pickupAnimation, /\.to\(0\.1, \{ scale: raisedScale \}, \{ easing: 'bounceOut' \}\)/);
+    assert.match(pickupAnimation, /\.to\(0\.2, \{ scale: originalScale \}, \{ easing: 'bounceOut' \}\)/);
     assert.match(resourceFieldSource, /BoxCollider/);
     assert.match(cornPickupSource, /onTriggerEnter/);
     assert.match(cornPickupSource, /onTriggerExit/);

@@ -421,43 +421,32 @@ export class CornCustomerScheduler extends Component {
     }
 
     private async tryCollectItem(npc: Node): Promise<void> {
-        const targetStoragePoint = this.resolveSellStoragePoint();
-        const npcStoragePoint = this.ensureNpcCarryStorage(npc);
-        if (!targetStoragePoint || !npcStoragePoint) return;
+        let targetStoragePoint: CornStoragePoint | null = null;
+        let npcStoragePoint: CornStoragePoint | null = null;
+        let bindingWait = 0;
+        while (this.enabled && npc.isValid && (!targetStoragePoint || !npcStoragePoint)) {
+            targetStoragePoint = this.resolveSellStoragePoint();
+            npcStoragePoint = this.ensureNpcCarryStorage(npc);
+            if (targetStoragePoint && npcStoragePoint) break;
+            await this.delay(0.1);
+            bindingWait += 0.1;
+            if (bindingWait >= 5) {
+                this.releaseLoadingCustomer(npc);
+                return;
+            }
+        }
+        if (!targetStoragePoint || !npcStoragePoint) {
+            this.releaseLoadingCustomer(npc);
+            return;
+        }
         npcStoragePoint.capacity = 4;
         this.showFillTipForNpc(npc);
-        let stalledDuration = 0;
 
         while (this.enabled && npc.isValid) {
             if (targetStoragePoint.amount > 0 && npcStoragePoint.hasSpace(1)) {
-                let resource = targetStoragePoint.removeResource(4);
-                let moved = resource
-                    ? this.movePurchasedProductToCustomer(resource, npcStoragePoint)
-                    : false;
-                if (resource && !moved) {
-                    targetStoragePoint.addResource(resource, 0, Vec3.ZERO);
-                    resource = null;
-                }
-                if (!moved) {
-                    stalledDuration += this.collectInterval * 0.5;
-                    if (stalledDuration >= 1) {
-                        const stalledResource = targetStoragePoint.releaseStalledResource();
-                        resource = stalledResource;
-                        moved = stalledResource
-                            ? this.movePurchasedProductToCustomer(stalledResource, npcStoragePoint)
-                            : false;
-                        if (stalledResource && !moved) {
-                            targetStoragePoint.addResource(stalledResource, 0, Vec3.ZERO);
-                            resource = null;
-                        }
-                        stalledDuration = 0;
-                    }
-                } else {
-                    stalledDuration = 0;
-                }
+                const moved = this.moveSellResource(targetStoragePoint, npcStoragePoint);
 
                 if (moved) {
-                    if (resource) targetStoragePoint.finalizeResourceTransfer(resource);
                     this.updateFillTip(npcStoragePoint.amount, npcStoragePoint.capacity);
                     this.playLoad(npc);
                 }
@@ -479,6 +468,33 @@ export class CornCustomerScheduler extends Component {
             }
             await this.delay(Math.max(0.01, this.collectInterval * 0.5));
         }
+    }
+
+    private moveSellResource(
+        targetStoragePoint: CornStoragePoint,
+        customerStorage: CornStoragePoint,
+    ): boolean {
+        if (!customerStorage.hasSpace(1)) return false;
+
+        const resource = targetStoragePoint.removeResource(4);
+        if (!resource) return false;
+
+        const moved = this.movePurchasedProductToCustomer(resource, customerStorage);
+        if (moved) {
+            targetStoragePoint.finalizeResourceTransfer(resource);
+            return true;
+        }
+
+        targetStoragePoint.addResource(resource, 0, Vec3.ZERO);
+        return false;
+    }
+
+    private releaseLoadingCustomer(npc: Node): void {
+        if (this._loadingAtB !== npc) return;
+        this._loadingAtB = null;
+        this._bReserved = false;
+        this.tryDispatchFromAToB();
+        this.enqueueAtStart(npc);
     }
 
     /**

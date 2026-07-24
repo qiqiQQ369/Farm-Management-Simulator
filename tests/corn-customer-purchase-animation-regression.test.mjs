@@ -90,7 +90,13 @@ test('CornStoragePoint 独立实现四种入槽动画', () => {
         transferBranch.indexOf('current.canMove = true') > transferBranch.indexOf('.call('),
         'type 4 resource must unlock only in the completion callback',
     );
-    assert.match(resourceFieldSource, /sellStorage\.addResource\(item,\s*2\)/);
+    assert.match(
+        transferBranch,
+        /this\.scheduleOnce\([\s\S]*?this\.recoverInterruptedTransferEntry\(/,
+        'type 4 entries must recover into the sell slot when their tween callback is interrupted',
+    );
+    assert.match(cornStorageSource, /private recoverInterruptedTransferEntry\(/);
+    assert.match(resourceFieldSource, /sellStorage\.addResource\(item,\s*4,\s*Vec3\.ZERO\)/);
 });
 
 test('玉米入出售槽的动画完成前不可被顾客购买', () => {
@@ -114,6 +120,21 @@ test('玉米入出售槽的动画完成前不可被顾客购买', () => {
             `animation type ${animationType} must unlock only after its tween completes`,
         );
     }
+
+    const customerSource = readFileSync(scriptUrl, 'utf8');
+    const moveMethod = customerSource.match(
+        /private moveSellResource[\s\S]*?\n    private releaseLoadingCustomer/,
+    )?.[0] ?? '';
+    assert.match(
+        moveMethod,
+        /targetStoragePoint\.removeResource\(4\)/,
+        'customer purchase must wait for a completed sell-slot entrance animation',
+    );
+    assert.doesNotMatch(
+        customerSource.match(/private async tryCollectItem[\s\S]*?\n    private moveSellResource/)?.[0] ?? '',
+        /releaseStalledResource\(/,
+        'normal customer purchases must not bypass an unfinished sell-slot entrance animation',
+    );
 });
 
 test('场景中仅玉米区迁移为 CornCustomerScheduler 且奖励为三枚金币', () => {
@@ -244,7 +265,9 @@ test('左右玉米顾客只把金币生成到所属玉米区', () => {
     const forestNode = scene.find((entry) =>
         entry?.__type__ === 'cc.Node' && entry._name === 'NPCScheduler' && entry._active,
     );
-    assert.equal(componentOf(forestNode).coinDropArea.__id__, 170);
+    const forestCoinAnchor = nodeAt(componentOf(forestNode).coinDropArea);
+    assert.equal(forestCoinAnchor?._name, 'coinDropArea');
+    assert.equal(nodeAt(forestCoinAnchor?._parent)?._name, 'LandObj');
 });
 
 test('玉米金币使用独立库存和收集逻辑', () => {

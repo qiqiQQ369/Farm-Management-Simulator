@@ -23,6 +23,7 @@ export class CornHaulerBackpack extends Component {
     @property public moveEasing = 'sineOut' as const;
 
     private readonly _items: Node[] = [];
+    private readonly _readyItems = new Set<Node>();
 
     protected onLoad(): void {
         if (!this.stackAreaNode) this.stackAreaNode = this.node;
@@ -59,24 +60,30 @@ export class CornHaulerBackpack extends Component {
         const position = this.getStackPosition(this._items.length);
         tween(resource)
             .to(this.moveAnimationDuration, { position }, { easing: this.moveEasing })
+            .call(() => this._readyItems.add(resource))
             .start();
         this._items.push(resource);
         return true;
     }
 
     public removeResource(animationType = 1): Node | null {
+        if (animationType === 4 && !this.hasMovableResource()) return null;
+
+        const itemIndex = animationType === 4
+            ? this.findLastReadyItemIndex()
+            : this._items.length - 1;
         const plan = planCornHaulerRemove(this.amount, this.maxVisibleItems);
         if (!plan.removed || (plan.createTransferNode && !this.resourcePrefab)) return null;
 
         this.amount = plan.nextAmount;
         if (!plan.createTransferNode) {
-            while (this._items.length > 0) {
-                const item = this._items.pop() ?? null;
-                if (item?.isValid) {
-                    Tween.stopAllByTarget(item);
-                    restoreCornVisualHierarchy(item);
-                    return item;
-                }
+            if (itemIndex < 0) return null;
+            const item = this._items.splice(itemIndex, 1)[0] ?? null;
+            if (item?.isValid) {
+                this._readyItems.delete(item);
+                Tween.stopAllByTarget(item);
+                restoreCornVisualHierarchy(item);
+                return item;
             }
             return null;
         }
@@ -86,16 +93,18 @@ export class CornHaulerBackpack extends Component {
         restoreCornVisualHierarchy(item);
         item.setParent(this.stackAreaNode ?? this.node);
         item.setPosition(this.getStackPosition(Math.max(0, this.maxVisibleItems - 1)));
+        this._readyItems.delete(item);
         return item;
     }
 
     public hasMovableResource(): boolean {
-        return this.amount > 0 && (this._items.some(item => item?.isValid) || !!this.resourcePrefab);
+        return this.amount > 0 && (this._readyItems.size > 0 || (!!this.resourcePrefab && this._items.length === 0));
     }
 
     public recoverInterruptedTransfers(): void {
         const stackArea = this.stackAreaNode ?? this.node;
         this._items.length = 0;
+        this._readyItems.clear();
         for (const child of [...stackArea.children].slice(0, this.maxVisibleItems)) {
             if (!child?.isValid) continue;
             Tween.stopAllByTarget(child);
@@ -103,6 +112,7 @@ export class CornHaulerBackpack extends Component {
             child.setPosition(this.getStackPosition(this._items.length));
             child.setRotationFromEuler(Vec3.ZERO);
             this._items.push(child);
+            this._readyItems.add(child);
         }
         this.amount = Math.max(this.amount, this._items.length);
     }
@@ -114,7 +124,15 @@ export class CornHaulerBackpack extends Component {
             item.destroy();
         }
         this._items.length = 0;
+        this._readyItems.clear();
         this.amount = 0;
+    }
+
+    private findLastReadyItemIndex(): number {
+        for (let index = this._items.length - 1; index >= 0; index--) {
+            if (this._readyItems.has(this._items[index])) return index;
+        }
+        return -1;
     }
 
     private getStackPosition(index: number): Vec3 {

@@ -236,7 +236,7 @@ export class ResourceFieldSystem extends Component {
     public coinsPerTick = 5;
 
     @property({ tooltip: 'Seconds between unlock consumption ticks.', group: 'Shared gameplay' })
-    public consumeInterval = 0.5;
+    public consumeInterval = 0.1;
 
     @property({ tooltip: 'Corn worker chop range.', group: 'Shared gameplay' })
     public workerChopRange = 0.7;
@@ -610,13 +610,15 @@ export class ResourceFieldSystem extends Component {
         if (field.depositTimer < 0.16) return;
         field.depositTimer = 0;
 
+        if (!field.sellStorage.hasSpace(1)) return;
         const item = this._resourceBackpack.takeResource(field.id);
-        if (item) {
-            // Keep corn product local scale unit-size so customer body display
-            // matches forest wood after leaving the sell tray.
-            item.setScale(1, 1, 1);
-            field.sellStorage.addResource(item, 2);
-        }
+        if (!item) return;
+
+        item.setScale(1, 1, 1);
+        if (field.sellStorage.addResource(item, 4, Vec3.ZERO)) return;
+
+        item.destroy();
+        this._resourceBackpack.addResource(field.id);
     }
 
     private completeUnlockStage(field: FieldRuntime, stage: UnlockStage): void {
@@ -1159,7 +1161,7 @@ export class ResourceFieldSystem extends Component {
             backpack: this._resourceBackpack!,
             collectionStorage,
             resourceId,
-            collectionInterval: 0.1,
+            collectionInterval: 0.05,
         });
         pickupDetector.enabled = true;
     }

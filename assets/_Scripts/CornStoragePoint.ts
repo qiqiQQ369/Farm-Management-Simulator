@@ -5,7 +5,7 @@ const { ccclass, property } = _decorator;
 
 type StoredCorn = {
     position: Vec3;
-    node: Node;
+    node: Node | null;
     canMove: boolean;
 };
 
@@ -58,7 +58,7 @@ export class CornStoragePoint extends Component {
         const stored: StoredCorn = {
             position,
             node: resource,
-            canMove: true,
+            canMove: animationType === 4 ? false : true,
         };
         this._resources.set(index, stored);
         resource.setParent(this.stackAreaNode);
@@ -123,10 +123,6 @@ export class CornStoragePoint extends Component {
                 })
                 .start();
         } else if (animationType === 4) {
-            // Pin to the destination first. The tween below animates from this position
-            // up through controlPoint and back, so on failure the corn stays correct.
-            resource.setPosition(position);
-            resource.setRotationFromEuler(rotation);
             const startPosition = resource.position.clone();
             const controlPoint = new Vec3();
             Vec3.lerp(controlPoint, startPosition, position, 0.5);
@@ -142,6 +138,10 @@ export class CornStoragePoint extends Component {
             const originalScale = resource.scale.clone();
             const raisedScale = originalScale.clone().multiplyScalar(1.17);
             const halfRotation = rotation.clone().multiplyScalar(0.5);
+            this.scheduleOnce(
+                () => this.recoverInterruptedTransferEntry(index, resource, position, originalScale),
+                0.7,
+            );
             tween(resource)
                 .to(0.15, { position: controlPoint, eulerAngles: halfRotation }, { easing: 'sineOut' })
                 .to(0.15, { position, eulerAngles: rotation }, { easing: 'sineIn' })
@@ -196,9 +196,9 @@ export class CornStoragePoint extends Component {
     }
 
     public finalizeResourceTransfer(resource: Node): void {
-        for (const [key, stored] of Array.from(this._removed)) {
+        for (const [, stored] of Array.from(this._removed)) {
             if (stored.node === resource) {
-                this._removed.delete(key);
+                stored.node = null;
                 return;
             }
         }
@@ -238,6 +238,7 @@ export class CornStoragePoint extends Component {
             this.amount = Math.max(0, this.amount - 1);
             return null;
         }
+        stored.canMove = true;
         this._removed.set(key, stored);
         this.amount = Math.max(0, this.amount - 1);
         Tween.stopAllByTarget(stored.node);
@@ -257,6 +258,23 @@ export class CornStoragePoint extends Component {
         const key = Array.from(this._removed.keys()).sort((left, right) => left - right)[0] ?? null;
         if (key !== null) this._removed.delete(key);
         return key;
+    }
+
+    private recoverInterruptedTransferEntry(
+        index: number,
+        resource: Node,
+        position: Vec3,
+        originalScale: Vec3,
+    ): void {
+        const current = this._resources.get(index);
+        if (!current || current.node !== resource || current.canMove || !resource.isValid) return;
+
+        Tween.stopAllByTarget(resource);
+        resource.setPosition(position);
+        resource.setRotationFromEuler(Vec3.ZERO);
+        resource.setScale(originalScale);
+        current.canMove = true;
+        this.playAudio();
     }
 
     private calculateStackPosition(index: number): Vec3 {

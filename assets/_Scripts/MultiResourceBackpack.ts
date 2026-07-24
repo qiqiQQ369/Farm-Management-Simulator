@@ -3,6 +3,7 @@ import { CoinBackpack } from './CoinBackpack';
 import { StoragePoint } from './Resource/StoragePoint';
 import { WoodBackpack } from './WoodBackpack';
 import { restoreCornVisualHierarchy } from './CornVisualState';
+import { MaxTip } from './UI/MaxTip';
 
 const { ccclass, property } = _decorator;
 
@@ -119,7 +120,11 @@ export class MultiResourceBackpack extends Component {
 
     public addResource(resourceId: string, sourceWorldPosition?: Vec3): boolean {
         const slot = this._slots.get(resourceId);
-        if (!slot || !slot.prefab || slot.count >= slot.capacity) {
+        if (!slot || !slot.prefab) {
+            return false;
+        }
+        if (slot.count >= slot.capacity) {
+            MaxTip.showMaxTip();
             return false;
         }
 
@@ -137,15 +142,43 @@ export class MultiResourceBackpack extends Component {
         const targetPosition = this.calculatePosition(slot.items.length);
         if (sourceWorldPosition) {
             item.setWorldPosition(sourceWorldPosition);
-            tween(item)
-                .to(0.32, { position: targetPosition }, { easing: 'sineOut' })
-                .start();
+            this.playPickupTransferAnimation(item, targetPosition);
         } else {
             item.setPosition(targetPosition);
         }
 
         slot.items.push(item);
         return true;
+    }
+
+    private playPickupTransferAnimation(resource: Node, targetPosition: Vec3): void {
+        const startPosition = resource.position.clone();
+        const controlPoint = new Vec3();
+        Vec3.lerp(controlPoint, startPosition, targetPosition, 0.5);
+        const distance = Vec3.distance(startPosition, targetPosition);
+        controlPoint.y += Math.max(1.5, distance * 0.6);
+
+        const direction = new Vec3();
+        Vec3.subtract(direction, targetPosition, startPosition);
+        const perpendicular = new Vec3(-direction.z, 0, direction.x);
+        if (perpendicular.lengthSqr() > 0.000001) {
+            Vec3.normalize(perpendicular, perpendicular);
+            Vec3.scaleAndAdd(controlPoint, controlPoint, perpendicular, distance * 0.2);
+        }
+
+        const originalScale = resource.scale.clone();
+        const raisedScale = originalScale.clone().multiplyScalar(1.17);
+        const halfRotation = Vec3.ZERO.clone();
+        tween(resource)
+            .to(0.15, { position: controlPoint, eulerAngles: halfRotation }, { easing: 'sineOut' })
+            .to(0.15, { position: targetPosition, eulerAngles: Vec3.ZERO }, { easing: 'sineIn' })
+            .call(() => {
+                resource.setPosition(targetPosition);
+                resource.setRotationFromEuler(Vec3.ZERO);
+            })
+            .to(0.1, { scale: raisedScale }, { easing: 'bounceOut' })
+            .to(0.2, { scale: originalScale }, { easing: 'bounceOut' })
+            .start();
     }
 
     /** Removes one item without destroying it so it can move into field storage. */

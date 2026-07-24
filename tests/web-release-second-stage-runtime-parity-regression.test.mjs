@@ -71,17 +71,23 @@ test('每个玉米容器入口都恢复 Release 可视层级', () => {
     }
 });
 
-test('成功转移后源存放点释放节点所有权', () => {
+test('成功转移后源存放点保留空槽供下一次入槽回填', () => {
     const storage = read('../assets/_Scripts/CornStoragePoint.ts');
     const hauler = read('../assets/_Scripts/CornHauler.ts');
     const pickup = read('../assets/_Scripts/CornPickupDetector.ts');
     const customer = read('../assets/_Scripts/CornCustomerScheduler.ts');
 
-    assert.match(storage, /public finalizeResourceTransfer\(resource: Node\): void/);
+    const finalizeMethod = storage.match(
+        /public finalizeResourceTransfer[\s\S]*?\n    public hasMovableResource/,
+    )?.[0] ?? '';
+    assert.match(storage, /private takeFirstRemovedIndex\([\s\S]*?_removed\.keys\(\)/);
+    assert.match(finalizeMethod, /stored\.node = null/);
+    assert.doesNotMatch(finalizeMethod, /_removed\.delete\(key\)/);
     assert.match(
-        hauler,
-        /from instanceof CornStoragePoint[\s\S]*?from\.finalizeResourceTransfer\(resource\)/,
+        storage,
+        /type StoredCorn = \{[\s\S]*?node: Node \| null/,
     );
+    assert.match(hauler, /from instanceof CornStoragePoint[\s\S]*?from\.finalizeResourceTransfer\(resource\)/);
     assert.match(pickup, /collectionStorage\.finalizeResourceTransfer\(item\)/);
     assert.match(customer, /targetStoragePoint\.finalizeResourceTransfer\(resource\)/);
     assert.match(customer, /if \(moved\)[\s\S]*?dropCoins/);

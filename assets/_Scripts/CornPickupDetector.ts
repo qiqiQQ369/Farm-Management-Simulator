@@ -19,7 +19,7 @@ export class CornPickupDetector extends Component {
     @property({ type: MultiResourceBackpack }) public backpack: MultiResourceBackpack = null!;
     @property({ type: CornStoragePoint }) public collectionStorage: CornStoragePoint = null!;
     @property public resourceId = '';
-    @property public collectionInterval = 0.1;
+    @property public collectionInterval = 0.05;
 
     private _playerInside = false;
     private _collectionTimer = 0;
