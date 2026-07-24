@@ -61,6 +61,7 @@ export class PlayerDetectionZone extends Component {
     
     // 私有属性
     public _isPlayerInZone: boolean = false;
+    private _isHaulerInZone = false;
     private _playerNode: Node | null = null;
     private _playerController: any = null;
     private _playerBackpack: WoodBackpack | null = null;
@@ -88,6 +89,19 @@ export class PlayerDetectionZone extends Component {
         }
 
         this._meshRenderer = this.node.getComponent(MeshRenderer);
+    }
+
+    public setHaulerInZone(inZone: boolean): void {
+        if (this._isHaulerInZone === inZone) return;
+        this._isHaulerInZone = inZone;
+        this.updateSellHighlight();
+    }
+
+    private updateSellHighlight(): void {
+        if (!this._meshRenderer) return;
+        this._meshRenderer.material = this._isPlayerInZone || this._isHaulerInZone
+            ? this.material
+            : this.material1;
     }
 
     private findStoragePointInNode(root: Node | null): StoragePoint | null {
@@ -246,7 +260,7 @@ export class PlayerDetectionZone extends Component {
             this.resetTriggerState();
             this.onPlayerEnterZone?.(this._playerNode);
 
-            this._meshRenderer.material = this.material;
+            this.updateSellHighlight();
             if (this.showDebug) {
                 console.log(`玩家进入${ZoneActionType[this.actionType]}区域`);
             }
@@ -266,7 +280,7 @@ export class PlayerDetectionZone extends Component {
             this.resetTriggerState();
             this.onPlayerExitZone?.(event.otherCollider.node);
 
-            this._meshRenderer.material = this.material1;
+            this.updateSellHighlight();
             if (this.showDebug) {
                 console.log(`玩家离开${ZoneActionType[this.actionType]}区域`);
             }

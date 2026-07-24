@@ -104,6 +104,7 @@ export class CoinConsumer extends Component {
     private closed = false;
 
     private _upgradeConfigs = new Map<UpgradeTarget, UpgradeConfig>();
+    private readonly _haulerCarryMounts = new WeakMap<Node, Node>();
     protected onLoad(): void {
         this.validateComponents();
         this.initializeUpgradeConfigs();
@@ -576,6 +577,9 @@ export class CoinConsumer extends Component {
         const woodBackpack = hauler.getComponent(WoodBackpack);
         const coinBackpack = hauler.getComponent(CoinBackpack);
         const multiResourceBackpack = hauler.getComponent(MultiResourceBackpack);
+        if (woodBackpack?.backpackMount?.isValid) {
+            this._haulerCarryMounts.set(hauler, woodBackpack.backpackMount);
+        }
 
         hauler.getComponent(PlayerController)?.destroy();
         hauler.getComponent(ChopAction)?.destroy();
@@ -644,6 +648,7 @@ export class CoinConsumer extends Component {
             behavior.sellPoint = sellPoint;
             behavior.idlePoint = spawnAnchor;
             behavior.collectionStopDistance = 1.8;
+            behavior.sellStopDistance = 0.01;
 
             console.log('[HAULER-DEBUG] hauler bindings ready', {
                 collectionPoint: behavior.collectionPoint?.name ?? 'null',
@@ -661,49 +666,24 @@ export class CoinConsumer extends Component {
     }
 
     private ensureHaulerCarryStorage(hauler: Node): StoragePoint | null {
-        const playerRoot = this.findSceneNodeByName('Player');
-        const playerMount = playerRoot
-            ?.getComponent(WoodBackpack)
-            ?.backpackMount ?? null;
-        const playerStorage = playerMount?.getComponent(StoragePoint) ?? null;
-
         const carryNode = this.findNamedNode(hauler, 'HaulerCarryStorage') ?? new Node('HaulerCarryStorage');
-        if (carryNode.parent !== hauler) carryNode.setParent(hauler);
-        carryNode.setPosition(0, 1.2, -0.6);
-        this.copyCarryMountTransform(carryNode, playerMount, playerRoot);
+        const carryMount = this._haulerCarryMounts.get(hauler) ?? null;
+        if (carryMount?.parent) {
+            carryNode.setParent(carryMount.parent);
+            carryNode.setPosition(carryMount.position);
+            carryNode.setRotation(carryMount.rotation);
+            carryNode.setScale(carryMount.scale);
+        } else {
+            carryNode.setParent(hauler);
+            carryNode.setPosition(0, 1.2, -0.6);
+        }
 
         const carryStorage = carryNode.getComponent(StoragePoint) ?? carryNode.addComponent(StoragePoint);
         carryStorage.storageName = '搬运工木材存储';
-        this.copyStoragePointLayout(carryStorage, playerStorage);
+        this.copyStoragePointLayout(carryStorage, carryMount?.getComponent(StoragePoint) ?? null);
         carryStorage.stackAreaNode = carryStorage.node;
         carryStorage.clearStorage();
         return carryStorage;
-    }
-
-    /**
-     * The player mount is a visual template only. Convert its full bone-chain
-     * transform into the player-root coordinate system for a private fallback.
-     */
-    private copyCarryMountTransform(target: Node, source: Node | null, sourceRoot: Node | null): void {
-        if (!source || !sourceRoot) return;
-
-        const relativePosition = new Vec3();
-        sourceRoot.inverseTransformPoint(relativePosition, source.worldPosition);
-        target.setPosition(relativePosition);
-
-        const parentInverseRotation = new Quat();
-        const relativeRotation = new Quat();
-        Quat.invert(parentInverseRotation, sourceRoot.worldRotation);
-        Quat.multiply(relativeRotation, parentInverseRotation, source.worldRotation);
-        target.setRotation(relativeRotation);
-
-        const sourceScale = source.worldScale;
-        const rootScale = sourceRoot.worldScale;
-        target.setScale(
-            rootScale.x === 0 ? sourceScale.x : sourceScale.x / rootScale.x,
-            rootScale.y === 0 ? sourceScale.y : sourceScale.y / rootScale.y,
-            rootScale.z === 0 ? sourceScale.z : sourceScale.z / rootScale.z,
-        );
     }
 
     private copyStoragePointLayout(target: StoragePoint, source: StoragePoint | null): void {

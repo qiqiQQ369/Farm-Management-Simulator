@@ -9,6 +9,7 @@ import {
     find,
     instantiate,
     Label,
+    MeshRenderer,
     Node,
     Prefab,
     Renderer,
@@ -36,6 +37,7 @@ import { JoystickController } from './JoystickController';
 import { MainUI } from './MainUI';
 import { MultiResourceBackpack } from './MultiResourceBackpack';
 import { PlayerController } from './PlayerController';
+import { PlayerDetectionZone } from './PlayerDetectionZone';
 
 const { ccclass, property, executionOrder } = _decorator;
 
@@ -79,6 +81,7 @@ type FieldRuntime = {
     collectionStorage: CornStoragePoint;
     sellStorage: CornStoragePoint;
     sellNode: Node;
+    sellHighlighted: boolean;
     unlockNodes: Record<PurchasableUnlockStage, Node>;
     unlockPad: CornUnlockPad | null;
     workers: CornWorker[];
@@ -236,7 +239,7 @@ export class ResourceFieldSystem extends Component {
     public coinsPerTick = 5;
 
     @property({ tooltip: 'Seconds between unlock consumption ticks.', group: 'Shared gameplay' })
-    public consumeInterval = 0.1;
+    public consumeInterval = 0.2;
 
     @property({ tooltip: 'Corn worker chop range.', group: 'Shared gameplay' })
     public workerChopRange = 0.7;
@@ -256,8 +259,8 @@ export class ResourceFieldSystem extends Component {
     @property({ tooltip: 'Corn tractor endpoint wait.', group: 'Shared gameplay' })
     public vehicleEndpointWait = 0.1;
 
-    @property({ tooltip: 'Local position of side-field stock inside its sell slot, matching the forest wood slot.', group: 'Shared gameplay' })
-    public sellStoragePosition = new Vec3(-0.358, 0.866, 1.53);
+    @property({ tooltip: 'Local position of side-field stock inside its cashier slot, matching the forest wood slot.', group: 'Shared gameplay' })
+    public sellStoragePosition = new Vec3(-1.167, 0.885, -0.104);
 
     @property({ tooltip: 'Visual scale of side-field stock inside its sell slot, matching the forest wood slot.', group: 'Shared gameplay' })
     public sellStorageScale = 0.9;
@@ -365,6 +368,7 @@ export class ResourceFieldSystem extends Component {
 
             this.keepPlayerOutsideCollectionStorage(field);
             if (!this._finished) this.updatePlayerDeposit(field, deltaTime);
+            this.updateCornSellHighlight(field);
         }
     }
 
@@ -527,7 +531,8 @@ export class ResourceFieldSystem extends Component {
         workerUnlockPoint.active = false;
         vehicleUnlockPoint.active = false;
         haulerUnlockPoint.active = false;
-        const sellStorage = this.ensureSellStorage(sellNode, id);
+        const sellStorageAnchor = this.resolveSellStorageAnchor(root, sellNode);
+        const sellStorage = this.ensureSellStorage(sellStorageAnchor, id);
         this.bindCornCustomerScheduler(root, sellStorage);
         const cropRoot = root.children[0] ?? null;
         if (!cropRoot || !this._player || !this._resourceBackpack) {
@@ -585,6 +590,7 @@ export class ResourceFieldSystem extends Component {
             collectionStorage,
             sellStorage,
             sellNode,
+            sellHighlighted: false,
             unlockNodes: {
                 worker: workerUnlockPoint,
                 vehicle: vehicleUnlockPoint,
@@ -607,7 +613,7 @@ export class ResourceFieldSystem extends Component {
         }
 
         field.depositTimer += deltaTime;
-        if (field.depositTimer < 0.16) return;
+        if (field.depositTimer < 0.03) return;
         field.depositTimer = 0;
 
         if (!field.sellStorage.hasSpace(1)) return;
@@ -619,6 +625,19 @@ export class ResourceFieldSystem extends Component {
 
         item.destroy();
         this._resourceBackpack.addResource(field.id);
+    }
+
+    private updateCornSellHighlight(field: FieldRuntime): void {
+        const highlighted = field.haulerBehavior?.isUnloadingAtSellPoint() ?? false;
+        if (field.sellHighlighted === highlighted) return;
+
+        const forestSellZone = find('LandObj/Sell')?.getComponent(PlayerDetectionZone) ?? null;
+        const sellRenderer = field.sellNode.getComponentInChildren(MeshRenderer) ?? null;
+        const material = highlighted ? forestSellZone?.material : forestSellZone?.material1;
+        if (sellRenderer && material) {
+            sellRenderer.material = material;
+        }
+        field.sellHighlighted = highlighted;
     }
 
     private completeUnlockStage(field: FieldRuntime, stage: UnlockStage): void {
@@ -969,12 +988,21 @@ export class ResourceFieldSystem extends Component {
         return servicePoint;
     }
 
+    private createCornHaulerSellServicePoint(field: FieldRuntime): Node {
+        const servicePoint = this.ensurePathPoint(field.root, 'CornHaulerSellServicePoint');
+        const servicePosition = field.sellNode.worldPosition.clone();
+        servicePosition.y = field.root.worldPosition.y;
+        servicePoint.setWorldPosition(servicePosition);
+        return servicePoint;
+    }
+
     private spawnHauler(field: FieldRuntime, padNode: Node): void {
         const fallback = this.haulerTemplate ?? this.workerTemplate?.children[0] ?? this.workerTemplate;
         const actor = field.haulerPrefab ? instantiate(field.haulerPrefab) : fallback ? instantiate(fallback) : null;
         if (!actor) return;
         const spawnAnchor = this.getCornHaulerUnlockAnchor(padNode);
         const collectionServicePoint = this.createCornHaulerCollectionServicePoint(field, spawnAnchor);
+        const sellServicePoint = this.createCornHaulerSellServicePoint(field);
         actor.name = `${field.id}_Hauler`;
         actor.active = false;
         actor.setParent(field.root);
@@ -1013,7 +1041,7 @@ export class ResourceFieldSystem extends Component {
         behavior.enabled = false;
         behavior.skeletonAnimation = actor.getComponentInChildren(SkeletalAnimation);
         behavior.collectionPoint = collectionServicePoint;
-        behavior.sellPoint = field.sellNode;
+        behavior.sellPoint = sellServicePoint;
         behavior.idlePoint = spawnAnchor;
         behavior.homeFieldRoot = field.root;
         behavior.collectionStorage = field.collectionStorage;
@@ -1022,7 +1050,7 @@ export class ResourceFieldSystem extends Component {
         behavior.moveSpeed = field.haulerSpeed;
         behavior.transferInterval = 0.15;
         behavior.collectionStopDistance = 0.05;
-        behavior.sellStopDistance = 0.2;
+        behavior.sellStopDistance = 0.01;
         restoreCornVisualHierarchy(actor, false);
         this.removeInheritedAxeVisual(actor, inheritedAxeNode);
         behavior.setHiddenAxeNode(null);
@@ -1176,15 +1204,26 @@ export class ResourceFieldSystem extends Component {
         scheduler.bindSellStorage(sellStorage);
     }
 
-    private ensureSellStorage(sellNode: Node, resourceId: string): CornStoragePoint {
-        const existing = sellNode.getComponentInChildren(CornStoragePoint);
+    private resolveSellStorageAnchor(fieldRoot: Node, fallback: Node): Node {
+        const cashierName = fieldRoot === this.leftFieldRoot
+            ? '收银台3'
+            : fieldRoot === this.rightFieldRoot
+                ? '收银台2'
+                : '';
+        const cashier = cashierName
+            ? fieldRoot.scene?.getChildByName('场景')?.getChildByName(cashierName) ?? null
+            : null;
+        return cashier ?? fallback;
+    }
+
+    private ensureSellStorage(anchor: Node, resourceId: string): CornStoragePoint {
+        const existing = anchor.getComponentInChildren(CornStoragePoint);
         const storageNode = existing?.node ?? new Node(`SellStorage_${resourceId}`);
-        if (!storageNode.parent) {
-            storageNode.setParent(sellNode);
+        if (storageNode.parent !== anchor) {
+            storageNode.setParent(anchor);
         }
 
-        // Match the central forest slot's effective position, scale and
-        // orientation under the side Sell1 nodes, whose revealed scale is 1.
+        // The forest wood stack is mounted on the cashier, not on its sell sign.
         storageNode.setPosition(this.sellStoragePosition);
         storageNode.setScale(this.sellStorageScale, this.sellStorageScale, this.sellStorageScale);
         storageNode.setRotationFromEuler(this.sellStorageRotation);

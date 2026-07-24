@@ -100,7 +100,8 @@ test('HTML 第二关在顾客节点激活前直接绑定本区域售卖库存', 
 
     assertOrder(
         createField,
-        'const sellStorage = this.ensureSellStorage(sellNode, id)',
+        'const sellStorageAnchor = this.resolveSellStorageAnchor(root, sellNode)',
+        'const sellStorage = this.ensureSellStorage(sellStorageAnchor, id)',
         'this.bindCornCustomerScheduler(root, sellStorage)',
     );
     assert.match(fieldSystem, /scheduler\.bindSellStorage\(sellStorage\)/);

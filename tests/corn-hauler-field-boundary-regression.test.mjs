@@ -37,3 +37,35 @@ test('corn hauler validates its own anchors instead of resetting its route posit
         'normal route updates must not repeatedly teleport a corn hauler',
     );
 });
+
+test('corn hauler stands at its own sell point center before unloading', () => {
+    assert.match(
+        fieldSystemSource,
+        /private createCornHaulerSellServicePoint\(field: FieldRuntime\): Node[\s\S]*?field\.sellNode\.worldPosition/,
+    );
+    assert.match(fieldSystemSource, /const sellServicePoint = this\.createCornHaulerSellServicePoint\(field\)/);
+    assert.match(fieldSystemSource, /behavior\.sellPoint = sellServicePoint/);
+    assert.match(fieldSystemSource, /behavior\.sellStopDistance = 0\.01/);
+    assert.match(haulerSource, /point\) <= Math\.max\(this\.sellStopDistance, 0\.01\)/);
+    assert.match(haulerSource, /const stop = Math\.max\(stopDistance, 0\.01\)/);
+    assert.doesNotMatch(haulerSource, /isNearSellPoint|enterSellPoint|snapToSellPoint/);
+    const unloadingBranch = haulerSource.match(/case CornHaulerState\.Unloading:[\s\S]*?break;/)?.[0] ?? '';
+    assert.doesNotMatch(unloadingBranch, /setWorldPosition/);
+    assert.doesNotMatch(unloadingBranch, /this\._state = CornHaulerState\.Delivering/);
+    assert.match(haulerSource, /Math\.max\(this\.transferStallTimeout, 0\.7\) \* 1000/);
+    assert.doesNotMatch(haulerSource, /storagePosition\) <= Math\.max\(this\.sellStopDistance, 0\.2\) \+ 0\.8/);
+});
+
+test('corn sell point uses the forest player highlight while the hauler unloads', () => {
+    assert.match(haulerSource, /public isUnloadingAtSellPoint\(\): boolean/);
+    assert.match(haulerSource, /this\._state === CornHaulerState\.Unloading/);
+    assert.match(fieldSystemSource, /field\.haulerBehavior\?\.isUnloadingAtSellPoint\(\)/);
+    assert.match(fieldSystemSource, /find\('LandObj\/Sell'\)\?\.getComponent\(PlayerDetectionZone\)/);
+    assert.match(fieldSystemSource, /highlighted \? forestSellZone\?\.material : forestSellZone\?\.material1/);
+});
+
+test('corn unload recovery keeps the hauler at its sell point', () => {
+    const monitor = haulerSource.match(/private monitorTransferProgress[\s\S]*?\n    private isAtSellTarget/)?.[0] ?? '';
+    assert.match(monitor, /from\.recoverInterruptedTransfers\(\)/);
+    assert.doesNotMatch(monitor, /this\.resetStalledRouteInPlace\(\)/);
+});

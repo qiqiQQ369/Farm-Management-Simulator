@@ -2,6 +2,7 @@ import { _decorator, Component, game, Game, math, Node, SkeletalAnimation, Vec3 
 import { AnimationName } from './PlayerController';
 import { ResourceManager } from './Resource/ResourceManager';
 import { StoragePoint } from './Resource/StoragePoint';
+import { PlayerDetectionZone } from './PlayerDetectionZone';
 
 const { ccclass, property } = _decorator;
 
@@ -47,7 +48,7 @@ export class HaulerNPC extends Component {
     public collectionStopDistance = 1.8;
 
     @property
-    public sellStopDistance = 0.2;
+    public sellStopDistance = 0.01;
 
     @property
     public facingYawOffset = 180;
@@ -95,6 +96,7 @@ export class HaulerNPC extends Component {
 
     protected onDisable(): void {
         game.off(Game.EVENT_SHOW, this.onApplicationShow, this);
+        this.setSellZoneHaulerHighlight(false);
     }
 
     private onApplicationShow(): void {
@@ -140,10 +142,6 @@ export class HaulerNPC extends Component {
                 break;
             case HaulerState.Unloading:
                 this.playIdleAnimation();
-                if (!this.isAtSellTarget()) {
-                    this._state = HaulerState.Delivering;
-                    break;
-                }
                 this.transferWood(this.carryStorage, this.sellStorage, HaulerState.Returning, HaulerState.Unloading, deltaTime);
                 break;
             case HaulerState.Returning:
@@ -151,6 +149,17 @@ export class HaulerNPC extends Component {
                     this._state = HaulerState.WaitingForWood;
                 }
                 break;
+        }
+        this.setSellZoneHaulerHighlight(this._state === HaulerState.Unloading);
+    }
+
+    private setSellZoneHaulerHighlight(highlighted: boolean): void {
+        for (let node: Node | null = this.sellStorage?.node ?? null; node; node = node.parent) {
+            const sellZone = node.getComponent(PlayerDetectionZone);
+            if (sellZone) {
+                sellZone.setHaulerInZone(highlighted);
+                return;
+            }
         }
     }
 
@@ -295,12 +304,15 @@ export class HaulerNPC extends Component {
             return;
         }
 
-        const timeoutMs = Math.max(this.routeStallResetSeconds, 0.05) * 1000;
+        const timeoutMs = Math.max(this.transferStallTimeout, 0.7) * 1000;
         if (now - this._lastTransferProgressAt < timeoutMs) {
             return;
         }
 
-        this.resetStalledRouteInPlace();
+        from.recoverInterruptedTransfers();
+        this._monitoredFromAmount = from.amount;
+        this._monitoredToAmount = to.amount;
+        this._lastTransferProgressAt = now;
     }
 
     private resetTransferProgressMonitor(): void {
@@ -316,20 +328,13 @@ export class HaulerNPC extends Component {
         }
 
         const currentPosition = this.node.worldPosition.clone();
-        const sellStoragePosition = this.sellStorage.node.worldPosition.clone();
-        sellStoragePosition.y = currentPosition.y;
-
-        if (Vec3.distance(currentPosition, sellStoragePosition) <= Math.max(this.sellStopDistance, 0.2) + 0.8) {
-            return true;
-        }
-
         if (!this.sellPoint) {
             return false;
         }
 
         const sellPointPosition = this.sellPoint.worldPosition.clone();
         sellPointPosition.y = currentPosition.y;
-        return Vec3.distance(currentPosition, sellPointPosition) <= Math.max(this.sellStopDistance, 0.2) + 0.8;
+        return Vec3.distance(currentPosition, sellPointPosition) <= Math.max(this.sellStopDistance, 0.01);
     }
 
     private moveTowards(target: Vec3, deltaTime: number, stopDistance = 0.05): boolean {
@@ -339,8 +344,9 @@ export class HaulerNPC extends Component {
 
         const direction = flattenedTarget.subtract(currentPosition);
         const distance = direction.length();
-        const clampedStopDistance = Math.max(stopDistance, 0.05);
-        if (distance <= clampedStopDistance) {
+        const clampedStopDistance = Math.max(stopDistance, 0.01);
+        const arrivalTolerance = clampedStopDistance + 0.001;
+        if (distance <= arrivalTolerance) {
             this.resetMovementWatchdog();
             this.playIdleAnimation();
             this.faceTowardsDirection(direction);

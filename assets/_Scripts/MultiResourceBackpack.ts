@@ -92,14 +92,13 @@ export class MultiResourceBackpack extends Component {
             mount.setParent(woodMountTemplate.parent);
             const position = woodMountTemplate.position.clone();
             basePosition = position.clone();
-            position.x += horizontalOffset;
             mount.setPosition(position);
             mount.setRotation(woodMountTemplate.rotation);
             mount.setScale(woodMountTemplate.scale);
         } else {
             mount.setParent(this.node);
             basePosition = new Vec3(0, 1.45, -0.48);
-            mount.setPosition(basePosition.x + horizontalOffset, basePosition.y, basePosition.z);
+            mount.setPosition(basePosition.x, basePosition.y, basePosition.z);
         }
 
         this._slots.set(resourceId, {

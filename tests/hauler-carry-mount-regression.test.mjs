@@ -15,25 +15,24 @@ const haulerSource = readFileSync(
     'utf8',
 );
 
-test('forest hauler always uses one root-relative private carry mount', () => {
+test('forest hauler reuses its cloned player-skin carry mount', () => {
     const method = source.match(
         /private ensureHaulerCarryStorage[\s\S]*?\n    private copyStoragePointLayout/,
     )?.[0] ?? '';
 
-    assert.match(method, /const playerRoot = this\.findSceneNodeByName\('Player'\)/);
-    assert.match(method, /const playerMount = playerRoot[\s\S]*?WoodBackpack\)[\s\S]*?\.backpackMount/);
-    assert.doesNotMatch(method, /haulerMount|backpackStorage/);
     assert.match(method, /const carryNode = this\.findNamedNode\(hauler, 'HaulerCarryStorage'\) \?\? new Node\('HaulerCarryStorage'\)/);
-    assert.match(method, /if \(carryNode\.parent !== hauler\) carryNode\.setParent\(hauler\)/);
-    assert.match(method, /this\.copyCarryMountTransform\(carryNode, playerMount, playerRoot\)/);
+    assert.match(method, /const carryMount = this\._haulerCarryMounts\.get\(hauler\) \?\? null/);
+    assert.match(method, /carryNode\.setParent\(carryMount\.parent\)/);
+    assert.match(method, /carryNode\.setPosition\(carryMount\.position\)/);
+    assert.match(method, /carryNode\.setRotation\(carryMount\.rotation\)/);
+    assert.match(method, /carryNode\.setScale\(carryMount\.scale\)/);
     assert.match(method, /const carryStorage = carryNode\.getComponent\(StoragePoint\) \?\? carryNode\.addComponent\(StoragePoint\)/);
     assert.match(method, /carryStorage\.stackAreaNode = carryStorage\.node/);
     assert.doesNotMatch(method, /stackAreaNode = playerMount/);
     assert.doesNotMatch(method, /return playerStorage/);
-    assert.match(source, /private copyCarryMountTransform\(target: Node, source: Node \| null, sourceRoot: Node \| null\): void/);
-    assert.match(source, /sourceRoot\.inverseTransformPoint\(relativePosition, source\.worldPosition\)/);
-    assert.match(source, /Quat\.invert\(parentInverseRotation, sourceRoot\.worldRotation\)/);
-    assert.match(source, /Quat\.multiply\(relativeRotation, parentInverseRotation, source\.worldRotation\)/);
+    assert.match(source, /private readonly _haulerCarryMounts = new WeakMap<Node, Node>\(\)/);
+    assert.match(source, /this\._haulerCarryMounts\.set\(hauler, woodBackpack\.backpackMount\)/);
+    assert.doesNotMatch(source, /copyCarryMountTransform|inverseTransformPoint\(relativePosition/);
     assert.match(backpackSource, /public backpackMount: Node/);
     assert.match(haulerSource, /public carryStorage: StoragePoint/);
 });

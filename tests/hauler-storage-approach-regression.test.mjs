@@ -33,6 +33,30 @@ test('forest hauler stops outside its solid collection storage footprint', () =>
     );
 });
 
+test('forest hauler stands at the wood sell point center before unloading', () => {
+    assert.match(
+        coinConsumerSource,
+        /const sellPoint = arrow\?\.sellWoodGuideNode \?\? sellStorage\?\.node \?\? null/,
+    );
+    assert.match(coinConsumerSource, /behavior\.sellStopDistance = 0\.01/);
+    assert.match(forestSource, /this\.moveTowards\(this\.sellPoint\.worldPosition, deltaTime, this\.sellStopDistance\)/);
+    assert.match(forestSource, /sellPointPosition\) <= Math\.max\(this\.sellStopDistance, 0\.01\)/);
+    assert.match(forestSource, /clampedStopDistance = Math\.max\(stopDistance, 0\.01\)/);
+    assert.doesNotMatch(forestSource, /isNearSellPoint|enterSellPoint|snapToSellPoint/);
+    const unloadingBranch = forestSource.match(/case HaulerState\.Unloading:[\s\S]*?break;/)?.[0] ?? '';
+    assert.doesNotMatch(unloadingBranch, /setWorldPosition/);
+    assert.doesNotMatch(unloadingBranch, /this\._state = HaulerState\.Delivering/);
+    assert.match(forestSource, /Math\.max\(this\.transferStallTimeout, 0\.7\) \* 1000/);
+    assert.doesNotMatch(forestSource, /sellStoragePosition\) <= Math\.max\(this\.sellStopDistance, 0\.2\) \+ 0\.8/);
+    assert.match(forestSource, /setSellZoneHaulerHighlight\(this\._state === HaulerState\.Unloading\)/);
+});
+
+test('forest unload recovery keeps the hauler at the sell point', () => {
+    const monitor = forestSource.match(/private monitorTransferProgress[\s\S]*?\n    private resetTransferProgressMonitor/)?.[0] ?? '';
+    assert.match(monitor, /from\.recoverInterruptedTransfers\(\)/);
+    assert.doesNotMatch(monitor, /this\.resetStalledRouteInPlace\(\)/);
+});
+
 test('corn hauler keeps the forest 1.8-unit collection clearance on a fixed open side', () => {
     assert.match(cornSource, /collectionStopDistance\s*=\s*0\.05/);
     assert.match(fieldSource, /private createCornHaulerCollectionServicePoint\(/);
@@ -67,7 +91,35 @@ test('forest and corn haulers reset a blocked route in place after half a second
     }
 });
 
-test('forest and corn haulers reset the full transfer state after storage progress stalls', () => {
+test('forest and corn haulers treat floating-point near-arrival as reaching the sell point', () => {
+    for (const [name, source, stopName] of [
+        ['forest', forestSource, 'clampedStopDistance'],
+        ['corn', cornSource, 'stop'],
+    ]) {
+        const moveMethod = source.match(/private moveTowards[\s\S]*?\n    private /)?.[0] ?? '';
+        assert.match(
+            moveMethod,
+            new RegExp(`const arrivalTolerance = ${stopName} \\+ 0\\.001`),
+            `${name} hauler must not let a sub-millimeter floating-point remainder restart delivery forever`,
+        );
+        assert.match(
+            moveMethod,
+            /if \(distance <= arrivalTolerance\)/,
+            `${name} hauler must enter unloading once it is visually at the sell point`,
+        );
+    }
+});
+
+test('corn hauler leaves a transfer phase after recovery removes a stale source count', () => {
+    const transferMethod = cornSource.match(/private transferCorn[\s\S]*?\n    private tryRecoverBlockedStorage/)?.[0] ?? '';
+    assert.match(
+        transferMethod,
+        /if \(from\.amount === 0\) \{\s*this\._state = completedState;\s*return;\s*\}[\s\S]*?if \(!from\.hasMovableResource\(\)\)/,
+        'the corn hauler must advance after recovery proves no physical resource remains',
+    );
+});
+
+test('forest and corn haulers recover only the blocked transfer after storage progress stalls', () => {
     for (const [name, source] of [
         ['forest', forestSource],
         ['corn', cornSource],
@@ -77,22 +129,13 @@ test('forest and corn haulers reset the full transfer state after storage progre
         )?.[0] ?? '';
         assert.match(
             monitor,
+            /from\.recoverInterruptedTransfers\(\)/,
+            `${name} hauler must recover the blocked source stack without leaving its route`,
+        );
+        assert.doesNotMatch(
+            monitor,
             /this\.resetStalledRouteInPlace\(\)/,
-            `${name} hauler must reset its full state when loading or unloading stops progressing`,
-        );
-
-        const reset = source.match(
-            /private resetStalledRouteInPlace\(\): void[\s\S]*?\n    }/,
-        )?.[0] ?? '';
-        assert.match(
-            reset,
-            /this\.recoverAfterSceneTransition\(\)/,
-            `${name} hauler stall recovery must rebuild storage and state like a scene transition`,
-        );
-        assert.match(
-            reset,
-            /const currentPosition = this\.node\.worldPosition\.clone\(\)[\s\S]*this\.node\.setWorldPosition\(currentPosition\)/,
-            `${name} hauler state recovery must preserve its current world position`,
+            `${name} hauler must not reset its route during a blocked unload`,
         );
     }
 });

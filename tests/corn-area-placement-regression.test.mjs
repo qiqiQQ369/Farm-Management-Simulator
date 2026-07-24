@@ -609,13 +609,14 @@ test('corn unlock pads fill at the same per-coin cadence as forest unlock pads',
     assert.equal(forestCoinDelay, 100, 'forest unlocks must transfer one physical coin every 100 ms');
 
     const expectedInterval = forestCoinDelay / 1000;
+    assert.equal(expectedInterval, 0.1, 'forest continues filling once per coin every 100 ms');
     assert.equal(
         fieldSystem.consumeInterval,
-        expectedInterval,
-        'corn unlocks must use the same per-coin fill interval as forest unlocks',
+        0.2,
+        'corn unlocks must match the forest unlock pad activation delay',
     );
-    assert.match(cornUnlockSource, /public consumeInterval = 0\.1;/);
-    assert.match(resourceFieldSource, /public consumeInterval = 0\.1;/);
+    assert.match(cornUnlockSource, /public consumeInterval = 0\.2;/);
+    assert.match(resourceFieldSource, /public consumeInterval = 0\.2;/);
     assert.match(cornUnlockSource, /scheduleOnce\(resolve, 0\.1\)/);
 });
 
@@ -663,6 +664,18 @@ test('corn products use the sell storage node as their stack anchor like forest 
     assert.match(ensureSellStorage, /storage\.stackAreaNode = storageNode/);
     assert.doesNotMatch(ensureSellStorage, /CornSellStack|stackArea\.setPosition/);
     assert.doesNotMatch(ensureSellStorage, /calculateStackPosition/);
+});
+
+test('player corn deposits use the forest sell cadence', () => {
+    const forestSellInterval = Number(
+        scene.find((entry) => entry?.actionInterval === 0.03)?.actionInterval,
+    );
+    assert.equal(forestSellInterval, 0.03, 'forest sell zone must retain its 30 ms cadence');
+    assert.match(
+        resourceFieldSource,
+        /field\.depositTimer < 0\.03/,
+        'player corn deposits must use the forest sell cadence',
+    );
 });
 
 test('corn collection storage independently mirrors forest player pickup behavior', () => {

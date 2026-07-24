@@ -31,7 +31,7 @@ export class CornHauler extends Component {
     @property public moveSpeed = 3;
     @property public transferInterval = 0.15;
     @property public collectionStopDistance = 0.05;
-    @property public sellStopDistance = 0.2;
+    @property public sellStopDistance = 0.01;
     @property public facingYawOffset = 180;
     @property public transferStallTimeout = 1.5;
     @property public routeStallResetSeconds = 0.5;
@@ -113,13 +113,16 @@ export class CornHauler extends Component {
                 break;
             case CornHaulerState.Unloading:
                 this.playIdleAnimation();
-                if (!this.isAtSellTarget()) this._state = CornHaulerState.Delivering;
-                else this.transferCorn(this.carryStorage, this.sellStorage, CornHaulerState.Returning, CornHaulerState.Unloading, deltaTime);
+                this.transferCorn(this.carryStorage, this.sellStorage, CornHaulerState.Returning, CornHaulerState.Unloading, deltaTime);
                 break;
             case CornHaulerState.Returning:
                 if (this.moveTowards(this.collectionPoint.worldPosition, deltaTime, this.collectionStopDistance)) this._state = CornHaulerState.WaitingForCorn;
                 break;
         }
+    }
+
+    public isUnloadingAtSellPoint(): boolean {
+        return this._state === CornHaulerState.Unloading;
     }
 
     public recoverAfterSceneTransition(): void {
@@ -154,7 +157,17 @@ export class CornHauler extends Component {
             return;
         }
         if (!from.hasMovableResource()) {
-            if (!this.tryRecoverBlockedStorage(from) || !from.hasMovableResource()) return;
+            if (!this.tryRecoverBlockedStorage(from)) return;
+
+            // Recovery can discover that an interrupted transfer left an
+            // inventory count without a real corn node. Finish this leg
+            // rather than waiting forever for a resource that no longer exists.
+            if (from.amount === 0) {
+                this._state = completedState;
+                return;
+            }
+
+            if (!from.hasMovableResource()) return;
         } else {
             this.resetTransferWatchdog();
         }
@@ -211,18 +224,18 @@ export class CornHauler extends Component {
             this._lastTransferProgressAt = now;
             return;
         }
-        if (now - this._lastTransferProgressAt < Math.max(this.routeStallResetSeconds, 0.05) * 1000) return;
-        this.resetStalledRouteInPlace();
+        if (now - this._lastTransferProgressAt < Math.max(this.transferStallTimeout, 0.7) * 1000) return;
+        from.recoverInterruptedTransfers();
+        this._monitoredFromAmount = from.amount;
+        this._monitoredToAmount = to.amount;
+        this._lastTransferProgressAt = now;
     }
 
     private isAtSellTarget(): boolean {
         const current = this.node.worldPosition.clone();
-        const storagePosition = this.sellStorage.node.worldPosition.clone();
-        storagePosition.y = current.y;
-        if (Vec3.distance(current, storagePosition) <= Math.max(this.sellStopDistance, 0.2) + 0.8) return true;
         const point = this.sellPoint.worldPosition.clone();
         point.y = current.y;
-        return Vec3.distance(current, point) <= Math.max(this.sellStopDistance, 0.2) + 0.8;
+        return Vec3.distance(current, point) <= Math.max(this.sellStopDistance, 0.01);
     }
 
     private isNearCollection(): boolean {
@@ -238,8 +251,9 @@ export class CornHauler extends Component {
         flattenedTarget.y = current.y;
         const direction = flattenedTarget.subtract(current);
         const distance = direction.length();
-        const stop = Math.max(stopDistance, 0.05);
-        if (distance <= stop) {
+        const stop = Math.max(stopDistance, 0.01);
+        const arrivalTolerance = stop + 0.001;
+        if (distance <= arrivalTolerance) {
             this.resetMovementWatchdog();
             this.playIdleAnimation();
             this.faceTowardsDirection(direction);

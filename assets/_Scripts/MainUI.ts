@@ -169,9 +169,6 @@ export class MainUI extends UIBase {
     start() {
         //this.playerCtrl = PlayerController.inst;
         // this.setLabel("LabelMoney", this.money.toString());  // 更新UI显示
-        this.regClick("btnWin", () => {  // 注册开始按钮点击事件
-            this.goUrl();
-        });
         this.regClick("btnGo", () => {  // 注册开始按钮点击事件
             this.goUrl();
         });
