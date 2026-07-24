@@ -1,5 +1,5 @@
 import { _decorator, Component, Node, Vec3, input, Input, EventKeyboard, 
-    KeyCode, CharacterController, RigidBody, math, ICollisionEvent, Collider, ITriggerEvent, SkeletalAnimation, Animation, AnimationState } from 'cc';
+    KeyCode, CharacterController, RigidBody, math, ICollisionEvent, Collider, ITriggerEvent, SkeletalAnimation, Animation, AnimationState, SkinnedMeshRenderer } from 'cc';
 import { IJoystickInput, JoystickController } from './JoystickController';
 import { TreeManager } from './TreeManager';
 import { ChopAction } from './ChopAction';
@@ -13,6 +13,13 @@ export enum AnimationName {
     Idle = "idle1_FuTou",
     Run = "run2_FuTou",
     Chop = "KanMuTou"
+}
+
+enum PlayerVisualAnimationName {
+    Idle = "idle",
+    Run = "run",
+    ToolIdle = "tool_idle",
+    ToolRun = "tool_run"
 }
 
 /**
@@ -66,7 +73,7 @@ export class PlayerController extends Component implements IJoystickInput {
     @property({ type: SkeletalAnimation, tooltip: "骨骼动画" })
     public skeletonAnimation: SkeletalAnimation = null!;
 
-    private _currentAnimation: AnimationName = AnimationName.Idle;
+    private _currentAnimation: string = PlayerVisualAnimationName.Idle;
     
     // 私有属性
     private _keyboardInput: Vec3 = new Vec3();
@@ -98,6 +105,8 @@ export class PlayerController extends Component implements IJoystickInput {
         if (!this.playerNode) {
             this.playerNode = this.node;
         }
+
+        this.configurePrimaryPlayerVisual();
         
         // 获取物理组件
         this._characterController = this.playerNode.getComponent(CharacterController);
@@ -133,12 +142,48 @@ export class PlayerController extends Component implements IJoystickInput {
     }
 
     protected start(): void {
-        //this.skeletonAnimation.on('play', this.onAnimationFinished, this);
-        //
+        this.syncToolVisibility();
+        this.syncMovementAnimation(true);
     }
 
     protected onDestroy(): void {
         this.disableInput();
+    }
+
+    private configurePrimaryPlayerVisual(): void {
+        if (!this.isPrimaryPlayer()) return;
+
+        const playerVisual = this.node.getChildByName('PlayerVisual');
+        const playerVisualAnimation = playerVisual?.getComponent(SkeletalAnimation) ?? null;
+        if (playerVisual && playerVisualAnimation) {
+            playerVisual.active = true;
+            playerVisualAnimation.enabled = true;
+            this.skeletonAnimation = playerVisualAnimation;
+        }
+
+        for (const animation of this.node.getComponentsInChildren(SkeletalAnimation)) {
+            if (animation === this.skeletonAnimation) continue;
+            animation.stop();
+            animation.enabled = false;
+        }
+
+        for (const renderer of this.node.getComponentsInChildren(SkinnedMeshRenderer)) {
+            if (playerVisual && this.isNodeInside(renderer.node, playerVisual)) continue;
+            renderer.enabled = false;
+        }
+
+        if (this.chopAction) {
+            this.chopAction.skeletonAnimation = null!;
+        }
+    }
+
+    private isNodeInside(node: Node, root: Node): boolean {
+        let current: Node | null = node;
+        while (current) {
+            if (current === root) return true;
+            current = current.parent;
+        }
+        return false;
     }
 
     /**
@@ -233,6 +278,7 @@ export class PlayerController extends Component implements IJoystickInput {
     protected update(deltaTime: number): void {
         this.handleMovement(deltaTime);
         this.handleRotation(deltaTime);
+        this.syncToolVisibility();
         this.syncMovementAnimation();
 
         ArrowTipController.inst?.updateArrowTip(this.playerNode);
@@ -430,7 +476,7 @@ export class PlayerController extends Component implements IJoystickInput {
     }
 
     public onChopAnimationStarted(): void {
-        this._currentAnimation = AnimationName.Chop;
+        this.syncMovementAnimation(true);
     }
 
     public onChopAnimationFinished(): void {
@@ -483,8 +529,8 @@ export class PlayerController extends Component implements IJoystickInput {
             this._rigidBody.setLinearVelocity(this._tempVec3);
         }
 
-        this.skeletonAnimation.play(AnimationName.Idle);
-        this._currentAnimation = AnimationName.Idle;
+        this._currentAnimation = PlayerVisualAnimationName.Idle;
+        this.playVisualAnimation(PlayerVisualAnimationName.Idle);
     }
 
     /**
@@ -512,8 +558,12 @@ export class PlayerController extends Component implements IJoystickInput {
     }
 
     public playAnimation(animationName: AnimationName): void {
-        this.skeletonAnimation.play(animationName);
-        this._currentAnimation = animationName;
+        if (animationName === AnimationName.Run) {
+            this._currentAnimation = PlayerVisualAnimationName.Run;
+        } else {
+            this._currentAnimation = PlayerVisualAnimationName.Idle;
+        }
+        this.playVisualAnimation(this._currentAnimation as PlayerVisualAnimationName);
     }
 
     private syncMovementAnimation(forceRefresh: boolean = false): void {
@@ -521,17 +571,45 @@ export class PlayerController extends Component implements IJoystickInput {
             return;
         }
 
-        if (this.chopAction?.isPlaying()) {
+        const isUsingTool = this.chopAction?.isPlaying() ?? false;
+        const nextAnimation = isUsingTool
+            ? (this._isMoving ? PlayerVisualAnimationName.ToolRun : PlayerVisualAnimationName.ToolIdle)
+            : (this._isMoving ? PlayerVisualAnimationName.Run : PlayerVisualAnimationName.Idle);
+        const nextState = this.skeletonAnimation.getState(nextAnimation);
+        const shouldStayPaused = nextAnimation === PlayerVisualAnimationName.Idle && nextState?.isPaused;
+        if (!forceRefresh
+            && this._currentAnimation === nextAnimation
+            && (nextState?.isPlaying || shouldStayPaused)) {
             return;
         }
 
-        const nextAnimation = this._isMoving ? AnimationName.Run : AnimationName.Idle;
-        if (!forceRefresh && this._currentAnimation === nextAnimation) {
-            return;
-        }
-
-        this.skeletonAnimation.play(nextAnimation);
         this._currentAnimation = nextAnimation;
+        this.playVisualAnimation(nextAnimation);
+    }
+
+    private syncToolVisibility(): void {
+        const toolNode = this.chopAction?.futouNode;
+        if (toolNode?.isValid) {
+            toolNode.active = this.chopAction.isPlaying();
+        }
+    }
+
+    private playVisualAnimation(animationName: PlayerVisualAnimationName): void {
+        if (animationName === PlayerVisualAnimationName.Idle) {
+            const idleState = this.skeletonAnimation.getState(animationName);
+            if (idleState) {
+                this.skeletonAnimation.stop();
+                idleState.time = 0;
+                idleState.sample();
+            }
+            return;
+        }
+
+        const state = this.skeletonAnimation.getState(animationName);
+        if (state) {
+            state.speed = 1;
+        }
+        this.skeletonAnimation.play(animationName);
     }
     // private onAnimationFinished(type: AnimationStateEventType, state: AnimationState): void {
     //     console.log("onAnimationFinished", type);        

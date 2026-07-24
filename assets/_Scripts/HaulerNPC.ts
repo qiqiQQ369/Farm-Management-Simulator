@@ -1,5 +1,5 @@
 import { _decorator, Component, game, Game, math, Node, SkeletalAnimation, Vec3 } from 'cc';
-import { AnimationName } from './PlayerController';
+import { HaulerAnimationName } from './HaulerAnimation';
 import { ResourceManager } from './Resource/ResourceManager';
 import { StoragePoint } from './Resource/StoragePoint';
 import { PlayerDetectionZone } from './PlayerDetectionZone';
@@ -422,12 +422,12 @@ export class HaulerNPC extends Component {
             return;
         }
 
-        if (!this._isMoving && this.skeletonAnimation.getState(AnimationName.Idle)?.isPlaying) {
+        if (!this._isMoving && this.skeletonAnimation.getState(HaulerAnimationName.Idle)?.isPlaying) {
             return;
         }
 
         this._isMoving = false;
-        this.skeletonAnimation.play(AnimationName.Idle);
+        this.skeletonAnimation.play(HaulerAnimationName.Idle);
     }
 
     private playRunAnimation(): void {
@@ -435,11 +435,11 @@ export class HaulerNPC extends Component {
             return;
         }
 
-        if (this._isMoving && this.skeletonAnimation.getState(AnimationName.Run)?.isPlaying) {
+        if (this._isMoving && this.skeletonAnimation.getState(HaulerAnimationName.Run)?.isPlaying) {
             return;
         }
 
         this._isMoving = true;
-        this.skeletonAnimation.play(AnimationName.Run);
+        this.skeletonAnimation.play(HaulerAnimationName.Run);
     }
 }

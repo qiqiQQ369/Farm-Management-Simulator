@@ -27,6 +27,7 @@ import { CornFieldProduction } from './CornFieldProduction';
 import { CornCustomerScheduler } from './CornCustomerScheduler';
 import { CornHauler } from './CornHauler';
 import { CornHaulerBackpack } from './CornHaulerBackpack';
+import { findLegacyHaulerAnimation, removePlayerOnlyVisual } from './HaulerAnimation';
 import { CornPickupDetector } from './CornPickupDetector';
 import { CornStoragePoint } from './CornStoragePoint';
 import { CornTractor } from './CornTractor';
@@ -1007,6 +1008,7 @@ export class ResourceFieldSystem extends Component {
         actor.active = false;
         actor.setParent(field.root);
         actor.setWorldPosition(this.getCornHaulerSpawnWorldPosition(spawnAnchor));
+        removePlayerOnlyVisual(actor);
         this.disableActorGameplayComponents(actor);
         for (const storage of actor.getComponentsInChildren(CornStoragePoint)) storage.clearStorage();
 
@@ -1039,7 +1041,7 @@ export class ResourceFieldSystem extends Component {
 
         const behavior = actor.getComponent(CornHauler) ?? actor.addComponent(CornHauler);
         behavior.enabled = false;
-        behavior.skeletonAnimation = actor.getComponentInChildren(SkeletalAnimation);
+        behavior.skeletonAnimation = findLegacyHaulerAnimation(actor)!;
         behavior.collectionPoint = collectionServicePoint;
         behavior.sellPoint = sellServicePoint;
         behavior.idlePoint = spawnAnchor;

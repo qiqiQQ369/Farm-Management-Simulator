@@ -1,8 +1,8 @@
 import { _decorator, Component, game, Game, math, Node, SkeletalAnimation, Vec3 } from 'cc';
-import { AnimationName } from './PlayerController';
 import { ChopAction } from './ChopAction';
 import { CornHaulerBackpack } from './CornHaulerBackpack';
 import { CornStoragePoint } from './CornStoragePoint';
+import { HaulerAnimationName } from './HaulerAnimation';
 
 const { ccclass, property } = _decorator;
 
@@ -336,13 +336,13 @@ export class CornHauler extends Component {
         if (direction.lengthSqr() > 0.000001) this.node.setRotationFromEuler(0, math.toDegree(Math.atan2(direction.x, direction.z)) + this.facingYawOffset, 0);
     }
     private playIdleAnimation(): void {
-        if (!this.skeletonAnimation || (!this._isMoving && this.skeletonAnimation.getState(AnimationName.Idle)?.isPlaying)) return;
+        if (!this.skeletonAnimation || (!this._isMoving && this.skeletonAnimation.getState(HaulerAnimationName.Idle)?.isPlaying)) return;
         this._isMoving = false;
-        this.skeletonAnimation.play(AnimationName.Idle);
+        this.skeletonAnimation.play(HaulerAnimationName.Idle);
     }
     private playRunAnimation(): void {
-        if (!this.skeletonAnimation || (this._isMoving && this.skeletonAnimation.getState(AnimationName.Run)?.isPlaying)) return;
+        if (!this.skeletonAnimation || (this._isMoving && this.skeletonAnimation.getState(HaulerAnimationName.Run)?.isPlaying)) return;
         this._isMoving = true;
-        this.skeletonAnimation.play(AnimationName.Run);
+        this.skeletonAnimation.play(HaulerAnimationName.Run);
     }
 }

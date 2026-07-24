@@ -4,6 +4,7 @@ import { CameraController } from './CameraController';
 import { ChopAction } from './ChopAction';
 import { CoinBackpack } from './CoinBackpack';
 import { HaulerNPC } from './HaulerNPC';
+import { findLegacyHaulerAnimation, removePlayerOnlyVisual } from './HaulerAnimation';
 import { JoystickController } from './JoystickController';
 import { MultiResourceBackpack } from './MultiResourceBackpack';
 import { PlayerController } from './PlayerController';
@@ -565,6 +566,8 @@ export class CoinConsumer extends Component {
     }
 
     private preparePlayerSkinHauler(hauler: Node): void {
+        removePlayerOnlyVisual(hauler);
+
         for (const storage of hauler.getComponentsInChildren(StoragePoint)) {
             const stackArea = storage.stackAreaNode ?? storage.node;
             for (const item of [...stackArea.children]) {
@@ -621,6 +624,7 @@ export class CoinConsumer extends Component {
 
     private configureHaulerNode(hauler: Node, unlockPad: Node, spawnAnchor: Node): void {
         const behavior = hauler.getComponent(HaulerNPC) ?? hauler.addComponent(HaulerNPC);
+        behavior.skeletonAnimation = findLegacyHaulerAnimation(hauler)!;
         const arrow = this.node.scene?.getComponentInChildren(ArrowTipController);
         const carryStorage = this.ensureHaulerCarryStorage(hauler);
         const collectionStorage = arrow?.cutterWoodStorageNode ?? null;
