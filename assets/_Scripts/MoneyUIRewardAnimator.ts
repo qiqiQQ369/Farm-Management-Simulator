@@ -52,8 +52,8 @@ export class MoneyUIRewardAnimator extends Component {
         Vec3.multiplyScalar(this._punchScale, this._baseScale, 1.12);
 
         this._rewardTween = tween(this.node)
-            .to(0.1, { scale: this._punchScale }, { easing: 'quadOut' })
-            .to(0.15, { scale: this._baseScale }, { easing: 'backOut' })
+            .to(0.067, { scale: this._punchScale }, { easing: 'quadOut' })
+            .to(0.10, { scale: this._baseScale }, { easing: 'backOut' })
             .call(() => {
                 this._rewardTween = null;
                 this.node.setScale(this._baseScale);

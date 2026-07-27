@@ -124,8 +124,8 @@ test('money UI animator owns a restartable whole-node punch animation', async ()
     assert.match(source, /find\('Canvas\/CoinLabel'\)/);
     assert.match(source, /stop\(\)/);
     assert.match(source, /this\._baseScale/);
-    assert.match(source, /\.to\(0\.1,/);
-    assert.match(source, /\.to\(0\.15,/);
+    assert.match(source, /\.to\(0\.067,/);
+    assert.match(source, /\.to\(0\.10,/);
     assert.doesNotMatch(source, /constructor\.name/);
 });
 
@@ -177,4 +177,18 @@ test('continuous rewards queue one smooth follow-up pulse without hard resets', 
         [node.scale.x, node.scale.y, node.scale.z],
         [1, 1, 1],
     );
+});
+
+test('continuous money UI feedback completes about six pulses per second', async () => {
+    const { animator, tweens } = await createAnimatorHarness();
+
+    animator.play();
+    const durations = tweens[0].steps.map((step) => step.duration);
+    const totalDuration = durations.reduce(
+        (total, duration) => total + duration,
+        0,
+    );
+
+    assert.deepEqual(durations, [0.067, 0.10]);
+    assert.ok(Math.abs(totalDuration - 1 / 6) < 0.001);
 });
