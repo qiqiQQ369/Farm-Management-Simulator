@@ -14,6 +14,7 @@
 - 动效必须覆盖 `CoinLabel` 下的图标、底框和金额数字。
 - 连续获得金钱时，当前 Tween 不得被停止或强制复位。
 - 高频奖励最多合并为下一次回弹，不得积累无限动画队列。
+- 连续回弹频率固定为每秒约 `6` 次：放大 `0.067` 秒，回弹 `0.10` 秒。
 - 森林区与玉米区必须使用同一个动效入口。
 - 不改变现有金额计算、金币搬运或解锁扣款逻辑。
 - 网页 Release 不使用 `constructor.name` 判断组件。
@@ -382,4 +383,92 @@ Expected: 新增和相关测试通过；本轮文件不产生新的 TypeScript �
 ```powershell
 git add -- assets/_Scripts/MoneyUIRewardAnimator.ts tests/money-ui-reward-animation-regression.test.mjs
 git commit -m "fix: smooth continuous money ui rewards"
+```
+
+### Task 4: 将连续回弹提高到每秒六次
+
+**Files:**
+- Modify: `assets/_Scripts/MoneyUIRewardAnimator.ts`
+- Modify: `tests/money-ui-reward-animation-regression.test.mjs`
+
+**Interfaces:**
+- Consumes: 已有 `MoneyUIRewardAnimator.play(): void` 和连续待播放逻辑。
+- Produces: 总时长约 `0.167` 秒、每秒约 `6` 次的完整回弹。
+
+- [ ] **Step 1: 写入每秒六次的失败测试**
+
+将原有时长源码断言更新为：
+
+```js
+assert.match(source, /\.to\(0\.067,/);
+assert.match(source, /\.to\(0\.10,/);
+```
+
+并增加行为测试：
+
+```js
+test('continuous money UI feedback completes about six pulses per second', async () => {
+    const { animator, tweens } = await createAnimatorHarness();
+
+    animator.play();
+    const durations = tweens[0].steps.map((step) => step.duration);
+    const totalDuration = durations.reduce(
+        (total, duration) => total + duration,
+        0,
+    );
+
+    assert.deepEqual(durations, [0.067, 0.10]);
+    assert.ok(Math.abs(totalDuration - 1 / 6) < 0.001);
+});
+```
+
+- [ ] **Step 2: 运行测试并确认失败**
+
+Run:
+
+```powershell
+node --test tests/money-ui-reward-animation-regression.test.mjs
+```
+
+Expected: FAIL；当前时长仍为 `[0.1, 0.15]`，总时长 `0.25` 秒。
+
+- [ ] **Step 3: 调整 Tween 时长**
+
+将 `MoneyUIRewardAnimator.playPulse()` 中的 Tween 调整为：
+
+```ts
+this._rewardTween = tween(this.node)
+    .to(0.067, { scale: this._punchScale }, { easing: 'quadOut' })
+    .to(0.10, { scale: this._baseScale }, { easing: 'backOut' })
+```
+
+保持 `1.12` 幅度、待播放合并和结束复位逻辑不变。
+
+- [ ] **Step 4: 运行专项和完整回归**
+
+Run:
+
+```powershell
+node --test tests/money-ui-reward-animation-regression.test.mjs
+node --test tests/*.test.mjs
+```
+
+Expected: 频率与连续平滑测试 PASS；完整测试没有本轮新增失败。
+
+- [ ] **Step 5: 检查 TypeScript 和差异**
+
+Run:
+
+```powershell
+npx.cmd --yes --package typescript@5.1.6 tsc --noEmit --pretty false --project tsconfig.json
+git diff --check
+```
+
+Expected: 本轮文件无新增 TypeScript 或空白错误。
+
+- [ ] **Step 6: 提交频率调整**
+
+```powershell
+git add -- assets/_Scripts/MoneyUIRewardAnimator.ts tests/money-ui-reward-animation-regression.test.mjs
+git commit -m "tune: increase money ui pulse frequency"
 ```
