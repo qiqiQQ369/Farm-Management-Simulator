@@ -8,6 +8,7 @@ export class MoneyUIRewardAnimator extends Component {
     private readonly _baseScale = new Vec3();
     private readonly _punchScale = new Vec3();
     private _rewardTween: Tween<Node> | null = null;
+    private _hasPendingReward = false;
 
     protected onLoad(): void {
         this._baseScale.set(this.node.scale);
@@ -33,9 +34,22 @@ export class MoneyUIRewardAnimator extends Component {
     public play(): void {
         if (!this.node.isValid) return;
 
-        this._rewardTween?.stop();
+        if (this._rewardTween) {
+            this._hasPendingReward = true;
+            return;
+        }
+
+        this.playPulse();
+    }
+
+    private playPulse(): void {
+        if (!this.node.isValid) {
+            this._hasPendingReward = false;
+            return;
+        }
+
         this.node.setScale(this._baseScale);
-        Vec3.multiplyScalar(this._punchScale, this._baseScale, 1.2);
+        Vec3.multiplyScalar(this._punchScale, this._baseScale, 1.12);
 
         this._rewardTween = tween(this.node)
             .to(0.1, { scale: this._punchScale }, { easing: 'quadOut' })
@@ -43,6 +57,10 @@ export class MoneyUIRewardAnimator extends Component {
             .call(() => {
                 this._rewardTween = null;
                 this.node.setScale(this._baseScale);
+                if (!this._hasPendingReward) return;
+
+                this._hasPendingReward = false;
+                this.playPulse();
             })
             .start();
     }
@@ -50,6 +68,7 @@ export class MoneyUIRewardAnimator extends Component {
     private stopAndRestore(): void {
         this._rewardTween?.stop();
         this._rewardTween = null;
+        this._hasPendingReward = false;
         if (this.node.isValid) this.node.setScale(this._baseScale);
     }
 }
