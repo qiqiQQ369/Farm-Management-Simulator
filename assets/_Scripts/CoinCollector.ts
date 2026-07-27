@@ -1,6 +1,7 @@
 import { _decorator, Component, Node, Vec3, Collider, ITriggerEvent, tween, Prefab, instantiate, find, Label } from 'cc';
 import { PlayerController } from './PlayerController';
 import { CoinBackpack } from './CoinBackpack';
+import { MoneyUIRewardAnimator } from './MoneyUIRewardAnimator';
 import { StoragePoint } from './Resource/StoragePoint';
 import { ResourceManager } from './Resource/ResourceManager';
 const { ccclass, property } = _decorator;
@@ -205,6 +206,7 @@ export class CoinCollector extends Component {
         if (!coinAmountLabel) return;
         const currentAmount = Number.parseInt(coinAmountLabel.string, 10) || 0;
         coinAmountLabel.string = String(currentAmount + delta);
+        MoneyUIRewardAnimator.playForCurrentScene();
     }
 
 }

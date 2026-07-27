@@ -11,6 +11,7 @@ import {
 } from 'cc';
 import { CoinBackpack } from './CoinBackpack';
 import { CornStoragePoint } from './CornStoragePoint';
+import { MoneyUIRewardAnimator } from './MoneyUIRewardAnimator';
 import { PlayerController } from './PlayerController';
 
 const { ccclass, property } = _decorator;
@@ -184,5 +185,6 @@ export class CornCoinCollector extends Component {
         if (!coinAmountLabel) return;
         const currentAmount = Number.parseInt(coinAmountLabel.string, 10) || 0;
         coinAmountLabel.string = String(currentAmount + delta);
+        MoneyUIRewardAnimator.playForCurrentScene();
     }
 }
