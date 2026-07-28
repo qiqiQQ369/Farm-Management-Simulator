@@ -1,5 +1,4 @@
 import { _decorator, Animation, Component, instantiate, Node, Prefab, Renderer, tween, Tween, Vec3 } from 'cc';
-import { getFirstCropColumn } from './BackpackResourceLayout';
 import { CoinBackpack } from './CoinBackpack';
 import { StoragePoint } from './Resource/StoragePoint';
 import { WoodBackpack } from './WoodBackpack';
@@ -221,7 +220,7 @@ export class MultiResourceBackpack extends Component {
 
         const hasWood = this.getWoodInventoryCount() > 0;
         const hasCoin = this.getCoinInventoryCount() > 0;
-        let nextResourceColumn = getFirstCropColumn(hasCoin, hasWood);
+        let nextResourceColumn = hasWood ? 2 : Number(hasCoin);
 
         for (const slot of Array.from(this._slots.values())) {
             if (slot.count <= 0) {

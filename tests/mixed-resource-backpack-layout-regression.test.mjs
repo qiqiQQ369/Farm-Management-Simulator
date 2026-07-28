@@ -1,7 +1,6 @@
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import test from 'node:test';
-import { getFirstCropColumn } from '../assets/_Scripts/BackpackResourceLayout.ts';
 
 const source = readFileSync(
     new URL('../assets/_Scripts/MultiResourceBackpack.ts', import.meta.url),
@@ -15,12 +14,11 @@ test('wood keeps crops at the same safe clearance with or without cash', () => {
 
     assert.match(layout, /const hasWood = this\.getWoodInventoryCount\(\) > 0/);
     assert.match(layout, /const hasCoin = this\.getCoinInventoryCount\(\) > 0/);
-    assert.match(layout, /getFirstCropColumn\(hasCoin, hasWood\)/);
-
-    assert.equal(getFirstCropColumn(false, false), 0);
-    assert.equal(getFirstCropColumn(true, false), 1);
-    assert.equal(getFirstCropColumn(false, true), 2);
-    assert.equal(getFirstCropColumn(true, true), 2);
+    assert.match(
+        layout,
+        /let nextResourceColumn = hasWood \? 2 : Number\(hasCoin\)/,
+        'wood must make crops yield by two columns even when cash is absent',
+    );
 });
 
 test('crop avoidance stays on the existing cash-compatible axis', () => {
