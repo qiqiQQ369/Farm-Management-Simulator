@@ -1,7 +1,7 @@
-import { _decorator, Component, Node, Vec3, Camera, tween, Tween, find, Animation, RigidBody } from 'cc';
+import { _decorator, Component, Node, Vec3, Camera, tween, Tween, find, Animation } from 'cc';
 import { CameraController } from './CameraController';
 import { MainUI } from './MainUI';
-import { AnimationName, PlayerController } from './PlayerController';
+import { PlayerController } from './PlayerController';
 import { JoystickController } from './JoystickController';
 import { ResourceFieldSystem } from './ResourceFieldSystem';
 import { HaulerNPC } from './HaulerNPC';
@@ -335,43 +335,23 @@ export class FinishNode extends Component {
             
             tween(this.node3)
             .to(0.2, { scale: new Vec3(1, 1, 1) })
-            .call(async () => {
-
-                //player.getComponent(RigidBody).setLinearVelocity(new Vec3(0, 0, 0));
+            .call(() => {
                 var player = find('Player');
                 var playerController = player.getComponent(PlayerController);
                 playerController.enabled = false;
-                // player.active = false;
-                // this.chache.active = true;
-                // this.chache.setWorldPosition(player.worldPosition);
-                
-                var targetPosition = this.node1.worldPosition.clone();
-                targetPosition.y = 0;
-
-                playerController.playAnimation(AnimationName.Run);
-                player.lookAt(targetPosition);
-
-                tween(player)
-                .to(1, { position: targetPosition })
-                .call(() => {
-                    playerController.playAnimation(AnimationName.Idle);
-                    player.eulerAngles = new Vec3(0, 180, 0);
-                })
-                .start();
 
                 tween(this.tableNode)
                 .delay(0.7)
                 .call(() => {
                     this.tableNode.getChildByName("gray").active = false;
                     this.tableNode.getChildByName("red").active = true;
-                    this.tableNode.getChildByName("锁").getComponent(Animation).play("ani_锁_开锁");
+                    const lockAnimation = this.tableNode.getChildByName("锁").getComponent(Animation);
+                    lockAnimation.once(Animation.EventType.FINISHED, () => {
+                        this.restoreGameplayAfterSequence(player, playerController);
+                    });
+                    lockAnimation.play("ani_锁_开锁");
                 })
                 .start();
-
-                await new Promise(resolve => setTimeout(resolve, 300));
-                this.scheduleOnce(() => {
-                    this.restoreGameplayAfterSequence(player, playerController);
-                }, 1.7);
         
             })
             .start();

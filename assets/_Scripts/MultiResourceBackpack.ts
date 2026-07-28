@@ -72,7 +72,7 @@ export class MultiResourceBackpack extends Component {
     public registerResource(
         resourceId: string,
         prefab: Prefab | null,
-        horizontalOffset: number,
+        _horizontalOffset: number,
         capacity = this.defaultCapacity,
         woodMountTemplate: Node | null = null,
     ): void {
@@ -220,7 +220,7 @@ export class MultiResourceBackpack extends Component {
 
         const hasWood = this.getWoodInventoryCount() > 0;
         const hasCoin = this.getCoinInventoryCount() > 0;
-        let nextResourceColumn = hasCoin ? 2 : hasWood ? 1 : 0;
+        let nextResourceColumn = Number(hasCoin) + Number(hasWood);
 
         for (const slot of Array.from(this._slots.values())) {
             if (slot.count <= 0) {
@@ -233,7 +233,8 @@ export class MultiResourceBackpack extends Component {
 
             slot.assignedColumn = column;
             const target = slot.basePosition.clone();
-            // Keep additional resource stacks tightly grouped on the back.
+            // Keep the layout compact: cash and wood each reserve one column
+            // only while actually carried, so wood can be inserted later.
             target.y -= column * this.resourceColumnSpacing;
 
             Tween.stopAllByTarget(slot.mount);
