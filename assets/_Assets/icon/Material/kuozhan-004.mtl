@@ -5,15 +5,19 @@
   "__editorExtras__": {},
   "_native": "",
   "_effectAsset": {
-    "__uuid__": "a3cd009f-0ab0-420d-9278-b9fdab939bbc",
+    "__uuid__": "c8f66d17-351a-48da-a12c-0212d28575c4",
     "__expectedType__": "cc.EffectAsset"
   },
   "_techIdx": 0,
   "_defines": [
     {
-      "USE_TEXTURE": true,
+      "USE_INSTANCING": true,
+      "USE_ALBEDO_MAP": true,
       "USE_ALPHA_TEST": true
     },
+    {},
+    {},
+    {},
     {},
     {}
   ],
@@ -44,16 +48,52 @@
           {}
         ]
       }
+    },
+    {
+      "rasterizerState": {},
+      "depthStencilState": {},
+      "blendState": {
+        "targets": [
+          {}
+        ]
+      }
+    },
+    {
+      "rasterizerState": {},
+      "depthStencilState": {},
+      "blendState": {
+        "targets": [
+          {}
+        ]
+      }
+    },
+    {
+      "rasterizerState": {},
+      "depthStencilState": {},
+      "blendState": {
+        "targets": [
+          {}
+        ]
+      }
     }
   ],
   "_props": [
     {
+      "alphaThreshold": 0.55,
+      "roughness": 1,
+      "specularIntensity": 0,
       "mainTexture": {
         "__uuid__": "9408cf28-238c-4290-a4c6-f84b25ca6a75@6c48a",
         "__expectedType__": "cc.Texture2D"
       },
-      "alphaThreshold": 0.6
+      "emissiveMap": {
+        "__uuid__": "e80bbf7d-c3ad-4662-9b41-8d836bcceb4c@6c48a",
+        "__expectedType__": "cc.Texture2D"
+      }
     },
+    {},
+    {},
+    {},
     {},
     {}
   ]
