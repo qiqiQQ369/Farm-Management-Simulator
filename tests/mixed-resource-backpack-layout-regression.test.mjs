@@ -7,7 +7,7 @@ const source = readFileSync(
     'utf8',
 );
 
-test('crops give wood the same clearance already used for carried cash', () => {
+test('crops reserve space only for resources that are actually carried', () => {
     const layout = source.match(
         /private refreshColumnLayout[\s\S]*?\n    private getLayoutSignature/,
     )?.[0] ?? '';
@@ -16,9 +16,15 @@ test('crops give wood the same clearance already used for carried cash', () => {
     assert.match(layout, /const hasCoin = this\.getCoinInventoryCount\(\) > 0/);
     assert.match(
         layout,
-        /let nextResourceColumn = hasCoin \|\| hasWood \? 2 : 0/,
-        'wood must reserve the same crop clearance as cash',
+        /let nextResourceColumn = Number\(hasCoin\) \+ Number\(hasWood\)/,
+        'cash alone must not reserve an empty future wood column',
     );
+
+    const occupiedColumns = (hasCoin, hasWood) => Number(hasCoin) + Number(hasWood);
+    assert.equal(occupiedColumns(false, false), 0);
+    assert.equal(occupiedColumns(true, false), 1);
+    assert.equal(occupiedColumns(false, true), 1);
+    assert.equal(occupiedColumns(true, true), 2);
 });
 
 test('crop avoidance stays on the existing cash-compatible axis', () => {

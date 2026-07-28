@@ -220,7 +220,7 @@ export class MultiResourceBackpack extends Component {
 
         const hasWood = this.getWoodInventoryCount() > 0;
         const hasCoin = this.getCoinInventoryCount() > 0;
-        let nextResourceColumn = hasCoin || hasWood ? 2 : 0;
+        let nextResourceColumn = Number(hasCoin) + Number(hasWood);
 
         for (const slot of Array.from(this._slots.values())) {
             if (slot.count <= 0) {
@@ -233,8 +233,8 @@ export class MultiResourceBackpack extends Component {
 
             slot.assignedColumn = column;
             const target = slot.basePosition.clone();
-            // Wood uses the same clearance already proven by the cash stack.
-            // Do not add a new X/Z offset: that moves crops into the character.
+            // Keep the layout compact: cash and wood each reserve one column
+            // only while actually carried, so wood can be inserted later.
             target.y -= column * this.resourceColumnSpacing;
 
             Tween.stopAllByTarget(slot.mount);
