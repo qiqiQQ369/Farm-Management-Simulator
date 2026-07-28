@@ -15,8 +15,13 @@ test('wood and crop stacks use separate lateral backpack columns', () => {
     assert.match(layout, /const hasWood = this\.getWoodInventoryCount\(\) > 0/);
     assert.match(
         layout,
+        /Vec3\.transformQuat\([^;]*slot\.mount\.rotation\)/,
+        'the authored sideways offset must be converted from stack-local space into the mount parent space',
+    );
+    assert.doesNotMatch(
+        layout,
         /target\.z\s*\+=\s*slot\.horizontalOffset/,
-        'crop stacks must move sideways when wood already occupies the backpack mount',
+        'direct parent-Z movement follows the resource long axis and still intersects the other stack',
     );
 });
 

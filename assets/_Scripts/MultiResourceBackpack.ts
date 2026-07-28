@@ -236,10 +236,13 @@ export class MultiResourceBackpack extends Component {
 
             slot.assignedColumn = column;
             const target = slot.basePosition.clone();
-            // The character's backpack socket maps local Z to the visible
-            // left/right axis. Keep wood centered and honor each crop's
-            // authored horizontal lane so unlike resources cannot intersect.
-            target.z += slot.horizontalOffset;
+            // The copied wood mount is rotated relative to its parent socket.
+            // Convert the stack-local left/right axis into parent space before
+            // positioning the crop mount; directly changing parent Z follows
+            // the long side of the carried models and lets the stacks intersect.
+            const sidewaysOffset = new Vec3(slot.horizontalOffset, 0, 0);
+            Vec3.transformQuat(sidewaysOffset, sidewaysOffset, slot.mount.rotation);
+            target.add(sidewaysOffset);
             // Keep occupied resource groups ordered from front to back.
             target.y -= column * this.resourceColumnSpacing;
 
