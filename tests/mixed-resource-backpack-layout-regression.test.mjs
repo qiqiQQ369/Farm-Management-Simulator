@@ -7,24 +7,23 @@ const source = readFileSync(
     'utf8',
 );
 
-test('crops reserve space only for resources that are actually carried', () => {
+test('cash never creates a gap before crops; only wood inserts a column', () => {
     const layout = source.match(
         /private refreshColumnLayout[\s\S]*?\n    private getLayoutSignature/,
     )?.[0] ?? '';
 
     assert.match(layout, /const hasWood = this\.getWoodInventoryCount\(\) > 0/);
-    assert.match(layout, /const hasCoin = this\.getCoinInventoryCount\(\) > 0/);
     assert.match(
         layout,
-        /let nextResourceColumn = Number\(hasCoin\) \+ Number\(hasWood\)/,
-        'cash alone must not reserve an empty future wood column',
+        /let nextResourceColumn = hasWood \? 1 : 0/,
+        'cash uses an independent mount and must not move the crop stack',
     );
 
-    const occupiedColumns = (hasCoin, hasWood) => Number(hasCoin) + Number(hasWood);
-    assert.equal(occupiedColumns(false, false), 0);
-    assert.equal(occupiedColumns(true, false), 1);
-    assert.equal(occupiedColumns(false, true), 1);
-    assert.equal(occupiedColumns(true, true), 2);
+    const cropColumn = (_hasCoin, hasWood) => hasWood ? 1 : 0;
+    assert.equal(cropColumn(false, false), 0);
+    assert.equal(cropColumn(true, false), 0);
+    assert.equal(cropColumn(false, true), 1);
+    assert.equal(cropColumn(true, true), 1);
 });
 
 test('crop avoidance stays on the existing cash-compatible axis', () => {
