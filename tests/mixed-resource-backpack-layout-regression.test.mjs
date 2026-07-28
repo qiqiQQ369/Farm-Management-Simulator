@@ -13,11 +13,10 @@ test('wood keeps crops at the same safe clearance with or without cash', () => {
     )?.[0] ?? '';
 
     assert.match(layout, /const hasWood = this\.getWoodInventoryCount\(\) > 0/);
-    assert.match(layout, /const hasCoin = this\.getCoinInventoryCount\(\) > 0/);
     assert.match(
         layout,
-        /let nextResourceColumn = hasWood \? 2 : Number\(hasCoin\)/,
-        'wood must make crops yield by two columns even when cash is absent',
+        /let nextResourceColumn = hasWood \? 2 : 0/,
+        'cash must not leave an extra empty column before crops',
     );
 });
 
