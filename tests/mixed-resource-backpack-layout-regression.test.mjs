@@ -7,26 +7,25 @@ const source = readFileSync(
     'utf8',
 );
 
-test('wood and crop stacks use separate lateral backpack columns', () => {
+test('crops give wood the same clearance already used for carried cash', () => {
     const layout = source.match(
         /private refreshColumnLayout[\s\S]*?\n    private getLayoutSignature/,
     )?.[0] ?? '';
 
     assert.match(layout, /const hasWood = this\.getWoodInventoryCount\(\) > 0/);
+    assert.match(layout, /const hasCoin = this\.getCoinInventoryCount\(\) > 0/);
     assert.match(
         layout,
-        /Vec3\.transformQuat\([^;]*slot\.mount\.rotation\)/,
-        'the authored sideways offset must be converted from stack-local space into the mount parent space',
-    );
-    assert.doesNotMatch(
-        layout,
-        /target\.z\s*\+=\s*slot\.horizontalOffset/,
-        'direct parent-Z movement follows the resource long axis and still intersects the other stack',
+        /let nextResourceColumn = hasCoin \|\| hasWood \? 2 : 0/,
+        'wood must reserve the same crop clearance as cash',
     );
 });
 
-test('each crop slot preserves its authored horizontal backpack offset', () => {
-    assert.match(source, /horizontalOffset: number;/);
-    assert.match(source, /horizontalOffset,\s*\n\s*items:/);
-    assert.match(source, /existing\.horizontalOffset = horizontalOffset/);
+test('crop avoidance stays on the existing cash-compatible axis', () => {
+    const layout = source.match(
+        /private refreshColumnLayout[\s\S]*?\n    private getLayoutSignature/,
+    )?.[0] ?? '';
+
+    assert.match(layout, /target\.y -= column \* this\.resourceColumnSpacing/);
+    assert.doesNotMatch(layout, /Vec3\.transformQuat|sidewaysOffset|target\.(?:x|z)\s*[+-]=/);
 });

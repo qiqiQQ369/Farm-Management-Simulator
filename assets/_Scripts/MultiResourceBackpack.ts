@@ -11,7 +11,6 @@ type ResourceSlot = {
     prefab: Prefab | null;
     mount: Node;
     basePosition: Vec3;
-    horizontalOffset: number;
     items: Node[];
     count: number;
     capacity: number;
@@ -73,7 +72,7 @@ export class MultiResourceBackpack extends Component {
     public registerResource(
         resourceId: string,
         prefab: Prefab | null,
-        horizontalOffset: number,
+        _horizontalOffset: number,
         capacity = this.defaultCapacity,
         woodMountTemplate: Node | null = null,
     ): void {
@@ -81,7 +80,6 @@ export class MultiResourceBackpack extends Component {
         if (existing) {
             existing.prefab = prefab;
             existing.capacity = capacity;
-            existing.horizontalOffset = horizontalOffset;
             return;
         }
 
@@ -107,7 +105,6 @@ export class MultiResourceBackpack extends Component {
             prefab,
             mount,
             basePosition,
-            horizontalOffset,
             items: [],
             count: 0,
             capacity,
@@ -223,7 +220,7 @@ export class MultiResourceBackpack extends Component {
 
         const hasWood = this.getWoodInventoryCount() > 0;
         const hasCoin = this.getCoinInventoryCount() > 0;
-        let nextResourceColumn = hasCoin ? 2 : hasWood ? 1 : 0;
+        let nextResourceColumn = hasCoin || hasWood ? 2 : 0;
 
         for (const slot of Array.from(this._slots.values())) {
             if (slot.count <= 0) {
@@ -236,14 +233,8 @@ export class MultiResourceBackpack extends Component {
 
             slot.assignedColumn = column;
             const target = slot.basePosition.clone();
-            // The copied wood mount is rotated relative to its parent socket.
-            // Convert the stack-local left/right axis into parent space before
-            // positioning the crop mount; directly changing parent Z follows
-            // the long side of the carried models and lets the stacks intersect.
-            const sidewaysOffset = new Vec3(slot.horizontalOffset, 0, 0);
-            Vec3.transformQuat(sidewaysOffset, sidewaysOffset, slot.mount.rotation);
-            target.add(sidewaysOffset);
-            // Keep occupied resource groups ordered from front to back.
+            // Wood uses the same clearance already proven by the cash stack.
+            // Do not add a new X/Z offset: that moves crops into the character.
             target.y -= column * this.resourceColumnSpacing;
 
             Tween.stopAllByTarget(slot.mount);
