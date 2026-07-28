@@ -11,6 +11,7 @@ type ResourceSlot = {
     prefab: Prefab | null;
     mount: Node;
     basePosition: Vec3;
+    horizontalOffset: number;
     items: Node[];
     count: number;
     capacity: number;
@@ -80,6 +81,7 @@ export class MultiResourceBackpack extends Component {
         if (existing) {
             existing.prefab = prefab;
             existing.capacity = capacity;
+            existing.horizontalOffset = horizontalOffset;
             return;
         }
 
@@ -105,6 +107,7 @@ export class MultiResourceBackpack extends Component {
             prefab,
             mount,
             basePosition,
+            horizontalOffset,
             items: [],
             count: 0,
             capacity,
@@ -233,7 +236,11 @@ export class MultiResourceBackpack extends Component {
 
             slot.assignedColumn = column;
             const target = slot.basePosition.clone();
-            // Keep additional resource stacks tightly grouped on the back.
+            // The character's backpack socket maps local Z to the visible
+            // left/right axis. Keep wood centered and honor each crop's
+            // authored horizontal lane so unlike resources cannot intersect.
+            target.z += slot.horizontalOffset;
+            // Keep occupied resource groups ordered from front to back.
             target.y -= column * this.resourceColumnSpacing;
 
             Tween.stopAllByTarget(slot.mount);
