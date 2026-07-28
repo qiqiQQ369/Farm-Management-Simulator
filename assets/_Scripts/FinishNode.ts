@@ -335,7 +335,7 @@ export class FinishNode extends Component {
             
             tween(this.node3)
             .to(0.2, { scale: new Vec3(1, 1, 1) })
-            .call(async () => {
+            .call(() => {
                 var player = find('Player');
                 var playerController = player.getComponent(PlayerController);
                 playerController.enabled = false;
@@ -345,14 +345,13 @@ export class FinishNode extends Component {
                 .call(() => {
                     this.tableNode.getChildByName("gray").active = false;
                     this.tableNode.getChildByName("red").active = true;
-                    this.tableNode.getChildByName("锁").getComponent(Animation).play("ani_锁_开锁");
+                    const lockAnimation = this.tableNode.getChildByName("锁").getComponent(Animation);
+                    lockAnimation.once(Animation.EventType.FINISHED, () => {
+                        this.restoreGameplayAfterSequence(player, playerController);
+                    });
+                    lockAnimation.play("ani_锁_开锁");
                 })
                 .start();
-
-                await new Promise(resolve => setTimeout(resolve, 300));
-                this.scheduleOnce(() => {
-                    this.restoreGameplayAfterSequence(player, playerController);
-                }, 1.7);
         
             })
             .start();

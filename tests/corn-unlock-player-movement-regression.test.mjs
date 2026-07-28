@@ -23,3 +23,20 @@ test('corn field unlock still restores normal player control after the reveal', 
     assert.match(source, /playerController\.enabled = true/);
     assert.match(source, /joystickController\._lock = false/);
 });
+
+test('camera returns to the player as soon as the lock animation finishes', () => {
+    const cameraComplete = source.match(
+        /private onCameraMoveComplete[\s\S]*?\n    private restoreGameplayAfterSequence/,
+    )?.[0] ?? '';
+
+    assert.match(cameraComplete, /lockAnimation\.once\(Animation\.EventType\.FINISHED/);
+    assert.match(
+        cameraComplete,
+        /Animation\.EventType\.FINISHED[\s\S]*?restoreGameplayAfterSequence\(player, playerController\)/,
+    );
+    assert.doesNotMatch(cameraComplete, /setTimeout/);
+    assert.doesNotMatch(
+        cameraComplete,
+        /scheduleOnce\(\(\) => \{\s*this\.restoreGameplayAfterSequence/,
+    );
+});
