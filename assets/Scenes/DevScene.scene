@@ -3560,6 +3560,9 @@
     "joystickHandle": {
       "__id__": 2465
     },
+    "hintNode": null,
+    "delayShowHintTime": 3,
+    "hintJoystickOffsetY": 30,
     "joystickRadius": 110,
     "handleRadius": 30,
     "createOnTouch": true,

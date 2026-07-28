@@ -1,6 +1,7 @@
-import { _decorator, Camera, Animation, EventTouch, Input, Label, Node, Sprite, tween, Tween, UITransform, Vec2, Vec3, view, Widget } from 'cc';
+import { _decorator, Camera, Animation, Label, Node, Sprite, tween, Tween, Vec3, view, Widget } from 'cc';
 //import { Joystick } from './Joystick';
 import { UIBase } from './UIBase';
+import { JoystickController } from './JoystickController';
 // import { PlayerController } from '../manager/PlayerController';
 import { MainCamera } from './MainCamera';
 // import { SceneManager } from '../manager/SceneManager';
@@ -16,8 +17,6 @@ export class MainUI extends UIBase {
     moveHit: Node = null!;  // 摇杆提示节点
     //movePanel: Node = null!;  // 摇杆面板节点
 
-    private noTouchTime: number = 0;  // 无触摸计时
-    private isTouching: boolean = false;  // 当前是否在触摸
     // private joystick: Joystick;  // 摇杆脚本实例
     // private playerCtrl: PlayerController;  // 玩家控制脚本实例
 
@@ -53,14 +52,8 @@ export class MainUI extends UIBase {
         
         // 获取脚本实例
         // this.joystick = this.movePanel.getComponent(Joystick)!;
-        // 初始化状态
-        this.moveHit.active = true;
-        //this.movePanel.active = false;
-        // 注册全局触摸事件
-        this.node.on(Input.EventType.TOUCH_START, this.onTouchStart, this);
-        this.node.on(Input.EventType.TOUCH_MOVE, this.onTouchMove, this);
-        this.node.on(Input.EventType.TOUCH_END, this.onTouchEnd, this);
-        this.node.on(Input.EventType.TOUCH_CANCEL, this.onTouchEnd, this);
+        // 提示与移动摇杆统一由 JoystickController 管理。
+        this.moveHit.active = false;
 
         // ... 原有初始化逻辑 ...
         // this.progressCircle = this.getNode("progressCircle");  // 获取进度条节点，假设其名为progressU
@@ -109,16 +102,19 @@ export class MainUI extends UIBase {
 
     // 隐藏移动相关UI
     public hideMoveUI() {
+        this.getJoystickController()?.setHintEnabled(false);
         this.moveHit.active = false;
-        //this.movePanel.active = false;
         // this.numberShow.active = false;
     }
 
     // 显示移动相关UI
     public showMoveUI() {
-        this.moveHit.active = true;
-        //this.movePanel.active = false;
+        this.getJoystickController()?.setHintEnabled(true);
         // this.numberShow.active = true;
+    }
+
+    private getJoystickController(): JoystickController | null {
+        return this.canvas.node.getChildByName('JoystickContainer')?.getComponent(JoystickController) ?? null;
     }
     // 新增：开始填充进度条（参数为填充完成回调）
     // startFilling(triggerNode: Node, callback: () => void) {
@@ -212,16 +208,6 @@ export class MainUI extends UIBase {
         //     }
         // }
 
-        if (!this.isTouching) {
-            // ViewCar状态下禁止处理触摸
-            //if (GameFlowManager.inst.currentState === GameState.ViewCar) return;
-
-            this.noTouchTime += deltaTime;
-            // 3秒无触摸显示提示
-            if (this.noTouchTime >= 3) {
-                this.moveHit.active = true; // ViewCar状态下禁止处理触摸
-            }
-        }
         // 新增：如果场景管理器存在且目标节点有效，更新数字位置
         // if (SceneManager.inst && SceneManager.inst.nodenumberPos) {
         //     this.updateNumberShowPosition();
@@ -269,72 +255,6 @@ export class MainUI extends UIBase {
         //     this.peopleLabel.string = num;  // 设置Label文本
         // }
     }
-
-    // 触摸开始处理
-    private onTouchStart(event: EventTouch) {
-        // this.addViewCarMoney();
-
-        if (MainUI.inst.isGameOver) return;  // 暂停状态下不处理
-        // ViewCar状态下禁止处理触摸
-        //if (GameFlowManager.inst.currentState === GameState.ViewCar) return;
-        
-        this.isTouching = true;
-        this.noTouchTime = 0;  // 重置计时
-        // 隐藏提示，显示摇杆
-        this.moveHit.active = false;
-        //this.movePanel.active = true;
-        // 传递初始触摸位置给摇杆（可选）
-        const touchPos = event.getLocation();
-        //this.joystick.onTouchStart(touchPos);
-        
-        // 1. 屏幕坐标 → UI相机世界坐标
-        const worldPos = new Vec3();
-        this.canvas.cameraComponent.screenToWorld(new Vec3(touchPos.x, touchPos.y, 0), worldPos);
-
-        // 2. 世界坐标 → 当前UI节点本地坐标
-        const uiTransform = this.node.getComponent(UITransform)!;
-        const localPos = uiTransform.convertToNodeSpaceAR(worldPos);
-
-        // 设置摇杆位置
-        //this.movePanel.setPosition(localPos);
-    }
-
-    // 触摸移动处理
-    private onTouchMove(event: EventTouch) {
-        if (MainUI.inst.isGameOver) return;  // 暂停状态下不处理
-        // ViewCar状态下禁止处理触摸
-        //if (GameFlowManager.inst.currentState === GameState.ViewCar) return;
-
-        const touchPos = event.getLocation();
-        const worldPos = this.canvas.cameraComponent.screenToWorld(new Vec3(touchPos.x, touchPos.y, 0))
-        // console.log("touchPos:", touchPos, ",wp:",worldPos);
-        // 获取摇杆方向（由Joystick脚本计算）
-        //const direction = this.joystick.onTouchMove(worldPos);
-        // 传递方向给玩家控制器
-        // if (direction) {
-        //     //this.playerCtrl.move(direction);
-        // }
-    }
-
-    // 触摸结束处理
-    private onTouchEnd(event: EventTouch) {
-        this.isTouching = false;
-        //this.movePanel.active = false;
-        // 摇杆复位（由Joystick脚本处理）
-        // this.joystick.onTouchEnd();
-        // // 玩家停止移动
-        // this.playerCtrl.stop();
-
-    }
-
-    protected onDestroy(): void {
-        // 移除事件监听
-        this.node.off(Input.EventType.TOUCH_START, this.onTouchStart, this);
-        this.node.off(Input.EventType.TOUCH_MOVE, this.onTouchMove, this);
-        this.node.off(Input.EventType.TOUCH_END, this.onTouchEnd, this);
-        this.node.off(Input.EventType.TOUCH_CANCEL, this.onTouchEnd, this);
-    }
-
 
     // 显示加钱动画（金额，玩家世界坐标）
     // showMoneyAnimation(amount: number, screenPos: Vec3) {

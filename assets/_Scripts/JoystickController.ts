@@ -1,4 +1,4 @@
-import { _decorator, Component, Node, Vec2, Vec3, UITransform, Input, input, EventTouch, Graphics, Color } from 'cc';
+import { _decorator, Component, Node, Vec2, Vec3, UITransform, Input, input, EventTouch, Graphics, Color, Tween, tween, Widget } from 'cc';
 const { ccclass, property } = _decorator;
 
 export interface IJoystickInput {
@@ -21,6 +21,15 @@ export class JoystickController extends Component {
     
     @property({ type: Node, tooltip: "摇杆把手节点" })
     public joystickHandle: Node = null!;
+
+    @property({ type: Node, tooltip: "摇杆提示节点；未绑定时自动查找 moveHit" })
+    public hintNode: Node = null!;
+
+    @property({ tooltip: "无操作后显示摇杆提示的延迟秒数" })
+    public delayShowHintTime: number = 3;
+
+    @property({ tooltip: "提示状态下摇杆向上偏移，避免遮挡提示文字" })
+    public hintJoystickOffsetY: number = 30;
     
     @property({ tooltip: "摇杆半径" })
     public joystickRadius: number = 80;
@@ -50,7 +59,10 @@ export class JoystickController extends Component {
     private _bgUITransform: UITransform = null!;
     private _handleUITransform: UITransform = null!;
     private _isVisible: boolean = false;
+    private _isHintVisible: boolean = false;
     private _canvasNode: Node = null!; // 用于全局事件监听
+    private _hintEnabled: boolean = true;
+    private _hintTween: Tween<Node> | null = null;
 
     public _lock:boolean = false;
 
@@ -58,9 +70,13 @@ export class JoystickController extends Component {
         this.initializeComponents();
         this.setupEventListeners();
         this.hideJoystick();
+        this.setHintVisible(false);
+        this.delayShowHint();
     }
 
     protected onDestroy(): void {
+        this.unschedule(this.showHint);
+        this.stopHintAnimation();
         this.removeEventListeners();
     }
 
@@ -72,6 +88,9 @@ export class JoystickController extends Component {
         
         // 找到Canvas节点用于全局事件监听
         this._canvasNode = this.findCanvasNode();
+        if (!this.hintNode) {
+            this.hintNode = this.findDescendantByName(this._canvasNode, 'moveHit');
+        }
         
         if (!this.joystickBg || !this.joystickHandle) {
             this.createJoystickUI();
@@ -96,6 +115,86 @@ export class JoystickController extends Component {
             }
         }
         return current; // 返回根节点
+    }
+
+    private findDescendantByName(root: Node, name: string): Node | null {
+        if (root.name === name) {
+            return root;
+        }
+        for (const child of root.children) {
+            const result = this.findDescendantByName(child, name);
+            if (result) {
+                return result;
+            }
+        }
+        return null;
+    }
+
+    private setHintVisible(visible: boolean): void {
+        const shouldShow = visible && this._hintEnabled && !this._lock && !!this.hintNode;
+        this._isHintVisible = shouldShow;
+        if (this.hintNode) {
+            this.hintNode.active = shouldShow;
+        }
+        if (shouldShow) {
+            this.showHintJoystick();
+        } else {
+            this.stopHintAnimation();
+            if (!this._isVisible) {
+                this.joystickBg.active = false;
+                this.joystickHandle.active = false;
+            }
+        }
+    }
+
+    private showHintJoystick(): void {
+        this.hintNode?.getComponent(Widget)?.updateAlignment();
+        const hintAnchor = this.hintNode?.getChildByName('SpriteSplash-001') ?? this.hintNode;
+        const parentTransform = this.node.parent?.getComponent(UITransform);
+        if (hintAnchor && parentTransform) {
+            hintAnchor.updateWorldTransform();
+            const localPos = new Vec3();
+            parentTransform.convertToNodeSpaceAR(hintAnchor.worldPosition, localPos);
+            localPos.y += this.hintJoystickOffsetY;
+            this.node.setPosition(localPos);
+        }
+        this.joystickHandle.setPosition(0, 0, 0);
+        this.joystickBg.active = true;
+        this.joystickHandle.active = true;
+        this.setJoystickAlpha(this.joystickAlpha);
+        this.startHintAnimation();
+    }
+
+    private startHintAnimation(): void {
+        this.stopHintAnimation();
+        const cycle = tween()
+            .to(0.55, { position: new Vec3(-39, 45, 0) }, { easing: 'sineInOut' })
+            .to(0.37, { position: new Vec3(3, 64, 0) }, { easing: 'sineInOut' })
+            .to(0.41, { position: Vec3.ZERO }, { easing: 'sineInOut' });
+        this._hintTween = tween(this.joystickHandle)
+            .repeatForever(cycle)
+            .start();
+    }
+
+    private stopHintAnimation(): void {
+        this._hintTween?.stop();
+        this._hintTween = null;
+        if (this.joystickHandle) {
+            this.joystickHandle.setPosition(0, 0, 0);
+        }
+    }
+
+    private showHint(): void {
+        if (!this._isDragging && !this._isVisible) {
+            this.setHintVisible(true);
+        }
+    }
+
+    private delayShowHint(): void {
+        this.unschedule(this.showHint);
+        if (this._hintEnabled && !this._lock) {
+            this.scheduleOnce(this.showHint, this.delayShowHintTime);
+        }
     }
 
     /**
@@ -193,6 +292,9 @@ export class JoystickController extends Component {
     private onTouchStart(event: EventTouch): void {
         if(this._lock) return;
 
+        this.unschedule(this.showHint);
+        this.stopHintAnimation();
+        this.setHintVisible(false);
         const touchPos = event.getUILocation();
         
         // 如果摇杆不可见且启用了动态创建
@@ -230,6 +332,7 @@ export class JoystickController extends Component {
             if (this.createOnTouch) {
                 this.hideJoystick();
             }
+            this.delayShowHint();
         }
     }
 
@@ -323,6 +426,7 @@ export class JoystickController extends Component {
      * 在指定位置显示摇杆
      */
     private showJoystickAt(position: Vec2): void {
+        this.setHintVisible(false);
         this._joystickCenter.set(position);
         
         // 转换屏幕坐标到父节点的本地坐标
@@ -343,7 +447,8 @@ export class JoystickController extends Component {
      */
     private showJoystick(): void {
         this._isVisible = true;
-        this.node.active = true;
+        this.joystickBg.active = true;
+        this.joystickHandle.active = true;
         // 重新设置透明度
         this.setJoystickAlpha(this.joystickAlpha);
     }
@@ -353,10 +458,20 @@ export class JoystickController extends Component {
      */
     private hideJoystick(): void {
         this._isVisible = false;
-        if (this.createOnTouch) {
-            this.node.active = false;
+        if (!this._isHintVisible) {
+            this.joystickBg.active = false;
+            this.joystickHandle.active = false;
         }
         this.resetJoystick();
+    }
+
+    public setHintEnabled(enabled: boolean): void {
+        this._hintEnabled = enabled;
+        this.unschedule(this.showHint);
+        this.setHintVisible(false);
+        if (enabled) {
+            this.delayShowHint();
+        }
     }
 
     /**
