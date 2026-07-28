@@ -972,8 +972,8 @@ export class Tree extends Component {
             position.x += -3.363214;
             position.z += -1.260171;
             for(let i = 0; i < woodCount; i++) {
-                this.woodDropManager.spawnWoodDrops(position, 1, 2, this._currentChopper.node.getComponent(WoodBackpack).backpackMount, this._currentChopper.node.position);
-                await new Promise(resolve => setTimeout(resolve, 60));
+                this.woodDropManager.spawnWoodDrops(position, 1, 2, this._currentChopper.node.getComponent(WoodBackpack).backpackMount, this._currentChopper.node.position, true);
+                await new Promise(resolve => setTimeout(resolve, 35));
             }
 
             //this.woodDropManager.spawnWoodDrops(position, woodCount, 1, null);

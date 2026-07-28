@@ -1,4 +1,4 @@
-import { _decorator, Component, Node, MeshRenderer, Sprite, Label, Renderable2D, UITransform } from 'cc';
+import { _decorator, Component, Node, MeshRenderer, Sprite, Label, UITransform } from 'cc';
 const { ccclass, property } = _decorator;
 
 @ccclass('RenderOrderManager')

@@ -400,23 +400,15 @@ test('corn storage collider stays active before field unlock and mirrors the for
     }
 });
 
-test('corn storage applies a post-movement barrier when inactive storage physics cannot block reliably', () => {
+test('corn storage board remains walkable after field unlock', () => {
     const updateMethod = resourceFieldSource.match(
         /protected update\(deltaTime: number\)[\s\S]*?\n    protected onDestroy/,
-    )?.[0] ?? '';
-    const barrierMethod = resourceFieldSource.match(
-        /private keepPlayerOutsideCollectionStorage[\s\S]*?\n    private createField/,
     )?.[0] ?? '';
 
     assert.match(resourceFieldSource, /const \{ ccclass, property, executionOrder \} = _decorator/);
     assert.match(resourceFieldSource, /@executionOrder\(50\)/);
-    assert.match(updateMethod, /this\.keepPlayerOutsideCollectionStorage\(field\)/);
-    assert.match(barrierMethod, /field\.collectionStorage\.node\.activeInHierarchy/);
-    assert.match(barrierMethod, /getComponent\(CapsuleCollider\)\?\.radius \?\? 0\.25/);
-    assert.match(barrierMethod, /const halfX = Math\.abs\(storageScale\.x\) \* 0\.9 \+ playerRadius/);
-    assert.match(barrierMethod, /const halfZ = Math\.abs\(storageScale\.z\) \* 0\.8 \+ playerRadius/);
-    assert.match(barrierMethod, /this\._player\.setWorldPosition\(correctedPosition\)/);
-    assert.match(barrierMethod, /rigidBody\.setLinearVelocity\(velocity\)/);
+    assert.doesNotMatch(updateMethod, /keepPlayerOutsideCollectionStorage/);
+    assert.doesNotMatch(resourceFieldSource, /private keepPlayerOutsideCollectionStorage/);
 });
 
 test('corn unlock interaction distance follows the displayed unlock visual', () => {
@@ -491,9 +483,9 @@ test('corn field reveal preserves its entry camera angle without changing intern
     assert.doesNotMatch(cameraMoveMethod, /Vec3\.distance\(this\.cameraEndPoint\.worldPosition, fieldCenter\)/);
     assert.doesNotMatch(cameraMoveMethod, /rotation:|\.lookAt\(/);
     assert.doesNotMatch(resourceFieldSource, /playUnlockCameraFocus|maintainUnlockCameraAngle/);
-    assert.match(resourceFieldSource, /cameraController\.target = focusWorker/);
-    assert.match(resourceFieldSource, /cameraController\.target = field\.vehicle\.node/);
-    assert.match(resourceFieldSource, /cameraController\.target = field\.hauler/);
+    assert.match(resourceFieldSource, /cameraController\.panToTarget\(focusWorker,\s*0\.6/);
+    assert.match(resourceFieldSource, /cameraController\.panToTarget\(field\.vehicle\.node,\s*0\.6/);
+    assert.match(resourceFieldSource, /cameraController\.panToTarget\(field\.hauler,\s*0\.6/);
 
     const revealComponents = scene.filter((entry) =>
         entry?.cameraStartPoint && entry?.cameraEndPoint && Array.isArray(entry?.targetNodes),

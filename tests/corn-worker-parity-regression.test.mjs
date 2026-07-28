@@ -220,7 +220,7 @@ test('corn worker unlock uses the forest LOGGER presentation', () => {
     assert.match(forestUnlockSource, /cameraController\.scheduleOnce\([\s\S]*?, 3\)/);
     assert.match(workerUnlock, /scale: new Vec3\(0, 1, 0\)/);
     assert.match(workerUnlock, /this\.showUnlockStage\(field, 'vehicle', true\)/);
-    assert.match(workerUnlock, /cameraController\.target = focusWorker/);
+    assert.match(workerUnlock, /cameraController\.panToTarget\(focusWorker,\s*0\.6/);
     assert.match(workerUnlock, /joystickController\._lock = true/);
     assert.match(workerUnlock, /}, 3\)/);
 

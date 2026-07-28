@@ -78,14 +78,14 @@ export class WoodDropManager extends Component {
     /**
      * 在指定位置生成木头掉落
      */
-    public spawnWoodDrops(position: Vec3, count: number = this.dropsPerChop, type: number = 1, parent: Node, targetPosition: Vec3 = null): void {
+    public spawnWoodDrops(position: Vec3, count: number = this.dropsPerChop, type: number = 1, parent: Node, targetPosition: Vec3 = null, isPlayerPickup: boolean = false): void {
         if (!this.woodDropPrefab) {
             console.error('木头掉落物预制件未设置');
             return;
         }
         
         for (let i = 0; i < count; i++) {
-            this.createSingleWoodDrop(position, type, parent, targetPosition);
+            this.createSingleWoodDrop(position, type, parent, targetPosition, isPlayerPickup);
         }
         
     }
@@ -93,7 +93,7 @@ export class WoodDropManager extends Component {
     /**
      * 创建单个木头掉落物
      */
-    private async createSingleWoodDrop(basePosition: Vec3, type: number = 1, parent: Node = null, targetPosition: Vec3 = null): Promise<void> {
+    private async createSingleWoodDrop(basePosition: Vec3, type: number = 1, parent: Node = null, targetPosition: Vec3 = null, isPlayerPickup: boolean = false): Promise<void> {
         // 使用对象池
         const woodDropNode = this.getPooledNode(type);
         
@@ -116,7 +116,7 @@ export class WoodDropManager extends Component {
             woodDropNode.setParent(this.node);
             var storagePoint = parent.getComponent(StoragePoint);
             if(storagePoint){
-                this.startDropAnimation(woodDropNode, basePosition, targetPosition, storagePoint, type);
+                this.startDropAnimation(woodDropNode, basePosition, targetPosition, storagePoint, type, isPlayerPickup);
             }
         }
     }
@@ -127,7 +127,7 @@ export class WoodDropManager extends Component {
         this.startDropAnimation(woodDropNode, basePosition, null, null, type);
     }
 
-    private startDropAnimation(woodNode: Node, basePosition: Vec3, targetPosition1: Vec3 = null, storagePoint: StoragePoint = null, type: number = 2): void {
+    private startDropAnimation(woodNode: Node, basePosition: Vec3, targetPosition1: Vec3 = null, storagePoint: StoragePoint = null, type: number = 2, isPlayerPickup: boolean = false): void {
         var _startPosition = basePosition.clone();
         var scatterRadius = 1.5;
         var bounceHeight = 1;
@@ -154,7 +154,10 @@ export class WoodDropManager extends Component {
         midPoint.y = dropHeight + bounceHeight * 0.2; // 抛物线最高点
         
         // 使用分段动画实现抛物线效果
-        const duration = 0.3;// + Math.random() * 0.2; // 随机掉落时间
+        const duration = isPlayerPickup ? 0.12 : 0.3;
+        const flyDuration = isPlayerPickup ? 0.08 : 0.2;
+        const expandDuration = isPlayerPickup ? 0.04 : 0.15;
+        const settleDuration = isPlayerPickup ? 0.04 : 0.2;
         
         // 第一阶段：上升到最高点
         tween(woodNode)
@@ -173,16 +176,16 @@ export class WoodDropManager extends Component {
                     })
                     .call(() => {
                         tween(woodNode)
-                            .to(0.2, {
+                            .to(flyDuration, {
                                 position: targetPosition1,
                                 scale: new Vec3(0, 0, 0) 
                             })
                             // Do not expose the node to StoragePoint until its scale is stable.
                             // PickupDetector may transfer movable resources immediately.
-                            .to(0.15, {
+                            .to(expandDuration, {
                                 scale: new Vec3(1.17, 1.17, 1.17)
                             })
-                            .to(0.2, {
+                            .to(settleDuration, {
                                 scale: new Vec3(1, 1, 1)
                             })
                             .call(() => {

@@ -23,7 +23,16 @@ test('forest hauler reuses its cloned player-skin carry mount', () => {
     assert.match(method, /const carryNode = this\.findNamedNode\(hauler, 'HaulerCarryStorage'\) \?\? new Node\('HaulerCarryStorage'\)/);
     assert.match(method, /const carryMount = this\._haulerCarryMounts\.get\(hauler\) \?\? null/);
     assert.match(method, /carryNode\.setParent\(carryMount\.parent\)/);
-    assert.match(method, /carryNode\.setPosition\(carryMount\.position\)/);
+    assert.match(
+        method,
+        /carryNode\.setPosition\(0, 0\.6, 0\)/,
+        'the actual runtime forest hauler storage mount should sit against the body',
+    );
+    assert.match(
+        method,
+        /carryNode\.setPosition\(0, 1\.2, 0\)/,
+        'the fallback forest hauler carry storage should also have no body gap',
+    );
     assert.match(method, /carryNode\.setRotation\(carryMount\.rotation\)/);
     assert.match(method, /carryNode\.setScale\(carryMount\.scale\)/);
     assert.match(method, /const carryStorage = carryNode\.getComponent\(StoragePoint\) \?\? carryNode\.addComponent\(StoragePoint\)/);
