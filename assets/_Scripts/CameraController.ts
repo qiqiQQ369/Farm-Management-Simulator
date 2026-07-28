@@ -1,4 +1,4 @@
-import { _decorator, Component, Node, Vec3, Camera, lerp, math } from 'cc';
+import { _decorator, Component, Node, Vec3, Camera, lerp, math, tween, Tween } from 'cc';
 const { ccclass, property, executionOrder } = _decorator;
 
 /**
@@ -14,8 +14,8 @@ export enum CameraFollowMode {
  * 摄像机跟随控制器
  * 实现摄像机跟随玩家移动的功能
  */
-@executionOrder(100)
 @ccclass('CameraController')
+@executionOrder(100)
 export class CameraController extends Component {
     
     @property({ type: Node, tooltip: "目标节点（玩家）" })
@@ -80,6 +80,8 @@ export class CameraController extends Component {
     private _previousTargetPosition: Vec3 = new Vec3();
     private _isInitialized: boolean = false;
     private _originalOffset: Vec3 = new Vec3();
+    private _targetPan: Tween<Node> | null = null;
+    private _isTargetPanning: boolean = false;
     
     // 震动相关
     private _shakeTimer: number = 0;
@@ -101,6 +103,7 @@ export class CameraController extends Component {
 
     protected update(deltaTime: number): void {
         if (!this.target || !this.camera) return;
+        if (this._isTargetPanning) return;
 
         // 更新震动效果
         this.updateShake(deltaTime);
@@ -294,12 +297,58 @@ export class CameraController extends Component {
      * 设置跟随目标
      */
     public setTarget(target: Node): void {
+        this.cancelTargetPan();
         this.target = target;
         this._isInitialized = false;
         
         if (this.target) {
             this.initializePosition();
         }
+    }
+
+    /**
+     * 保持相机当前朝向与跟随距离，平移到目标的正常跟随位置。
+     * 平移结束前暂停普通逐帧跟随，避免解锁镜头被直接吸附到目标。
+     */
+    public panToTarget(
+        target: Node,
+        duration: number,
+        onArrived?: () => void,
+    ): void {
+        this.cancelTargetPan();
+        this.calculateFollowPosition(this._targetPosition, target.worldPosition);
+
+        const destination = this._targetPosition.clone();
+        if (this.enableBounds) {
+            destination.x = math.clamp(destination.x, this.boundsMin.x, this.boundsMax.x);
+            destination.z = math.clamp(destination.z, this.boundsMin.z, this.boundsMax.z);
+        }
+
+        const finish = (): void => {
+            this._targetPan = null;
+            this._isTargetPanning = false;
+            this.target = target;
+            this._previousTargetPosition.set(target.worldPosition);
+            onArrived?.();
+        };
+
+        if (duration <= 0) {
+            this.node.setWorldPosition(destination);
+            finish();
+            return;
+        }
+
+        this._isTargetPanning = true;
+        this._targetPan = tween(this.node)
+            .to(duration, { worldPosition: destination }, { easing: 'sineInOut' })
+            .call(finish)
+            .start();
+    }
+
+    public cancelTargetPan(): void {
+        this._targetPan?.stop();
+        this._targetPan = null;
+        this._isTargetPanning = false;
     }
 
     /**

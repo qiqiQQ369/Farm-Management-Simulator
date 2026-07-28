@@ -72,7 +72,7 @@ test('editor preview removes the original customer visual instead of only hiding
     assert.match(cleanup.groups.body, /existingVisual\.removeFromParent\(\)/);
     assert.match(cleanup.groups.body, /existingVisual\.destroy\(\)/);
     assert.match(source, /child\.name !== 'StoragePoint'/);
-    assert.match(source, /child\.name !== 'emoji'/);
+    assert.doesNotMatch(source, /child\.name !== 'emoji'/);
     assert.doesNotMatch(source, /if \(EDITOR_NOT_IN_PREVIEW\) \{\s*existingVisual\.active = false;\s*\}/);
 });
 
@@ -115,7 +115,7 @@ test('随机外观组件只替换模型并保留顾客购买链路节点', () =>
     assert.match(source, /buildCustomerAppearanceOrder\(customers\.length\)/);
     assert.match(source, /const existingVisuals = npc\.children\.filter/);
     assert.match(source, /child\.name !== 'StoragePoint'/);
-    assert.match(source, /child\.name !== 'emoji'/);
+    assert.doesNotMatch(source, /child\.name !== 'emoji'/);
     assert.match(source, /for \(const existingVisual of existingVisuals\)/);
     assert.match(source, /existingVisual\.removeFromParent\(\)/);
     assert.match(source, /existingVisual\.destroy\(\)/);
@@ -126,8 +126,8 @@ test('随机外观组件只替换模型并保留顾客购买链路节点', () =>
     assert.doesNotMatch(source, /new Material\(/);
     assert.doesNotMatch(source, /renderer\.getMaterial\(/);
     assert.doesNotMatch(source, /renderer\.setMaterial\(/);
-    assert.doesNotMatch(source, /alignCarryStorage/);
-    assert.doesNotMatch(source, /inverseTransformPoint/);
+    assert.doesNotMatch(source, /lateUpdate|createSocket|CarryGrip|carryLiftY/);
+    assert.doesNotMatch(source, /\[DEBUG-carry-grip\]/);
     assert.doesNotMatch(source, /maleAnimationClips|femaleAnimationClips/);
     assert.doesNotMatch(source, /animationClips\.length/);
     assert.match(source, /model\.getComponentInChildren\(SkeletalAnimation\)/);
@@ -194,7 +194,7 @@ test('森林和两个玉米顾客队伍均绑定同一组五种随机外观资�
             assert.ok(storage, 'original StoragePoint must remain on every customer');
             assert.deepEqual(
                 [storage._lpos.x, storage._lpos.y, storage._lpos.z],
-                [-0.199, 0.934, -0.426],
+                [-0.199, 1.384, -0.426],
             );
             assert.deepEqual(
                 [storage._lrot.x, storage._lrot.y, storage._lrot.z, storage._lrot.w],
@@ -210,5 +210,22 @@ test('森林和两个玉米顾客队伍均绑定同一组五种随机外观资�
         const schedulerSource = readFileSync(new URL(relativePath, import.meta.url), 'utf8');
         assert.match(schedulerSource, /this\.showFillTipForNpc\(npc\)/);
         assert.match(schedulerSource, /this\.fillTip\.setWorldPosition\(this\._fillTipWorldPosition\)/);
+    }
+});
+
+test('所有顾客的实际携带存放点统一上移且不依赖运行时偏移', () => {
+    const scene = JSON.parse(readFileSync(
+        new URL('../assets/Scenes/DevScene.scene', import.meta.url),
+        'utf8',
+    ));
+    const customerStorageNodes = scene.filter(item => {
+        if (item?.__type__ !== 'cc.Node' || item._name !== 'StoragePoint') return false;
+        const parent = scene[item._parent?.__id__];
+        return /^NPC(?:-\d+)?$/.test(parent?._name ?? '');
+    });
+
+    assert.equal(customerStorageNodes.length, 16);
+    for (const storage of customerStorageNodes) {
+        assert.equal(storage._lpos.y, 1.384);
     }
 });

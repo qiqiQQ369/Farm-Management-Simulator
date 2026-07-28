@@ -29,7 +29,7 @@ const REQUIRED_ANIMATION_CLIPS = [
     'walk_NaHeZi',
 ] as const;
 
-/** Replaces only customer model visuals; queue, storage, emoji and purchase logic stay intact. */
+/** Replaces customer model visuals while preserving storage and purchase logic. */
 @ccclass('CustomerAppearanceRandomizer')
 @executionOrder(-100)
 @executeInEditMode
@@ -95,11 +95,10 @@ export class CustomerAppearanceRandomizer extends Component {
     }
 
     private replaceVisual(npc: Node, variant: CustomerAppearanceVariant): void {
-        // Customer roots only own two non-visual children. Remove every other
+        // Customer roots only keep their non-visual storage child. Remove every other
         // child so nested prefab visuals and stale editor previews cannot stack.
         const existingVisuals = npc.children.filter(child =>
-            child.name !== 'StoragePoint'
-            && child.name !== 'emoji',
+            child.name !== 'StoragePoint',
         );
 
         for (const existingVisual of existingVisuals) {

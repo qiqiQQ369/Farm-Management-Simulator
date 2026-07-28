@@ -367,7 +367,6 @@ export class ResourceFieldSystem extends Component {
                 continue;
             }
 
-            this.keepPlayerOutsideCollectionStorage(field);
             if (!this._finished) this.updatePlayerDeposit(field, deltaTime);
             this.updateCornSellHighlight(field);
         }
@@ -436,43 +435,6 @@ export class ResourceFieldSystem extends Component {
         }
     }
 
-
-    private keepPlayerOutsideCollectionStorage(field: FieldRuntime): void {
-        if (!this._player || !field.collectionStorage.node.activeInHierarchy) return;
-
-        const storageNode = field.collectionStorage.node;
-        const storageCenter = storageNode.worldPosition;
-        const storageScale = storageNode.worldScale;
-        const playerRadius = this._player.getComponent(CapsuleCollider)?.radius ?? 0.25;
-        const halfX = Math.abs(storageScale.x) * 0.9 + playerRadius;
-        const halfZ = Math.abs(storageScale.z) * 0.8 + playerRadius;
-        const playerPosition = this._player.worldPosition;
-        const offsetX = playerPosition.x - storageCenter.x;
-        const offsetZ = playerPosition.z - storageCenter.z;
-        if (Math.abs(offsetX) >= halfX || Math.abs(offsetZ) >= halfZ) return;
-
-        const penetrationX = halfX - Math.abs(offsetX);
-        const penetrationZ = halfZ - Math.abs(offsetZ);
-        const correctedPosition = playerPosition.clone();
-        const rigidBody = this._player.getComponent(RigidBody);
-        const velocity = new Vec3();
-        if (penetrationX < penetrationZ) {
-            correctedPosition.x = storageCenter.x + (offsetX >= 0 ? halfX : -halfX);
-            if (rigidBody) {
-                rigidBody.getLinearVelocity(velocity);
-                velocity.x = 0;
-            }
-        } else {
-            correctedPosition.z = storageCenter.z + (offsetZ >= 0 ? halfZ : -halfZ);
-            if (rigidBody) {
-                rigidBody.getLinearVelocity(velocity);
-                velocity.z = 0;
-            }
-        }
-
-        this._player.setWorldPosition(correctedPosition);
-        if (rigidBody) rigidBody.setLinearVelocity(velocity);
-    }
 
     private createField(
         id: string,
@@ -674,11 +636,19 @@ export class ResourceFieldSystem extends Component {
         const focusWorker = field.workers[2]?.node ?? field.workers[0]?.node ?? null;
         const cameraController = find('Main Camera')?.getComponent(CameraController) ?? null;
         const joystickController = find('Canvas/JoystickContainer')?.getComponent(JoystickController) ?? null;
-        if (cameraController && focusWorker) cameraController.target = focusWorker;
+        for (const worker of field.workers) worker.node.active = false;
+        if (cameraController && focusWorker) {
+            cameraController.panToTarget(focusWorker, 0.6, () => {
+                for (const worker of field.workers) worker.node.active = true;
+            });
+        } else {
+            for (const worker of field.workers) worker.node.active = true;
+        }
         if (joystickController) joystickController._lock = true;
         this._playerController?.stopMovement();
 
         this.scheduleOnce(() => {
+            cameraController?.cancelTargetPan();
             if (cameraController && this._player) cameraController.target = this._player;
             if (joystickController) joystickController._lock = false;
         }, 3);
@@ -701,10 +671,18 @@ export class ResourceFieldSystem extends Component {
 
         const cameraController = find('Main Camera')?.getComponent(CameraController) ?? null;
         const joystickController = find('Canvas/JoystickContainer')?.getComponent(JoystickController) ?? null;
-        if (cameraController && field.vehicle) cameraController.target = field.vehicle.node;
+        if (field.vehicle) field.vehicle.node.active = false;
+        if (cameraController && field.vehicle) {
+            cameraController.panToTarget(field.vehicle.node, 0.6, () => {
+                if (field.vehicle) field.vehicle.node.active = true;
+            });
+        } else if (field.vehicle) {
+            field.vehicle.node.active = true;
+        }
         if (joystickController) joystickController._lock = true;
         this._playerController?.stopMovement();
         this.scheduleOnce(() => {
+            cameraController?.cancelTargetPan();
             if (cameraController && this._player) cameraController.target = this._player;
             if (joystickController) joystickController._lock = false;
         }, 3);
@@ -724,11 +702,19 @@ export class ResourceFieldSystem extends Component {
 
         const cameraController = find('Main Camera')?.getComponent(CameraController) ?? null;
         const joystickController = find('Canvas/JoystickContainer')?.getComponent(JoystickController) ?? null;
-        if (cameraController && field.hauler) cameraController.target = field.hauler;
+        if (field.hauler) field.hauler.active = false;
+        if (cameraController && field.hauler) {
+            cameraController.panToTarget(field.hauler, 0.6, () => {
+                if (field.hauler) field.hauler.active = true;
+            });
+        } else if (field.hauler) {
+            field.hauler.active = true;
+        }
         if (joystickController) joystickController._lock = true;
         this._playerController?.stopMovement();
 
         this.scheduleOnce(() => {
+            cameraController?.cancelTargetPan();
             if (cameraController && this._player) cameraController.target = this._player;
             if (joystickController) joystickController._lock = false;
         }, 3);
@@ -1017,12 +1003,12 @@ export class ResourceFieldSystem extends Component {
         const carryNode = new Node('CornHaulerCarryMount');
         if (mountTemplate?.parent) {
             carryNode.setParent(mountTemplate.parent);
-            carryNode.setPosition(mountTemplate.position);
+            carryNode.setPosition(0, 0.6, 0);
             carryNode.setRotation(mountTemplate.rotation);
             carryNode.setScale(mountTemplate.scale);
         } else {
             carryNode.setParent(actor);
-            carryNode.setPosition(0, 1.45, -0.48);
+            carryNode.setPosition(0, 1.45, 0);
         }
 
         const carryStorage = actor.getComponent(CornHaulerBackpack) ?? actor.addComponent(CornHaulerBackpack);

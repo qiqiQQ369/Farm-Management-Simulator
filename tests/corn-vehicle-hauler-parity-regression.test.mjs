@@ -93,6 +93,12 @@ test('corn hauler is empty before activation and mounts corn like the player', (
     assert.ok(spawnMethod.indexOf('clearInheritedHaulerCargo') < spawnMethod.indexOf('actor.active = true'));
     assert.match(spawnMethod, /new Node\('CornHaulerCarryMount'\)/);
     assert.match(spawnMethod, /carryNode\.setParent\(mountTemplate\.parent\)/);
+    assert.match(
+        spawnMethod,
+        /carryNode\.setPosition\(0, 0\.6, 0\)/,
+        'the actual runtime corn hauler storage mount should sit against the body',
+    );
+    assert.match(spawnMethod, /carryNode\.setPosition\(0, 1\.45, 0\)/);
     assert.match(spawnMethod, /carryNode\.setRotation\(mountTemplate\.rotation\)/);
     assert.match(spawnMethod, /carryNode\.setScale\(mountTemplate\.scale\)/);
     assert.match(spawnMethod, /actor\.getComponent\(CornHaulerBackpack\) \?\? actor\.addComponent\(CornHaulerBackpack\)/);
@@ -336,7 +342,7 @@ test('corn tractor unlock uses the forest MACHINE presentation', () => {
     )?.[0] ?? '';
     assert.match(method, /scale: new Vec3\(0, 0, 0\)/);
     assert.match(method, /this\.showUnlockStage\(field, 'hauler', true(?:, padNode)?\)/);
-    assert.match(method, /cameraController\.target = field\.vehicle\.node/);
+    assert.match(method, /cameraController\.panToTarget\(field\.vehicle\.node,\s*0\.6/);
     assert.match(method, /joystickController\._lock = true/);
     assert.match(method, /}, 3\)/);
 });
@@ -382,7 +388,7 @@ test('corn hauler, storage, and unlock pad are dedicated copies of forest behavi
     )?.[0] ?? '';
     assert.match(method, /scale: new Vec3\(0, 0, 0\)/);
     assert.match(method, /this\.spawnHauler\(field, padNode\)/);
-    assert.match(method, /cameraController\.target = field\.hauler/);
+    assert.match(method, /cameraController\.panToTarget\(field\.hauler,\s*0\.6/);
     assert.match(method, /joystickController\._lock = true/);
     assert.match(method, /this\._playerController\?\.stopMovement\(\)/);
     assert.match(method, /cameraController\.target = this\._player/);

@@ -6,11 +6,8 @@ import {
     Label,
     Node,
     Prefab,
-    RenderRoot2D,
     Sprite,
-    SpriteFrame,
     Tween,
-    UITransform,
     Vec3,
     instantiate,
     tween,
@@ -53,8 +50,6 @@ export class CornCustomerScheduler extends Component {
     @property({ type: Component }) public sellZone: Component = null!;
     @property({ type: Node }) public fillTip: Node = null!;
     @property public fillTipHeadOffsetY = 2.4;
-    @property({ type: SpriteFrame }) public completionEmojiFrame: SpriteFrame = null!;
-
     @property({ type: Prefab }) public coinPrefab: Prefab = null!;
     @property({ type: Node }) public coinDropArea: Node = null!;
     @property public coinReward: number = 3;
@@ -97,7 +92,6 @@ export class CornCustomerScheduler extends Component {
             : null;
         this.ensureLocalCoinDropArea();
         this.prepareNpcCarryStorages();
-        this.prepareNpcCompletionEmojis();
         this.setupFillTipFacing();
         this.initializeQueue();
     }
@@ -141,27 +135,6 @@ export class CornCustomerScheduler extends Component {
 
     private isValidStorage(storage: CornStoragePoint | null): storage is CornStoragePoint {
         return !!storage?.node?.isValid;
-    }
-
-    private prepareNpcCompletionEmojis(): void {
-        for (const npc of this.npcs) {
-            if (this.getNpcEmoji(npc) || !this.completionEmojiFrame) continue;
-
-            const emoji = new Node('emoji');
-            emoji.setParent(npc);
-            emoji.setPosition(0.131, 2.396, -0.18);
-            emoji.setRotationFromEuler(-45, 0, 0);
-            emoji.setScale(0.003, 0.003, 1);
-            emoji.layer = 8388608;
-
-            const transform = emoji.addComponent(UITransform);
-            transform.setContentSize(188, 188);
-            const sprite = emoji.addComponent(Sprite);
-            sprite.spriteFrame = this.completionEmojiFrame;
-            emoji.addComponent(RenderRoot2D);
-            emoji.addComponent(CameraFacingUI);
-            emoji.active = false;
-        }
     }
 
     private ensureNpcCarryStorage(npc: Node): CornStoragePoint | null {
@@ -334,11 +307,6 @@ export class CornCustomerScheduler extends Component {
         const direction = this.pointA.worldPosition.clone().subtract(startPosition).normalize();
         this._queue.forEach((npc, index) => {
             npc.setWorldPosition(startPosition.clone().add(direction.clone().multiplyScalar(-this.spacing * index)));
-            const emoji = this.getNpcEmoji(npc);
-            if (emoji) {
-                emoji.active = false;
-                if (!emoji.getComponent(CameraFacingUI)) emoji.addComponent(CameraFacingUI);
-            }
             this.playIdle(npc);
         });
         this.syncQueueMove();
@@ -383,7 +351,7 @@ export class CornCustomerScheduler extends Component {
         this.syncQueueMove();
         this.moveTo(npc, this.pointB, () => {
             this._loadingAtB = npc;
-            this.resetEmoji();
+            this.hideFillTip();
             this.playIdle(npc);
             npc.setRotationFromEuler(Vec3.ZERO);
             void this.tryCollectItem(npc);
@@ -461,8 +429,6 @@ export class CornCustomerScheduler extends Component {
                     this.dropCoins();
                     await this.delay(1);
                     npcStoragePoint.clearStorage();
-                    const emoji = this.getNpcEmoji(npc);
-                    if (emoji) emoji.active = true;
                     return;
                 }
             }
@@ -544,18 +510,6 @@ export class CornCustomerScheduler extends Component {
         if (resetContent) this.updateFillTip(0, this._customerCapacity);
         this._fillTipTargetNpc = null;
         this.fillTip.active = false;
-    }
-
-    private resetEmoji(): void {
-        this.hideFillTip();
-        for (const npc of this.npcs) {
-            const emoji = this.getNpcEmoji(npc);
-            if (emoji) emoji.active = false;
-        }
-    }
-
-    private getNpcEmoji(npc: Node): Node | null {
-        return npc?.isValid ? npc.getChildByName('emoji') : null;
     }
 
     private dropCoins(): void {
@@ -650,7 +604,10 @@ export class CornCustomerScheduler extends Component {
 
     private playMove(npc: Node): void {
         const animation = this.getAnimation(npc);
-        if (animation && this.moveAnim) animation.play(this.moveAnim);
+        if (animation && this.moveAnim) {
+            const state = animation.play(this.moveAnim);
+            if (state) state.speed = 2;
+        }
     }
 
     private playIdle(npc: Node): void {
@@ -665,7 +622,10 @@ export class CornCustomerScheduler extends Component {
 
     private playLoadMove(npc: Node): void {
         const animation = this.getAnimation(npc);
-        if (animation && this.loadMoveAnim) animation.play(this.loadMoveAnim);
-        this.resetEmoji();
+        if (animation && this.loadMoveAnim) {
+            const state = animation.play(this.loadMoveAnim);
+            if (state) state.speed = 2;
+        }
+        this.hideFillTip();
     }
 }

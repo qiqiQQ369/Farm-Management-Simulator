@@ -142,6 +142,8 @@ export class PlayerController extends Component implements IJoystickInput {
     }
 
     protected start(): void {
+        this.disableWoodBoardCollisions();
+        this.scheduleOnce(this.disableWoodBoardCollisions, 0);
         this.syncToolVisibility();
         this.syncMovementAnimation(true);
     }
@@ -184,6 +186,23 @@ export class PlayerController extends Component implements IJoystickInput {
             current = current.parent;
         }
         return false;
+    }
+
+    private disableWoodBoardCollisions(): void {
+        if (!this.isPrimaryPlayer() || !this.node.scene) return;
+
+        const storageBoardNames = new Set(['woodStackArea', 'CornStorageArea']);
+        const visit = (node: Node): void => {
+            if (storageBoardNames.has(node.name)) {
+                for (const collider of node.getComponents(Collider)) {
+                    if (!collider.isTrigger) {
+                        collider.enabled = false;
+                    }
+                }
+            }
+            for (const child of node.children) visit(child);
+        };
+        visit(this.node.scene);
     }
 
     /**

@@ -322,7 +322,6 @@ export class CoinConsumer extends Component {
         this.closed = true;
 
         if (this.targetLevel === UpgradeTarget.LOGGER) {
-            this.loggerNode.active = true;
             tween(this.node.children[0])
                 .to(0.5, { scale: new Vec3(0, 1, 0) }, { easing: 'linear' })
                 .start();
@@ -341,12 +340,21 @@ export class CoinConsumer extends Component {
             }, 1.5);
 
             const cameraController = find('Main Camera').getComponent(CameraController);
-            cameraController.target = this.loggerNode.getChildByName('Logger-003');
+            const loggerFocus = this.loggerNode.getChildByName('Logger-003');
+            this.loggerNode.active = false;
+            if (loggerFocus) {
+                cameraController.panToTarget(loggerFocus, 0.6, () => {
+                    this.loggerNode.active = true;
+                });
+            } else {
+                this.loggerNode.active = true;
+            }
             const joystickController = find('Canvas/JoystickContainer').getComponent(JoystickController);
             joystickController._lock = true;
             find('Player').getComponent(PlayerController).stopMovement();
 
             cameraController.scheduleOnce(() => {
+                cameraController.cancelTargetPan();
                 cameraController.target = find('Player');
                 joystickController._lock = false;
             }, 3);
@@ -355,7 +363,6 @@ export class CoinConsumer extends Component {
         }
 
         if (this.targetLevel === UpgradeTarget.MACHINE) {
-            this.machineNode.active = true;
             this.spawnHaulerUnlockPointAt(this.node.worldPosition);
 
             const view = this.node.getChildByName('view');
@@ -372,12 +379,21 @@ export class CoinConsumer extends Component {
             this.loggerNode.active = false;
 
             const cameraController = find('Main Camera').getComponent(CameraController);
-            cameraController.target = this.machineNode.getChildByName('Truck');
+            const machineFocus = this.machineNode.getChildByName('Truck');
+            this.machineNode.active = false;
+            if (machineFocus) {
+                cameraController.panToTarget(machineFocus, 0.6, () => {
+                    this.machineNode.active = true;
+                });
+            } else {
+                this.machineNode.active = true;
+            }
             const joystickController = find('Canvas/JoystickContainer').getComponent(JoystickController);
             joystickController._lock = true;
             find('Player').getComponent(PlayerController).stopMovement();
 
             cameraController.scheduleOnce(() => {
+                cameraController.cancelTargetPan();
                 cameraController.target = find('Player');
                 find('Canvas/JoystickContainer').getComponent(JoystickController)._lock = false;
             }, 3);
@@ -401,7 +417,11 @@ export class CoinConsumer extends Component {
                     worldPosition: this.finishNode.worldPosition.clone(),
                     parent: this.finishNode.parent?.name ?? 'null',
                 });
-                this.finishNode.active = true;
+                if (this.targetLevel === UpgradeTarget.HAULER) {
+                    this.finishNode.active = false;
+                } else {
+                    this.finishNode.active = true;
+                }
             }
 
             const view = this.node.getChildByName('view');
@@ -414,11 +434,16 @@ export class CoinConsumer extends Component {
             if (this.targetLevel === UpgradeTarget.HAULER) {
                 const cameraController = find('Main Camera').getComponent(CameraController);
                 const joystickController = find('Canvas/JoystickContainer').getComponent(JoystickController);
-                if (this.finishNode) cameraController.target = this.finishNode;
+                if (this.finishNode) {
+                    cameraController.panToTarget(this.finishNode, 0.6, () => {
+                        if (this.finishNode) this.finishNode.active = true;
+                    });
+                }
                 joystickController._lock = true;
                 find('Player').getComponent(PlayerController).stopMovement();
 
                 cameraController.scheduleOnce(() => {
+                    cameraController.cancelTargetPan();
                     cameraController.target = find('Player');
                     joystickController._lock = false;
                 }, 3);
@@ -674,12 +699,12 @@ export class CoinConsumer extends Component {
         const carryMount = this._haulerCarryMounts.get(hauler) ?? null;
         if (carryMount?.parent) {
             carryNode.setParent(carryMount.parent);
-            carryNode.setPosition(carryMount.position);
+            carryNode.setPosition(0, 0.6, 0);
             carryNode.setRotation(carryMount.rotation);
             carryNode.setScale(carryMount.scale);
         } else {
             carryNode.setParent(hauler);
-            carryNode.setPosition(0, 1.2, -0.6);
+            carryNode.setPosition(0, 1.2, 0);
         }
 
         const carryStorage = carryNode.getComponent(StoragePoint) ?? carryNode.addComponent(StoragePoint);

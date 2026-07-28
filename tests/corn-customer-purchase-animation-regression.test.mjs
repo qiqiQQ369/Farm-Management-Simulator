@@ -48,7 +48,7 @@ test('玉米顾客使用独立调度器且只读取所属玉米田的 Sell1', ()
 test('玉米顾客买满四个玉米后生成三枚金币', () => {
     const source = readFileSync(scriptUrl, 'utf8');
     const collectMethod = source.match(
-        /private async tryCollectItem[\s\S]*?\n    private getNpcEmoji/,
+        /private async tryCollectItem[\s\S]*?\n    private delay/,
     )?.[0] ?? '';
     const dropMethod = source.match(
         /private dropCoins[\s\S]*?\n    private createCoin/,
@@ -214,33 +214,12 @@ test('玉米顾客购买后的背负位置和堆叠间距与森林顾客一致',
     assert.match(ensureCarryStorage, /this\.configureNpcCarryLayout\(storage\)/);
 });
 
-test('玉米顾客购买完成后显示与森林顾客相同的完成提示', () => {
-    const forestSchedulerNode = scene.find((entry) =>
-        entry?.__type__ === 'cc.Node' && entry._name === 'NPCScheduler' && entry._active,
-    );
-    const forestScheduler = componentOf(forestSchedulerNode);
-    const forestNpc = nodeAt(forestScheduler.npcs[0]);
-    const forestEmoji = childNamed(forestNpc, 'emoji');
-    const forestEmojiSprite = forestEmoji._components
-        .map(nodeAt)
-        .find(component => component.__type__ === 'cc.Sprite');
-    assert.ok(forestEmojiSprite?._spriteFrame?.__uuid__, 'forest completion emoji must expose its sprite frame');
-
-    for (const rootName of ['Finish', 'Finish-001']) {
-        const root = scene.find((entry) => entry?.__type__ === 'cc.Node' && entry._name === rootName);
-        const scheduler = componentOf(childNamed(root, 'NPCScheduler-001'));
-        assert.equal(
-            scheduler.completionEmojiFrame?.__uuid__,
-            forestEmojiSprite._spriteFrame.__uuid__,
-            `${rootName} must bind the forest-style completion emoji asset`,
-        );
-    }
-
+test('玉米顾客保留需求提示牌但不再显示完成表情', () => {
     const source = readFileSync(scriptUrl, 'utf8');
-    assert.match(source, /@property\(\{ type: SpriteFrame \}\) public completionEmojiFrame/);
-    assert.match(source, /this\.prepareNpcCompletionEmojis\(\)/);
-    assert.match(source, /new Node\('emoji'\)/);
-    assert.match(source, /sprite\.spriteFrame = this\.completionEmojiFrame/);
+    assert.match(source, /showFillTipForNpc/);
+    assert.match(source, /hideFillTip/);
+    assert.doesNotMatch(source, /completionEmojiFrame|prepareNpcCompletionEmojis|getNpcEmoji|resetEmoji/);
+    assert.doesNotMatch(source, /new Node\('emoji'\)|emoji\.active/);
 });
 
 test('左右玉米顾客只把金币生成到所属玉米区', () => {

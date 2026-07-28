@@ -1,10 +1,9 @@
-import { _decorator, Component, Node, Vec3, Tween, tween, Animation, find, Prefab, instantiate, Sprite, Label, Collider, ITriggerEvent } from 'cc';
+import { _decorator, Component, Node, Vec3, Tween, tween, Animation, Prefab, instantiate, Sprite, Label } from 'cc';
 import { PlayerDetectionZone } from './PlayerDetectionZone';
 import { StoragePoint } from './Resource/StoragePoint';
 import { ResourceManager } from './Resource/ResourceManager';
 import { AnimationLibrary } from './AnimationLibrary';
 import { AnimationController } from './AnimationController';
-import { WoodBackpack } from './WoodBackpack';
 import { CameraFacingUI } from './CameraFacingUI';
 const { ccclass, property } = _decorator;
 
@@ -58,10 +57,6 @@ export class NPCScheduler extends Component {
     @property({ group: { name: '动画' } })
     loadMoveAnim: string = 'loadMove';
 
-    private intervalId: number = -1;
-    private checkInterval: number = 3;
-    private checkTimer: number = 0;
-
     private queue: Node[] = []; // 当前队伍（在起点处跟随移动）
     private waitingAtA: Node | null = null; // 在A点等待的NPC
     private loadingAtB: Node | null = null; // 正在B点装货的NPC
@@ -81,10 +76,6 @@ export class NPCScheduler extends Component {
 
     protected onDisable(): void {
         this.stopAllTweens();
-    }
-
-    protected start(): void {
-        this.setupCollisionDetection();
     }
 
     private setupFillTipFacing(): void {
@@ -123,13 +114,6 @@ export class NPCScheduler extends Component {
             const offset = dir.clone().multiplyScalar(-this.spacing * i);
             const pos = startPos.clone().add(offset);
             npc.setWorldPosition(pos);
-            const emoji = npc.getChildByName('emoji');
-            if (emoji) {
-                emoji.active = false;
-                if (!emoji.getComponent(CameraFacingUI)) {
-                    emoji.addComponent(CameraFacingUI);
-                }
-            }
         }
         this.syncQueueMove(true);
     }
@@ -204,8 +188,7 @@ export class NPCScheduler extends Component {
         this.playTween(npc, bPos, t, () => {
             // 到达B：装货
             this.loadingAtB = npc;
-            this.resetEmoji();
-            //npc.getChildByName("emoji").active = false;
+            this.hideFillTip();
             this.playIdle(npc);
             npc.eulerAngles = new Vec3(0, 0, 0);
             this.tryCollectItem(npc);
@@ -345,19 +328,15 @@ export class NPCScheduler extends Component {
 
     private playMove(npc: Node): void {
 
-        // if(npc != this.waitingAtA && npc != this.loadingAtB)
-        // npc.getChildByName("emoji").active = false;
-
         const anim = this.getAnimation(npc);
         if (!anim) return;
-        if (this.moveAnim) anim.play(this.moveAnim);
+        if (this.moveAnim) {
+            const state = anim.play(this.moveAnim);
+            if (state) state.speed = 2;
+        }
     }
 
     private playIdle(npc: Node): void {
-        
-        // if(npc != this.loadingAtB)
-        //     npc.getChildByName("emoji").active = this.checkEmoji();
-
         const anim = this.getAnimation(npc);
         if (!anim) return;
         if (this.idleAnim) anim.play(this.idleAnim);
@@ -372,13 +351,15 @@ export class NPCScheduler extends Component {
     private playLoadMove(npc: Node): void {
         const anim = this.getAnimation(npc);
         if (!anim) return;
-        if (this.loadMoveAnim) anim.play(this.loadMoveAnim);
-        this.resetEmoji();
+        if (this.loadMoveAnim) {
+            const state = anim.play(this.loadMoveAnim);
+            if (state) state.speed = 2;
+        }
+        this.hideFillTip();
     }
 
-    protected update(dt: number): void {
+    protected update(): void {
         this.updateFillTipPosition();
-        this.checkEmojiUpdate(dt);
     }
 
     private updateFillTipPosition(): void {
@@ -420,24 +401,6 @@ export class NPCScheduler extends Component {
 
         this._fillTipTargetNpc = null;
         this.fillTip.active = false;
-    }
-
-    private checkEmojiUpdate(dt:number): void{
-        this.checkTimer += dt;
-        if(this.checkTimer < this.checkInterval) return;
-        this.checkTimer = 0;
-
-        this.checkAllNpc();
-    }
-
-    private resetEmoji(): void {
-        this.checkTimer = 0;
-        this.hideFillTip();
-        for(let i = 0; i < this.npcs.length; i++){
-            var npc = this.npcs[i];
-            const emoji = this.getNpcEmoji(npc);
-            if (emoji) emoji.active = false;
-        }
     }
 
     private findStoragePointInNode(root: Node | null): StoragePoint | null {
@@ -564,66 +527,6 @@ export class NPCScheduler extends Component {
         return this._resolvedSellStoragePoint;
     }
 
-    private checkEmoji(): boolean {
-        var playerBag = find("Player").getComponent(WoodBackpack).backpackMount.getComponent(StoragePoint);
-        const targetStoragePoint = this.resolveSellStoragePoint();
-
-        if (!targetStoragePoint) {
-            return true;
-        }
-
-        if(targetStoragePoint.amount > 0 || playerBag.amount > 0)
-            return false;
-        return true;
-    }
-
-    private setupCollisionDetection(): void {
-        // var tubiao = find('LandObj/Sell');
-        // const collider = tubiao.getComponent(Collider);
-        // if (collider) {
-        //     collider.on('onTriggerEnter', this.onPlayerEnter, this);
-        //     // collider.on('onTriggerExit', this.onPlayerExit, this);
-        // } else {
-        //     console.warn('PlayerDetectionZone: 未找到Collider组件');
-        // }
-    }
-
-    private checkAllNpc(): void {
-        if(this.waitingAtA == null) return;
-        // 排队等待中的 NPC 不显示表情；卖货提示由 fillTip 单独控制。
-        for(let i = 0; i < this.queue.length; i++){
-            var npc = this.queue[i];
-            const emoji = this.getNpcEmoji(npc);
-            if (emoji) emoji.active = false;
-        }
-    }
-
-    private onPlayerEnter(event: ITriggerEvent): void {
-        if(!this.checkEmoji())
-            this.resetEmoji();
-        // if(!this.checkEmoji())
-        // {
-        //     clearInterval(this.intervalId);
-        //     this.intervalId = -1;
-        //     return;
-        // }
-
-        // if(this.checkEmoji() && this.intervalId != -1) return;
-
-        // this.intervalId = setInterval(() => {
-        //     this.checkAllNpc();
-        // }, 3 * 1000);
-        // this.checkAllNpc();
-    }
-
-    // private onPlayerExit(event: ITriggerEvent): void {
-    //     if(this.intervalId != -1) return;
-
-    //     this.intervalId = setInterval(() => {
-    //         this.checkAllNpc();
-    //     }, 3 * 1000);
-    // }
-
     /**
      * 尝试收集物品
      */
@@ -679,17 +582,11 @@ export class NPCScheduler extends Component {
                     this.dropCoins();
                     await new Promise((resolve) => setTimeout(resolve, 1000));
                     npcStoragePoint.clearStorage();
-                    const emoji = this.getNpcEmoji(npc);
-                    if (emoji) emoji.active = true;
                     return;
                 }
             }
             await new Promise((resolve) => setTimeout(resolve, this.collectInterval * 500));
         }
-    }
-
-    private getNpcEmoji(npc: Node): Node | null {
-        return npc?.isValid ? npc.getChildByName('emoji') : null;
     }
 
     /**
