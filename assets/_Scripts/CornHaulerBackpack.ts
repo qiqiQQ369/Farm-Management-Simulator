@@ -56,6 +56,7 @@ export class CornHaulerBackpack extends Component {
         const stackArea = this.stackAreaNode ?? this.node;
         const startWorldPosition = resource.worldPosition.clone();
         resource.setParent(stackArea);
+        this.restoreAuthoredWorldScale(resource, stackArea);
         resource.setWorldPosition(startWorldPosition);
         const position = this.getStackPosition(this._items.length);
         tween(resource)
@@ -91,7 +92,9 @@ export class CornHaulerBackpack extends Component {
         const item = instantiate(this.resourcePrefab);
         this.disableLegacyGameplayComponents(item);
         restoreCornVisualHierarchy(item);
-        item.setParent(this.stackAreaNode ?? this.node);
+        const stackArea = this.stackAreaNode ?? this.node;
+        item.setParent(stackArea);
+        this.restoreAuthoredWorldScale(item, stackArea);
         item.setPosition(this.getStackPosition(Math.max(0, this.maxVisibleItems - 1)));
         this._readyItems.delete(item);
         return item;
@@ -109,6 +112,7 @@ export class CornHaulerBackpack extends Component {
             if (!child?.isValid) continue;
             Tween.stopAllByTarget(child);
             restoreCornVisualHierarchy(child);
+            this.restoreAuthoredWorldScale(child, stackArea);
             child.setPosition(this.getStackPosition(this._items.length));
             child.setRotationFromEuler(Vec3.ZERO);
             this._items.push(child);
@@ -143,6 +147,16 @@ export class CornHaulerBackpack extends Component {
             this.layerHeight,
         );
         return new Vec3(position.x, position.y, position.z);
+    }
+
+    private restoreAuthoredWorldScale(resource: Node, stackArea: Node): void {
+        const authoredScale = this.resourcePrefab?.data?.scale ?? Vec3.ONE;
+        const parentScale = stackArea.worldScale;
+        resource.setScale(
+            authoredScale.x / Math.max(Math.abs(parentScale.x), 0.0001),
+            authoredScale.y / Math.max(Math.abs(parentScale.y), 0.0001),
+            authoredScale.z / Math.max(Math.abs(parentScale.z), 0.0001),
+        );
     }
 
     private disableLegacyGameplayComponents(root: Node): void {

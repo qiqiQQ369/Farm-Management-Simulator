@@ -178,15 +178,18 @@ export class CornHauler extends Component {
 
         const resource = from.removeResource(4);
         if (resource) {
-            // Keep transferred corn product local scale stable across backpack,
-            // sell tray, and customer body mounts.
-            resource.setScale(1, 1, 1);
+            this.restoreResourcePrefabScale(resource);
         }
         if (!resource || !to.addResource(resource, 4, Vec3.ZERO)) {
             if (resource) from.addResource(resource, 1);
             return;
         }
         if (from instanceof CornStoragePoint) from.finalizeResourceTransfer(resource);
+    }
+
+    private restoreResourcePrefabScale(resource: Node): void {
+        const authoredScale = this.carryStorage?.resourcePrefab?.data?.scale ?? Vec3.ONE;
+        resource.setScale(authoredScale);
     }
 
     private tryRecoverBlockedStorage(storage: CornTransferStorage): boolean {
@@ -335,14 +338,27 @@ export class CornHauler extends Component {
     private faceTowardsDirection(direction: Vec3): void {
         if (direction.lengthSqr() > 0.000001) this.node.setRotationFromEuler(0, math.toDegree(Math.atan2(direction.x, direction.z)) + this.facingYawOffset, 0);
     }
+    private shouldUseCarryAnimation(): boolean {
+        return this.carryStorage?.amount > 0
+            || this._state === CornHaulerState.Loading
+            || this._state === CornHaulerState.Delivering
+            || this._state === CornHaulerState.Unloading;
+    }
+
     private playIdleAnimation(): void {
-        if (!this.skeletonAnimation || (!this._isMoving && this.skeletonAnimation.getState(HaulerAnimationName.Idle)?.isPlaying)) return;
+        if (!this.skeletonAnimation) return;
+        const carrying = this.shouldUseCarryAnimation();
+        const clipName = carrying ? HaulerAnimationName.CarryIdle : HaulerAnimationName.Idle;
+        if (!this._isMoving && this.skeletonAnimation.getState(clipName)?.isPlaying) return;
         this._isMoving = false;
-        this.skeletonAnimation.play(HaulerAnimationName.Idle);
+        this.skeletonAnimation.play(clipName);
     }
     private playRunAnimation(): void {
-        if (!this.skeletonAnimation || (this._isMoving && this.skeletonAnimation.getState(HaulerAnimationName.Run)?.isPlaying)) return;
+        if (!this.skeletonAnimation) return;
+        const carrying = this.shouldUseCarryAnimation();
+        const clipName = carrying ? HaulerAnimationName.CarryRun : HaulerAnimationName.Run;
+        if (this._isMoving && this.skeletonAnimation.getState(clipName)?.isPlaying) return;
         this._isMoving = true;
-        this.skeletonAnimation.play(HaulerAnimationName.Run);
+        this.skeletonAnimation.play(clipName);
     }
 }

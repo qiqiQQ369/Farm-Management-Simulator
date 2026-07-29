@@ -56,7 +56,7 @@ assert.match(
 );
 assert.match(
     source,
-    /fieldRoot === this\.leftFieldRoot[\s\S]*?'收银台3'[\s\S]*?fieldRoot === this\.rightFieldRoot[\s\S]*?'收银台2'/,
+    /fieldRoot === this\.rightFieldRoot[\s\S]*?'SM_ShouYingTai-002'[\s\S]*?fieldRoot === this\.leftFieldRoot[\s\S]*?'SM_ShouYingTai-003'/,
     'left and right corn storage must mount to their corresponding cashier nodes',
 );
 

@@ -1,0 +1,146 @@
+{
+  "ver": "2.3.13",
+  "importer": "fbx",
+  "imported": true,
+  "uuid": "834ce980-2e75-4627-9a67-406802b8f368",
+  "files": [],
+  "subMetas": {
+    "0d3f0": {
+      "importer": "gltf-mesh",
+      "uuid": "834ce980-2e75-4627-9a67-406802b8f368@0d3f0",
+      "displayName": "",
+      "id": "0d3f0",
+      "name": "SM_ChangJingYuanSu.mesh",
+      "userData": {
+        "gltfIndex": 0,
+        "triangleCount": 1744
+      },
+      "ver": "1.1.1",
+      "imported": true,
+      "files": [
+        ".bin",
+        ".json"
+      ],
+      "subMetas": {}
+    },
+    "43c71": {
+      "importer": "gltf-embeded-image",
+      "uuid": "834ce980-2e75-4627-9a67-406802b8f368@43c71",
+      "displayName": "",
+      "id": "43c71",
+      "name": "file1.image",
+      "userData": {
+        "gltfIndex": 0,
+        "fixAlphaTransparencyArtifacts": true,
+        "hasAlpha": false,
+        "type": "texture"
+      },
+      "ver": "1.0.3",
+      "imported": true,
+      "files": [
+        ".jpg",
+        ".json"
+      ],
+      "subMetas": {}
+    },
+    "d20e9": {
+      "importer": "texture",
+      "uuid": "834ce980-2e75-4627-9a67-406802b8f368@d20e9",
+      "displayName": "",
+      "id": "d20e9",
+      "name": "file1.texture",
+      "userData": {
+        "wrapModeS": "repeat",
+        "wrapModeT": "repeat",
+        "minfilter": "linear",
+        "magfilter": "linear",
+        "mipfilter": "none",
+        "anisotropy": 0,
+        "isUuid": true,
+        "imageUuidOrDatabaseUri": "834ce980-2e75-4627-9a67-406802b8f368@43c71"
+      },
+      "ver": "1.0.22",
+      "imported": true,
+      "files": [
+        ".json"
+      ],
+      "subMetas": {}
+    },
+    "6ab64": {
+      "importer": "gltf-material",
+      "uuid": "834ce980-2e75-4627-9a67-406802b8f368@6ab64",
+      "displayName": "",
+      "id": "6ab64",
+      "name": "ChangJingYuanSu.material",
+      "userData": {
+        "gltfIndex": 0
+      },
+      "ver": "1.0.14",
+      "imported": true,
+      "files": [
+        ".json"
+      ],
+      "subMetas": {}
+    },
+    "8c810": {
+      "importer": "gltf-scene",
+      "uuid": "834ce980-2e75-4627-9a67-406802b8f368@8c810",
+      "displayName": "",
+      "id": "8c810",
+      "name": "SM_ChangJingYuanSu.prefab",
+      "userData": {
+        "gltfIndex": 0
+      },
+      "ver": "1.0.14",
+      "imported": true,
+      "files": [
+        ".json"
+      ],
+      "subMetas": {}
+    }
+  },
+  "userData": {
+    "imageMetas": [
+      {
+        "name": "file1",
+        "uri": "834ce980-2e75-4627-9a67-406802b8f368@43c71"
+      }
+    ],
+    "fbx": {
+      "smartMaterialEnabled": true
+    },
+    "lods": {
+      "enable": false,
+      "hasBuiltinLOD": false,
+      "options": [
+        {
+          "screenRatio": 0.25,
+          "faceCount": 1
+        },
+        {
+          "screenRatio": 0.125,
+          "faceCount": 0.25
+        },
+        {
+          "screenRatio": 0.01,
+          "faceCount": 0.1
+        }
+      ]
+    },
+    "assetFinder": {
+      "meshes": [
+        "834ce980-2e75-4627-9a67-406802b8f368@0d3f0"
+      ],
+      "skeletons": [],
+      "textures": [
+        "834ce980-2e75-4627-9a67-406802b8f368@d20e9"
+      ],
+      "materials": [
+        "834ce980-2e75-4627-9a67-406802b8f368@6ab64"
+      ],
+      "scenes": [
+        "834ce980-2e75-4627-9a67-406802b8f368@8c810"
+      ]
+    }
+  }
+}

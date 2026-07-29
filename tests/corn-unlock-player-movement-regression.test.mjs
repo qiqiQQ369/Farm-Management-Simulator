@@ -40,3 +40,18 @@ test('camera returns to the player as soon as the lock animation finishes', () =
         /scheduleOnce\(\(\) => \{\s*this\.restoreGameplayAfterSequence/,
     );
 });
+
+test('corn reveal skips optional table decoration when its nodes are absent', () => {
+    const cameraComplete = source.match(
+        /private onCameraMoveComplete[\s\S]*?\n    private restoreGameplayAfterSequence/,
+    )?.[0] ?? '';
+
+    assert.match(cameraComplete, /const grayNode = this\.tableNode\?\.getChildByName\("gray"\)/);
+    assert.match(cameraComplete, /const redNode = this\.tableNode\?\.getChildByName\("red"\)/);
+    assert.match(cameraComplete, /const lockAnimation = this\.tableNode\?\.getChildByName\("锁"\)\?\.getComponent\(Animation\)/);
+    assert.match(
+        cameraComplete,
+        /if \(!grayNode \|\| !redNode \|\| !lockAnimation\) \{\s*this\.restoreGameplayAfterSequence\(player, playerController\);\s*return;/,
+    );
+    assert.doesNotMatch(cameraComplete, /getChildByName\("gray"\)\.active/);
+});

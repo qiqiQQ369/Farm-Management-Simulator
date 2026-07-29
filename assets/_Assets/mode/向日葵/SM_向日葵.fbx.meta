@@ -1,0 +1,208 @@
+{
+  "ver": "2.3.13",
+  "importer": "fbx",
+  "imported": true,
+  "uuid": "29ce9e6e-1b9a-4b35-ba2b-eaf4f4f0d7de",
+  "files": [],
+  "subMetas": {
+    "914da": {
+      "importer": "gltf-mesh",
+      "uuid": "29ce9e6e-1b9a-4b35-ba2b-eaf4f4f0d7de@914da",
+      "displayName": "",
+      "id": "914da",
+      "name": "polySurface57.mesh",
+      "userData": {
+        "gltfIndex": 0,
+        "triangleCount": 697
+      },
+      "ver": "1.1.1",
+      "imported": true,
+      "files": [
+        ".bin",
+        ".json"
+      ],
+      "subMetas": {}
+    },
+    "aa825": {
+      "importer": "gltf-material",
+      "uuid": "29ce9e6e-1b9a-4b35-ba2b-eaf4f4f0d7de@aa825",
+      "displayName": "",
+      "id": "aa825",
+      "name": "lambert4.material",
+      "userData": {
+        "gltfIndex": 0
+      },
+      "ver": "1.0.14",
+      "imported": true,
+      "files": [
+        ".json"
+      ],
+      "subMetas": {}
+    },
+    "ea51e": {
+      "importer": "gltf-scene",
+      "uuid": "29ce9e6e-1b9a-4b35-ba2b-eaf4f4f0d7de@ea51e",
+      "displayName": "",
+      "id": "ea51e",
+      "name": "SM_向日葵.prefab",
+      "userData": {
+        "gltfIndex": 0
+      },
+      "ver": "1.0.14",
+      "imported": true,
+      "files": [
+        ".json"
+      ],
+      "subMetas": {}
+    }
+  },
+  "userData": {
+    "imageMetas": [],
+    "fbx": {
+      "smartMaterialEnabled": true
+    },
+    "lods": {
+      "enable": false,
+      "hasBuiltinLOD": false,
+      "options": [
+        {
+          "screenRatio": 0.25,
+          "faceCount": 1
+        },
+        {
+          "screenRatio": 0.125,
+          "faceCount": 0.25
+        },
+        {
+          "screenRatio": 0.01,
+          "faceCount": 0.1
+        }
+      ]
+    },
+    "assetFinder": {
+      "meshes": [
+        "29ce9e6e-1b9a-4b35-ba2b-eaf4f4f0d7de@914da"
+      ],
+      "skeletons": [],
+      "textures": [],
+      "materials": [
+        "29ce9e6e-1b9a-4b35-ba2b-eaf4f4f0d7de@aa825"
+      ],
+      "scenes": [
+        "29ce9e6e-1b9a-4b35-ba2b-eaf4f4f0d7de@ea51e"
+      ]
+    },
+    "materials": {
+      "29ce9e6e-1b9a-4b35-ba2b-eaf4f4f0d7de@aa825": {
+        "__type__": "cc.Material",
+        "_name": "",
+        "_objFlags": 0,
+        "__editorExtras__": {},
+        "_native": "",
+        "_effectAsset": {
+          "__uuid__": "c8f66d17-351a-48da-a12c-0212d28575c4",
+          "__expectedType__": "cc.EffectAsset"
+        },
+        "_techIdx": 0,
+        "_defines": [
+          {
+            "USE_ALBEDO_MAP": true,
+            "USE_PBR_MAP": true,
+            "USE_ALPHA_TEST": true
+          },
+          {},
+          {},
+          {},
+          {},
+          {}
+        ],
+        "_states": [
+          {
+            "rasterizerState": {},
+            "depthStencilState": {},
+            "blendState": {
+              "targets": [
+                {}
+              ]
+            }
+          },
+          {
+            "rasterizerState": {},
+            "depthStencilState": {},
+            "blendState": {
+              "targets": [
+                {}
+              ]
+            }
+          },
+          {
+            "rasterizerState": {},
+            "depthStencilState": {},
+            "blendState": {
+              "targets": [
+                {}
+              ]
+            }
+          },
+          {
+            "rasterizerState": {},
+            "depthStencilState": {},
+            "blendState": {
+              "targets": [
+                {}
+              ]
+            }
+          },
+          {
+            "rasterizerState": {},
+            "depthStencilState": {},
+            "blendState": {
+              "targets": [
+                {}
+              ]
+            }
+          },
+          {
+            "rasterizerState": {},
+            "depthStencilState": {},
+            "blendState": {
+              "targets": [
+                {}
+              ]
+            }
+          }
+        ],
+        "_props": [
+          {
+            "mainColor": {
+              "__type__": "cc.Color",
+              "r": 226,
+              "g": 187,
+              "b": 187,
+              "a": 255
+            },
+            "roughness": 0.032,
+            "specularIntensity": 1,
+            "mainTexture": {
+              "__uuid__": "526ffca0-83e1-4868-a3cd-08ef81fdff32@6c48a",
+              "__expectedType__": "cc.Texture2D"
+            },
+            "pbrMap": {
+              "__uuid__": "526ffca0-83e1-4868-a3cd-08ef81fdff32@6c48a",
+              "__expectedType__": "cc.Texture2D"
+            },
+            "emissiveMap": {
+              "__uuid__": "526ffca0-83e1-4868-a3cd-08ef81fdff32@6c48a",
+              "__expectedType__": "cc.Texture2D"
+            }
+          },
+          {},
+          {},
+          {},
+          {},
+          {}
+        ]
+      }
+    }
+  }
+}

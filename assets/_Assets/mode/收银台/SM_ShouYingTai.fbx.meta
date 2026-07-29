@@ -1,0 +1,200 @@
+{
+  "ver": "2.3.13",
+  "importer": "fbx",
+  "imported": true,
+  "uuid": "d925f991-f936-4f96-9ffc-23798155b862",
+  "files": [],
+  "subMetas": {
+    "b7478": {
+      "importer": "gltf-mesh",
+      "uuid": "d925f991-f936-4f96-9ffc-23798155b862@b7478",
+      "displayName": "",
+      "id": "b7478",
+      "name": "SM_ShouYingTai.mesh",
+      "userData": {
+        "gltfIndex": 0,
+        "triangleCount": 1660
+      },
+      "ver": "1.1.1",
+      "imported": true,
+      "files": [
+        ".bin",
+        ".json"
+      ],
+      "subMetas": {}
+    },
+    "a1f89": {
+      "importer": "gltf-material",
+      "uuid": "d925f991-f936-4f96-9ffc-23798155b862@a1f89",
+      "displayName": "",
+      "id": "a1f89",
+      "name": "ShouYingTai.material",
+      "userData": {
+        "gltfIndex": 0
+      },
+      "ver": "1.0.14",
+      "imported": true,
+      "files": [
+        ".json"
+      ],
+      "subMetas": {}
+    },
+    "21bdd": {
+      "importer": "gltf-scene",
+      "uuid": "d925f991-f936-4f96-9ffc-23798155b862@21bdd",
+      "displayName": "",
+      "id": "21bdd",
+      "name": "SM_ShouYingTai.prefab",
+      "userData": {
+        "gltfIndex": 0
+      },
+      "ver": "1.0.14",
+      "imported": true,
+      "files": [
+        ".json"
+      ],
+      "subMetas": {}
+    }
+  },
+  "userData": {
+    "imageMetas": [],
+    "fbx": {
+      "smartMaterialEnabled": true
+    },
+    "lods": {
+      "enable": false,
+      "hasBuiltinLOD": false,
+      "options": [
+        {
+          "screenRatio": 0.25,
+          "faceCount": 1
+        },
+        {
+          "screenRatio": 0.125,
+          "faceCount": 0.25
+        },
+        {
+          "screenRatio": 0.01,
+          "faceCount": 0.1
+        }
+      ]
+    },
+    "assetFinder": {
+      "meshes": [
+        "d925f991-f936-4f96-9ffc-23798155b862@b7478"
+      ],
+      "skeletons": [],
+      "textures": [],
+      "materials": [
+        "d925f991-f936-4f96-9ffc-23798155b862@a1f89"
+      ],
+      "scenes": [
+        "d925f991-f936-4f96-9ffc-23798155b862@21bdd"
+      ]
+    },
+    "materials": {
+      "d925f991-f936-4f96-9ffc-23798155b862@a1f89": {
+        "__type__": "cc.Material",
+        "_name": "",
+        "_objFlags": 0,
+        "__editorExtras__": {},
+        "_native": "",
+        "_effectAsset": {
+          "__uuid__": "c8f66d17-351a-48da-a12c-0212d28575c4",
+          "__expectedType__": "cc.EffectAsset"
+        },
+        "_techIdx": 0,
+        "_defines": [
+          {
+            "USE_ALBEDO_MAP": true,
+            "USE_PBR_MAP": true
+          },
+          {},
+          {},
+          {},
+          {},
+          {}
+        ],
+        "_states": [
+          {
+            "rasterizerState": {},
+            "depthStencilState": {},
+            "blendState": {
+              "targets": [
+                {}
+              ]
+            }
+          },
+          {
+            "rasterizerState": {},
+            "depthStencilState": {},
+            "blendState": {
+              "targets": [
+                {}
+              ]
+            }
+          },
+          {
+            "rasterizerState": {},
+            "depthStencilState": {},
+            "blendState": {
+              "targets": [
+                {}
+              ]
+            }
+          },
+          {
+            "rasterizerState": {},
+            "depthStencilState": {},
+            "blendState": {
+              "targets": [
+                {}
+              ]
+            }
+          },
+          {
+            "rasterizerState": {},
+            "depthStencilState": {},
+            "blendState": {
+              "targets": [
+                {}
+              ]
+            }
+          },
+          {
+            "rasterizerState": {},
+            "depthStencilState": {},
+            "blendState": {
+              "targets": [
+                {}
+              ]
+            }
+          }
+        ],
+        "_props": [
+          {
+            "roughness": 1,
+            "specularIntensity": 0.133,
+            "mainTexture": {
+              "__uuid__": "825dce6d-2c95-4a1e-8e69-611f1bfd639e@6c48a",
+              "__expectedType__": "cc.Texture2D"
+            },
+            "normalMap": {
+              "__uuid__": "825dce6d-2c95-4a1e-8e69-611f1bfd639e@6c48a",
+              "__expectedType__": "cc.Texture2D"
+            },
+            "pbrMap": {
+              "__uuid__": "825dce6d-2c95-4a1e-8e69-611f1bfd639e@6c48a",
+              "__expectedType__": "cc.Texture2D"
+            }
+          },
+          {},
+          {},
+          {},
+          {},
+          {}
+        ]
+      }
+    }
+  }
+}

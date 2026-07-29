@@ -15,26 +15,17 @@ const haulerSource = readFileSync(
     'utf8',
 );
 
-test('forest hauler reuses its cloned player-skin carry mount', () => {
+test('forest hauler moves its storage from the backpack to the customer hands', () => {
     const method = source.match(
         /private ensureHaulerCarryStorage[\s\S]*?\n    private copyStoragePointLayout/,
     )?.[0] ?? '';
 
     assert.match(method, /const carryNode = this\.findNamedNode\(hauler, 'HaulerCarryStorage'\) \?\? new Node\('HaulerCarryStorage'\)/);
     assert.match(method, /const carryMount = this\._haulerCarryMounts\.get\(hauler\) \?\? null/);
-    assert.match(method, /carryNode\.setParent\(carryMount\.parent\)/);
-    assert.match(
-        method,
-        /carryNode\.setPosition\(0, 0\.6, 0\)/,
-        'the actual runtime forest hauler storage mount should sit against the body',
-    );
-    assert.match(
-        method,
-        /carryNode\.setPosition\(0, 1\.2, 0\)/,
-        'the fallback forest hauler carry storage should also have no body gap',
-    );
-    assert.match(method, /carryNode\.setRotation\(carryMount\.rotation\)/);
-    assert.match(method, /carryNode\.setScale\(carryMount\.scale\)/);
+    assert.match(method, /carryNode\.setParent\(hauler\)/);
+    assert.match(method, /\(1\.384 - hauler\.worldPosition\.y\) \/ Math\.max\(Math\.abs\(haulerScale\.y\), 0\.0001\)/);
+    assert.match(method, /carryNode\.setRotationFromEuler\(0, -90, 0\)/);
+    assert.match(method, /carryNode\.setScale\(Vec3\.ONE\)/);
     assert.match(method, /const carryStorage = carryNode\.getComponent\(StoragePoint\) \?\? carryNode\.addComponent\(StoragePoint\)/);
     assert.match(method, /carryStorage\.stackAreaNode = carryStorage\.node/);
     assert.doesNotMatch(method, /stackAreaNode = playerMount/);

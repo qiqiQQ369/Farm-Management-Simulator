@@ -1,0 +1,99 @@
+{
+  "ver": "2.3.13",
+  "importer": "fbx",
+  "imported": true,
+  "uuid": "9b0171b2-62be-4f06-b8b7-0205a78089a0",
+  "files": [
+    "__original-animation-0.cconb"
+  ],
+  "subMetas": {
+    "5b6b0": {
+      "importer": "gltf-animation",
+      "uuid": "9b0171b2-62be-4f06-b8b7-0205a78089a0@5b6b0",
+      "displayName": "",
+      "id": "5b6b0",
+      "name": "KaiChaChe.animation",
+      "userData": {
+        "gltfIndex": 0,
+        "wrapMode": 2,
+        "sample": 30,
+        "span": {
+          "from": 0,
+          "to": 0.03333333507180214
+        },
+        "events": []
+      },
+      "ver": "1.0.17",
+      "imported": true,
+      "files": [
+        ".cconb"
+      ],
+      "subMetas": {}
+    },
+    "f3c12": {
+      "importer": "gltf-scene",
+      "uuid": "9b0171b2-62be-4f06-b8b7-0205a78089a0@f3c12",
+      "displayName": "",
+      "id": "f3c12",
+      "name": "xiong_mario@KaiChaChe.prefab",
+      "userData": {
+        "gltfIndex": 0
+      },
+      "ver": "1.0.14",
+      "imported": true,
+      "files": [
+        ".json"
+      ],
+      "subMetas": {}
+    }
+  },
+  "userData": {
+    "imageMetas": [],
+    "fbx": {
+      "smartMaterialEnabled": true
+    },
+    "animationImportSettings": [
+      {
+        "name": "Take 001",
+        "duration": 0.03333333507180214,
+        "fps": 30,
+        "splits": [
+          {
+            "name": "KaiChaChe",
+            "from": 0,
+            "to": 0.03333333507180214,
+            "wrapMode": 2,
+            "previousId": "5b6b0"
+          }
+        ]
+      }
+    ],
+    "lods": {
+      "enable": false,
+      "hasBuiltinLOD": false,
+      "options": [
+        {
+          "screenRatio": 0.25,
+          "faceCount": 1
+        },
+        {
+          "screenRatio": 0.125,
+          "faceCount": 0.25
+        },
+        {
+          "screenRatio": 0.01,
+          "faceCount": 0.1
+        }
+      ]
+    },
+    "assetFinder": {
+      "meshes": [],
+      "skeletons": [],
+      "textures": [],
+      "materials": [],
+      "scenes": [
+        "9b0171b2-62be-4f06-b8b7-0205a78089a0@f3c12"
+      ]
+    }
+  }
+}

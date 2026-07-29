@@ -522,6 +522,11 @@ test('corn storage uses the forest capacity and stack rules without sharing inve
         .map(nodeAt)
         .find(component => component && 'storageName' in component);
     assert.ok(forestStorage, 'forest StoragePoint component must exist');
+    assert.deepEqual(
+        nodeAt(forestStorage.stackAreaNode)._lpos,
+        { __type__: 'cc.Vec3', x: -0.735458, y: 0, z: 0.067542 },
+        'the tulip pile node must compensate the legacy wood layout over the base SM_ZhiWuTai',
+    );
 
     const storageProperties = [
         'capacity',
@@ -540,6 +545,7 @@ test('corn storage uses the forest capacity and stack rules without sharing inve
         nodeAt(fieldSystem.rightCollectionStorage),
     ];
     for (const cornStorage of cornStorages) {
+        const expectedStackPosition = { __type__: 'cc.Vec3', x: -0.7, y: 0, z: 0.2 };
         for (const propertyName of storageProperties) {
             assert.equal(
                 cornStorage[propertyName],
@@ -549,8 +555,8 @@ test('corn storage uses the forest capacity and stack rules without sharing inve
         }
         assert.deepEqual(
             nodeAt(cornStorage.stackAreaNode)._lpos,
-            nodeAt(forestStorage.stackAreaNode)._lpos,
-            `${cornStorage.storageName} must use the forest stack anchor`,
+            expectedStackPosition,
+            `${cornStorage.storageName} stack node must retain its crop-specific table alignment`,
         );
         assert.equal(cornStorage.capacity, 200, 'corn storage must stop accepting resources at 200');
     }
@@ -632,8 +638,13 @@ test('the first corn field stays playable and opening the second ends the game',
     );
     assert.match(
         resourceFieldSource,
-        /item\.setScale\(1, 1, 1\)/,
-        'corn products deposited into sell storage must use unit local scale',
+        /restoreCornVisualHierarchy\(sellNode\)[\s\S]*?sellNode\.active = true[\s\S]*?sellNode\.setScale\(1, 1, 1\)/,
+        'unlocked sunflower Sell1 must restore its serialized visual descendants',
+    );
+    assert.match(
+        resourceFieldSource,
+        /this\.restoreResourcePrefabScale\(item, field\.resourcePrefab\)/,
+        'products deposited into sell storage must restore their authored prefab scale',
     );
 
     assert.match(

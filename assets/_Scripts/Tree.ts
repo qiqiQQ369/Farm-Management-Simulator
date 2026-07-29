@@ -528,9 +528,14 @@ export class Tree extends Component {
         this._choppingSince = 0;
 
         if(this._currentChopper.type == ChopperType.Player) {
-            this._currentChopper.controller.chopAction.playChopAction(this.node.position);
-            await new Promise(resolve => setTimeout(resolve, 500));
-            this._currentChopper.controller.refreshMovementAnimation?.();
+            const playerController = this._currentChopper.controller;
+            playerController.onChopAnimationStarted?.();
+            try {
+                await playerController.chopAction.playChopAction(this.node.position);
+                await new Promise(resolve => setTimeout(resolve, 500));
+            } finally {
+                playerController.onChopAnimationFinished?.();
+            }
         }
 
         this.playShakeAnimation();
@@ -548,10 +553,6 @@ export class Tree extends Component {
         }
 
         if (this._currentChopCount >= this._currentChopper.chopCount) {
-            if(this._currentChopper.type == ChopperType.Player && this._isChopping) {
-                this._currentChopper.controller.onChopAnimationFinished?.();
-            }
-
             // 砍伐完成
             this.setState(TreeState.Chopped);
             this.onTreeChopped?.(this, {

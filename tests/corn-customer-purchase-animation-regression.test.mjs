@@ -58,7 +58,8 @@ test('玉米顾客买满四个玉米后生成三枚金币', () => {
     assert.match(collectMethod, /capacity\s*=\s*4|capacity:\s*4/);
     assert.match(collectMethod, /removeResource\(4\)/);
     assert.match(collectMethod, /this\.movePurchasedProductToCustomer\(/);
-    assert.match(source, /resource\.setScale\(Vec3\.ONE\)/);
+    assert.match(source, /const preservedScale = resource\.scale\.clone\(\)/);
+    assert.match(source, /resource\.setScale\(preservedScale\)/);
     assert.match(source, /npcStoragePoint\.addResource\(resource, 4, Vec3\.ZERO\)/);
     assert.match(collectMethod, /this\.dropCoins\(\)/);
     assert.match(dropMethod, /for\s*\(let i = 0; i < this\.coinReward; i\+\+\)/);
@@ -313,10 +314,11 @@ test('玉米金币堆对齐本地白色底板中心', () => {
 });
 
 
-test('customer-carried corn products use unit local scale after purchase', () => {
+test('customer-carried products preserve their authored local scale after purchase', () => {
     const source = readFileSync(scriptUrl, 'utf8');
     assert.match(source, /private movePurchasedProductToCustomer/);
-    assert.match(source, /resource\.setScale\(Vec3\.ONE\)/);
+    assert.match(source, /const preservedScale = resource\.scale\.clone\(\)/);
+    assert.match(source, /resource\.setScale\(preservedScale\)/);
     assert.match(
         source,
         /movePurchasedProductToCustomer\([\s\S]*?addResource\(resource, 4, Vec3\.ZERO\)/,

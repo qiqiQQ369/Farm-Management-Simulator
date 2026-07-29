@@ -1,0 +1,493 @@
+{
+  "ver": "2.3.13",
+  "importer": "fbx",
+  "imported": true,
+  "uuid": "9dd96310-acfb-4481-8e0c-80c4c0202608",
+  "files": [
+    "__original-animation-0.cconb"
+  ],
+  "subMetas": {
+    "4e93a": {
+      "importer": "gltf-mesh",
+      "uuid": "9dd96310-acfb-4481-8e0c-80c4c0202608@4e93a",
+      "displayName": "",
+      "id": "4e93a",
+      "name": "NVZHU.mesh",
+      "userData": {
+        "gltfIndex": 0,
+        "triangleCount": 2802
+      },
+      "ver": "1.1.1",
+      "imported": true,
+      "files": [
+        ".bin",
+        ".json"
+      ],
+      "subMetas": {}
+    },
+    "73b7f": {
+      "importer": "gltf-animation",
+      "uuid": "9dd96310-acfb-4481-8e0c-80c4c0202608@73b7f",
+      "displayName": "",
+      "id": "73b7f",
+      "name": "idle.animation",
+      "userData": {
+        "gltfIndex": 0,
+        "wrapMode": 2,
+        "sample": 30,
+        "span": {
+          "from": 0,
+          "to": 1.7
+        },
+        "events": []
+      },
+      "ver": "1.0.17",
+      "imported": true,
+      "files": [
+        ".cconb"
+      ],
+      "subMetas": {}
+    },
+    "a11d0": {
+      "importer": "gltf-animation",
+      "uuid": "9dd96310-acfb-4481-8e0c-80c4c0202608@a11d0",
+      "displayName": "",
+      "id": "a11d0",
+      "name": "run.animation",
+      "userData": {
+        "gltfIndex": 0,
+        "wrapMode": 2,
+        "sample": 30,
+        "span": {
+          "from": 1.7333333333333334,
+          "to": 2.433333333333333
+        },
+        "events": []
+      },
+      "ver": "1.0.17",
+      "imported": true,
+      "files": [
+        ".cconb"
+      ],
+      "subMetas": {}
+    },
+    "b22d0": {
+      "importer": "gltf-animation",
+      "uuid": "9dd96310-acfb-4481-8e0c-80c4c0202608@b22d0",
+      "displayName": "",
+      "id": "b22d0",
+      "name": "sickle_run.animation",
+      "userData": {
+        "gltfIndex": 0,
+        "wrapMode": 2,
+        "sample": 30,
+        "span": {
+          "from": 2.466666666666667,
+          "to": 2.966666666666667
+        },
+        "events": []
+      },
+      "ver": "1.0.17",
+      "imported": true,
+      "files": [
+        ".cconb"
+      ],
+      "subMetas": {}
+    },
+    "c33d0": {
+      "importer": "gltf-animation",
+      "uuid": "9dd96310-acfb-4481-8e0c-80c4c0202608@c33d0",
+      "displayName": "",
+      "id": "c33d0",
+      "name": "hand_mower_run.animation",
+      "userData": {
+        "gltfIndex": 0,
+        "wrapMode": 2,
+        "sample": 30,
+        "span": {
+          "from": 3,
+          "to": 3.666666666666667
+        },
+        "events": []
+      },
+      "ver": "1.0.17",
+      "imported": true,
+      "files": [
+        ".cconb"
+      ],
+      "subMetas": {}
+    },
+    "d44d0": {
+      "importer": "gltf-animation",
+      "uuid": "9dd96310-acfb-4481-8e0c-80c4c0202608@d44d0",
+      "displayName": "",
+      "id": "d44d0",
+      "name": "sickle_harvest.animation",
+      "userData": {
+        "gltfIndex": 0,
+        "wrapMode": 2,
+        "sample": 30,
+        "span": {
+          "from": 3.7,
+          "to": 4.333333333333333
+        },
+        "events": []
+      },
+      "ver": "1.0.17",
+      "imported": true,
+      "files": [
+        ".cconb"
+      ],
+      "subMetas": {}
+    },
+    "e55d0": {
+      "importer": "gltf-animation",
+      "uuid": "9dd96310-acfb-4481-8e0c-80c4c0202608@e55d0",
+      "displayName": "",
+      "id": "e55d0",
+      "name": "hand_mower_idle.animation",
+      "userData": {
+        "gltfIndex": 0,
+        "wrapMode": 2,
+        "sample": 30,
+        "span": {
+          "from": 4.366666666666666,
+          "to": 5.033333333333333
+        },
+        "events": []
+      },
+      "ver": "1.0.17",
+      "imported": true,
+      "files": [
+        ".cconb"
+      ],
+      "subMetas": {}
+    },
+    "f66d0": {
+      "importer": "gltf-animation",
+      "uuid": "9dd96310-acfb-4481-8e0c-80c4c0202608@f66d0",
+      "displayName": "",
+      "id": "f66d0",
+      "name": "ride_mower.animation",
+      "userData": {
+        "gltfIndex": 0,
+        "wrapMode": 2,
+        "sample": 30,
+        "span": {
+          "from": 5.066666666666666,
+          "to": 5.866666666666667
+        },
+        "events": []
+      },
+      "ver": "1.0.17",
+      "imported": true,
+      "files": [
+        ".cconb"
+      ],
+      "subMetas": {}
+    },
+    "438fe": {
+      "importer": "gltf-skeleton",
+      "uuid": "9dd96310-acfb-4481-8e0c-80c4c0202608@438fe",
+      "displayName": "",
+      "id": "438fe",
+      "name": "UnnamedSkeleton.skeleton",
+      "userData": {
+        "gltfIndex": 0,
+        "jointsLength": 30
+      },
+      "ver": "1.0.1",
+      "imported": true,
+      "files": [
+        ".json"
+      ],
+      "subMetas": {}
+    },
+    "91c13": {
+      "importer": "gltf-embeded-image",
+      "uuid": "9dd96310-acfb-4481-8e0c-80c4c0202608@91c13",
+      "displayName": "",
+      "id": "91c13",
+      "name": "贴图 #0.image",
+      "userData": {
+        "gltfIndex": 0,
+        "fixAlphaTransparencyArtifacts": true,
+        "hasAlpha": false,
+        "type": "texture"
+      },
+      "ver": "1.0.3",
+      "imported": true,
+      "files": [
+        ".jpg",
+        ".json"
+      ],
+      "subMetas": {}
+    },
+    "3efb2": {
+      "importer": "texture",
+      "uuid": "9dd96310-acfb-4481-8e0c-80c4c0202608@3efb2",
+      "displayName": "",
+      "id": "3efb2",
+      "name": "贴图 #0.texture",
+      "userData": {
+        "wrapModeS": "repeat",
+        "wrapModeT": "repeat",
+        "minfilter": "linear",
+        "magfilter": "linear",
+        "mipfilter": "none",
+        "anisotropy": 0,
+        "isUuid": true,
+        "imageUuidOrDatabaseUri": "9dd96310-acfb-4481-8e0c-80c4c0202608@91c13"
+      },
+      "ver": "1.0.22",
+      "imported": true,
+      "files": [
+        ".json"
+      ],
+      "subMetas": {}
+    },
+    "49de1": {
+      "importer": "gltf-material",
+      "uuid": "9dd96310-acfb-4481-8e0c-80c4c0202608@49de1",
+      "displayName": "",
+      "id": "49de1",
+      "name": "M_NVZHU.material",
+      "userData": {
+        "gltfIndex": 0
+      },
+      "ver": "1.0.14",
+      "imported": true,
+      "files": [
+        ".json"
+      ],
+      "subMetas": {}
+    },
+    "2ce81": {
+      "importer": "gltf-scene",
+      "uuid": "9dd96310-acfb-4481-8e0c-80c4c0202608@2ce81",
+      "displayName": "",
+      "id": "2ce81",
+      "name": "女主角.prefab",
+      "userData": {
+        "gltfIndex": 0
+      },
+      "ver": "1.0.14",
+      "imported": true,
+      "files": [
+        ".json"
+      ],
+      "subMetas": {}
+    }
+  },
+  "userData": {
+    "imageMetas": [
+      {
+        "name": "贴图 #0",
+        "uri": "9dd96310-acfb-4481-8e0c-80c4c0202608@91c13"
+      }
+    ],
+    "fbx": {
+      "smartMaterialEnabled": true
+    },
+    "animationImportSettings": [
+      {
+        "name": "Take 001",
+        "duration": 5.866666793823242,
+        "fps": 30,
+        "splits": [
+          {
+            "name": "idle",
+            "from": 0,
+            "to": 1.7,
+            "wrapMode": 2,
+            "previousId": "73b7f"
+          },
+          {
+            "name": "run",
+            "from": 1.7333333333333334,
+            "to": 2.433333333333333,
+            "wrapMode": 2,
+            "previousId": "a11d0"
+          },
+          {
+            "name": "sickle_run",
+            "from": 2.466666666666667,
+            "to": 2.966666666666667,
+            "wrapMode": 2,
+            "previousId": "b22d0"
+          },
+          {
+            "name": "hand_mower_run",
+            "from": 3,
+            "to": 3.666666666666667,
+            "wrapMode": 2,
+            "previousId": "c33d0"
+          },
+          {
+            "name": "sickle_harvest",
+            "from": 3.7,
+            "to": 4.333333333333333,
+            "wrapMode": 2,
+            "previousId": "d44d0"
+          },
+          {
+            "name": "hand_mower_idle",
+            "from": 4.366666666666666,
+            "to": 5.033333333333333,
+            "wrapMode": 2,
+            "previousId": "e55d0"
+          },
+          {
+            "name": "ride_mower",
+            "from": 5.066666666666666,
+            "to": 5.866666666666667,
+            "wrapMode": 2,
+            "previousId": "f66d0"
+          }
+        ]
+      }
+    ],
+    "lods": {
+      "enable": false,
+      "hasBuiltinLOD": false,
+      "options": [
+        {
+          "screenRatio": 0.25,
+          "faceCount": 1
+        },
+        {
+          "screenRatio": 0.125,
+          "faceCount": 0.25
+        },
+        {
+          "screenRatio": 0.01,
+          "faceCount": 0.1
+        }
+      ]
+    },
+    "assetFinder": {
+      "meshes": [
+        "9dd96310-acfb-4481-8e0c-80c4c0202608@4e93a"
+      ],
+      "skeletons": [
+        "9dd96310-acfb-4481-8e0c-80c4c0202608@438fe"
+      ],
+      "textures": [
+        "9dd96310-acfb-4481-8e0c-80c4c0202608@3efb2"
+      ],
+      "materials": [
+        "9dd96310-acfb-4481-8e0c-80c4c0202608@49de1"
+      ],
+      "scenes": [
+        "9dd96310-acfb-4481-8e0c-80c4c0202608@2ce81"
+      ]
+    },
+    "materials": {
+      "9dd96310-acfb-4481-8e0c-80c4c0202608@49de1": {
+        "__type__": "cc.Material",
+        "_name": "",
+        "_objFlags": 0,
+        "__editorExtras__": {},
+        "_native": "",
+        "_effectAsset": {
+          "__uuid__": "c8f66d17-351a-48da-a12c-0212d28575c4",
+          "__expectedType__": "cc.EffectAsset"
+        },
+        "_techIdx": 0,
+        "_defines": [
+          {
+            "USE_ALBEDO_MAP": true,
+            "USE_PBR_MAP": true
+          },
+          {},
+          {},
+          {},
+          {},
+          {}
+        ],
+        "_states": [
+          {
+            "rasterizerState": {},
+            "depthStencilState": {},
+            "blendState": {
+              "targets": [
+                {}
+              ]
+            }
+          },
+          {
+            "rasterizerState": {},
+            "depthStencilState": {},
+            "blendState": {
+              "targets": [
+                {}
+              ]
+            }
+          },
+          {
+            "rasterizerState": {},
+            "depthStencilState": {},
+            "blendState": {
+              "targets": [
+                {}
+              ]
+            }
+          },
+          {
+            "rasterizerState": {},
+            "depthStencilState": {},
+            "blendState": {
+              "targets": [
+                {}
+              ]
+            }
+          },
+          {
+            "rasterizerState": {},
+            "depthStencilState": {},
+            "blendState": {
+              "targets": [
+                {}
+              ]
+            }
+          },
+          {
+            "rasterizerState": {},
+            "depthStencilState": {},
+            "blendState": {
+              "targets": [
+                {}
+              ]
+            }
+          }
+        ],
+        "_props": [
+          {
+            "mainColor": {
+              "__type__": "cc.Color",
+              "r": 241,
+              "g": 208,
+              "b": 208,
+              "a": 255
+            },
+            "roughness": 0,
+            "specularIntensity": 0,
+            "mainTexture": {
+              "__uuid__": "c5c30c38-4951-46d7-ade3-47bdac9eca05@6c48a",
+              "__expectedType__": "cc.Texture2D"
+            },
+            "pbrMap": {
+              "__uuid__": "c5c30c38-4951-46d7-ade3-47bdac9eca05@6c48a",
+              "__expectedType__": "cc.Texture2D"
+            }
+          },
+          {},
+          {},
+          {},
+          {},
+          {}
+        ]
+      }
+    }
+  }
+}

@@ -221,16 +221,21 @@ export class CornFieldProduction extends Component {
             this._playerController?.faceTarget(target.node.worldPosition);
         }
 
-        await this._chopAction.playChopAction(target.node.worldPosition);
-        if (this.canPlayerHarvest(target)) {
-            const sourcePosition = target.node.worldPosition.clone();
-            this.chopPlant(target);
-            for (let index = 0; index < this.playerReward; index++) {
-                this._backpack.addResource(this.resourceId, sourcePosition);
+        this._playerController?.setCropHarvesting(true);
+        try {
+            await this._chopAction.playChopAction(target.node.worldPosition);
+            if (this.canPlayerHarvest(target)) {
+                const sourcePosition = target.node.worldPosition.clone();
+                this.chopPlant(target);
+                for (let index = 0; index < this.playerReward; index++) {
+                    this._backpack.addResource(this.resourceId, sourcePosition);
+                }
             }
+        } finally {
+            this._playerController?.setCropHarvesting(false);
+            this._playerController?.refreshMovementAnimation();
+            this._playerHarvesting = false;
         }
-        this._playerController?.refreshMovementAnimation();
-        this._playerHarvesting = false;
     }
 
     private harvestVehicleContacts(): void {
