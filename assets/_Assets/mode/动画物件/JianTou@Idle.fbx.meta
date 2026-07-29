@@ -1,0 +1,167 @@
+{
+  "ver": "2.3.13",
+  "importer": "fbx",
+  "imported": true,
+  "uuid": "dc35bc00-da90-471d-84d7-0bb926e13209",
+  "files": [
+    "__original-animation-0.cconb"
+  ],
+  "subMetas": {
+    "6dd24": {
+      "importer": "gltf-mesh",
+      "uuid": "dc35bc00-da90-471d-84d7-0bb926e13209@6dd24",
+      "displayName": "",
+      "id": "6dd24",
+      "name": "箭头2.mesh",
+      "userData": {
+        "gltfIndex": 0,
+        "triangleCount": 248
+      },
+      "ver": "1.1.1",
+      "imported": true,
+      "files": [
+        ".bin",
+        ".json"
+      ],
+      "subMetas": {}
+    },
+    "c2696": {
+      "importer": "gltf-animation",
+      "uuid": "dc35bc00-da90-471d-84d7-0bb926e13209@c2696",
+      "displayName": "",
+      "id": "c2696",
+      "name": "Idle.animation",
+      "userData": {
+        "gltfIndex": 0,
+        "wrapMode": 2,
+        "sample": 30,
+        "span": {
+          "from": 0,
+          "to": 1.2999999523162842
+        },
+        "events": []
+      },
+      "ver": "1.0.17",
+      "imported": true,
+      "files": [
+        ".cconb"
+      ],
+      "subMetas": {}
+    },
+    "8b7bb": {
+      "importer": "texture",
+      "uuid": "dc35bc00-da90-471d-84d7-0bb926e13209@8b7bb",
+      "displayName": "",
+      "id": "8b7bb",
+      "name": "Map #7.texture",
+      "userData": {
+        "wrapModeS": "repeat",
+        "wrapModeT": "repeat",
+        "minfilter": "linear",
+        "magfilter": "linear",
+        "mipfilter": "none",
+        "anisotropy": 0,
+        "isUuid": false,
+        "imageUuidOrDatabaseUri": "db://assets/_Assets/mode/Map_tex.png"
+      },
+      "ver": "1.0.22",
+      "imported": true,
+      "files": [
+        ".json"
+      ],
+      "subMetas": {}
+    },
+    "7c855": {
+      "importer": "gltf-material",
+      "uuid": "dc35bc00-da90-471d-84d7-0bb926e13209@7c855",
+      "displayName": "",
+      "id": "7c855",
+      "name": "Material #2725.material",
+      "userData": {
+        "gltfIndex": 0
+      },
+      "ver": "1.0.14",
+      "imported": true,
+      "files": [
+        ".json"
+      ],
+      "subMetas": {}
+    },
+    "34b2c": {
+      "importer": "gltf-scene",
+      "uuid": "dc35bc00-da90-471d-84d7-0bb926e13209@34b2c",
+      "displayName": "",
+      "id": "34b2c",
+      "name": "JianTou@Idle.prefab",
+      "userData": {
+        "gltfIndex": 0
+      },
+      "ver": "1.0.14",
+      "imported": true,
+      "files": [
+        ".json"
+      ],
+      "subMetas": {}
+    }
+  },
+  "userData": {
+    "imageMetas": [
+      {
+        "name": "Map #7",
+        "uri": "db://assets/_Assets/mode/Map_tex.png"
+      }
+    ],
+    "fbx": {
+      "smartMaterialEnabled": true
+    },
+    "animationImportSettings": [
+      {
+        "name": "Take 001",
+        "duration": 1.2999999523162842,
+        "fps": 30,
+        "splits": [
+          {
+            "name": "Idle",
+            "from": 0,
+            "to": 1.2999999523162842,
+            "wrapMode": 2,
+            "previousId": "c2696"
+          }
+        ]
+      }
+    ],
+    "lods": {
+      "enable": false,
+      "hasBuiltinLOD": false,
+      "options": [
+        {
+          "screenRatio": 0.25,
+          "faceCount": 1
+        },
+        {
+          "screenRatio": 0.125,
+          "faceCount": 0.25
+        },
+        {
+          "screenRatio": 0.01,
+          "faceCount": 0.1
+        }
+      ]
+    },
+    "assetFinder": {
+      "meshes": [
+        "dc35bc00-da90-471d-84d7-0bb926e13209@6dd24"
+      ],
+      "skeletons": [],
+      "textures": [
+        "dc35bc00-da90-471d-84d7-0bb926e13209@8b7bb"
+      ],
+      "materials": [
+        "dc35bc00-da90-471d-84d7-0bb926e13209@7c855"
+      ],
+      "scenes": [
+        "dc35bc00-da90-471d-84d7-0bb926e13209@34b2c"
+      ]
+    }
+  }
+}

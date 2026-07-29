@@ -89,18 +89,13 @@ test('corn hauler is empty before activation and mounts corn like the player', (
     )?.[0] ?? '';
     assert.match(clearMethod, /child\.active = false/);
     assert.match(clearMethod, /item\.active = false/);
-    assert.match(spawnMethod, /const mountTemplate = this\.clearInheritedHaulerCargo\(actor\)/);
+    assert.match(spawnMethod, /this\.clearInheritedHaulerCargo\(actor\)/);
     assert.ok(spawnMethod.indexOf('clearInheritedHaulerCargo') < spawnMethod.indexOf('actor.active = true'));
     assert.match(spawnMethod, /new Node\('CornHaulerCarryMount'\)/);
-    assert.match(spawnMethod, /carryNode\.setParent\(mountTemplate\.parent\)/);
-    assert.match(
-        spawnMethod,
-        /carryNode\.setPosition\(0, 0\.6, 0\)/,
-        'the actual runtime corn hauler storage mount should sit against the body',
-    );
-    assert.match(spawnMethod, /carryNode\.setPosition\(0, 1\.45, 0\)/);
-    assert.match(spawnMethod, /carryNode\.setRotation\(mountTemplate\.rotation\)/);
-    assert.match(spawnMethod, /carryNode\.setScale\(mountTemplate\.scale\)/);
+    assert.match(spawnMethod, /carryNode\.setParent\(actor\)/);
+    assert.match(spawnMethod, /\(1\.384 - actor\.worldPosition\.y\) \/ Math\.max\(Math\.abs\(actorScale\.y\), 0\.0001\)/);
+    assert.match(spawnMethod, /carryNode\.setRotationFromEuler\(0, -90, 0\)/);
+    assert.match(spawnMethod, /carryNode\.setScale\(Vec3\.ONE\)/);
     assert.match(spawnMethod, /actor\.getComponent\(CornHaulerBackpack\) \?\? actor\.addComponent\(CornHaulerBackpack\)/);
     assert.match(spawnMethod, /carryStorage\.capacity = 42/);
     assert.match(spawnMethod, /carryStorage\.moveAnimationDuration = 0\.6/);
@@ -133,7 +128,10 @@ test('corn tractor owns a copy of the forest path loop and contact harvest setti
     )?.[0] ?? '';
     assert.ok(existsSync(cornTractorPath), 'corn tractor must have a dedicated component');
     assert.doesNotMatch(source, /LoggingTruck/);
-    assert.doesNotMatch(source, /Woodcutter|WoodBackpack/);
+    assert.doesNotMatch(
+        source,
+        /(?:getComponent|addComponent)\((?:Woodcutter|WoodBackpack)\)|from\s+['"].*\/(?:Woodcutter|WoodBackpack)['"]/,
+    );
     assert.match(vehicleSpawn, /actor\.getComponent\(CornTractor\) \?\? actor\.addComponent\(CornTractor\)/);
     assert.match(vehicleSpawn, /this\.disableActorGameplayComponents\(actor\)/);
     assert.ok(

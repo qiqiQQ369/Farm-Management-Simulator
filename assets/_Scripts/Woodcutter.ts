@@ -1,4 +1,15 @@
-import { _decorator, Component, Node, Vec3, tween, find, SkeletalAnimation } from 'cc';
+import {
+    _decorator,
+    Component,
+    Node,
+    Vec3,
+    tween,
+    find,
+    instantiate,
+    Material,
+    SkeletalAnimation,
+    SkinnedMeshRenderer,
+} from 'cc';
 import { Tree } from './Tree';
 import { TreeState } from './TreeData';
 import { ChopAction } from './ChopAction';
@@ -42,6 +53,9 @@ export class Woodcutter extends Component {
 
     @property({ type: SkeletalAnimation, tooltip: "骨骼动画" })
     public skeletalAnimation: SkeletalAnimation = null!;
+
+    @property({ type: Material, tooltip: "伐木工贴图材质" })
+    public workerMaterial: Material = null!;
     
     // 私有属性
     private _treeList: Tree[] = [];
@@ -57,16 +71,95 @@ export class Woodcutter extends Component {
     public offsetVec3: Vec3 = new Vec3(-3.4, 0, -1.26);
 
     private _currentState: WoodcutterState = WoodcutterState.Idle;
-    private lastAnimation: string = "idle1_FuTou";
-    private idleAnimName: string = "idle1_FuTou"
+    private lastAnimation: string = "";
+    private idleAnimName: string = "idle"
 
     private _dir = 1;
 
     protected onLoad(): void {
+        this.installProtagonistVisual();
+
+        if (!this.skeletalAnimation) {
+            this.skeletalAnimation = this.getComponentInChildren(SkeletalAnimation);
+        }
+
         // 确保有砍伐动作组件
         if (!this.chopAction) {
             this.chopAction = this.getComponent(ChopAction) || this.addComponent(ChopAction);
         }
+        this.chopAction.skeletonAnimation ??= this.skeletalAnimation;
+    }
+
+    /**
+     * 只替换伐木工的表现：复用场景中主角已配置好的模型、骨骼和动作。
+     */
+    private installProtagonistVisual(): void {
+        const existingVisual = this.node.getChildByName('WoodcutterVisual');
+        if (existingVisual) {
+            for (const child of [...this.node.children]) {
+                if (child !== existingVisual && child.name === 'WoodcutterVisual') {
+                    child.active = false;
+                    child.destroy();
+                    continue;
+                }
+                if (child === existingVisual) continue;
+                const inheritedAnimation = child.getComponent(SkeletalAnimation)
+                    ?? child.getComponentInChildren(SkeletalAnimation);
+                if (inheritedAnimation) child.active = false;
+            }
+
+            existingVisual.active = true;
+            this.skeletalAnimation =
+                existingVisual.getComponent(SkeletalAnimation) ??
+                existingVisual.getComponentInChildren(SkeletalAnimation);
+            if (this.skeletalAnimation) this.skeletalAnimation.enabled = true;
+            return;
+        }
+
+        const sourceVisual = find('Player/PlayerVisual');
+        if (!sourceVisual) {
+            console.warn(`Woodcutter ${this.node.name}: missing Player/PlayerVisual`);
+            return;
+        }
+
+        const oldAnimation = this.getComponentInChildren(SkeletalAnimation);
+        if (oldAnimation) {
+            oldAnimation.node.active = false;
+        }
+
+        const workerVisual = instantiate(sourceVisual);
+        workerVisual.name = 'WoodcutterVisual';
+        workerVisual.setParent(this.node);
+        sourceVisual.updateWorldTransform();
+        this.node.updateWorldTransform();
+        const sourceWorldScale = sourceVisual.worldScale;
+        const workerRootWorldScale = this.node.worldScale;
+        const workerRootScaleX = Math.max(Math.abs(workerRootWorldScale.x), 0.0001);
+        const workerRootScaleY = Math.max(Math.abs(workerRootWorldScale.y), 0.0001);
+        const workerRootScaleZ = Math.max(Math.abs(workerRootWorldScale.z), 0.0001);
+        workerVisual.setPosition(
+            0,
+            (sourceVisual.worldPosition.y - this.node.worldPosition.y) / workerRootScaleY,
+            0,
+        );
+        workerVisual.setScale(
+            sourceWorldScale.x / workerRootScaleX,
+            sourceWorldScale.y / workerRootScaleY,
+            sourceWorldScale.z / workerRootScaleZ,
+        );
+        // Player 根节点原本会抵消 PlayerVisual 的 -180° 朝向；
+        // 伐木工只克隆 Visual，因此在这里恢复为正向。
+        workerVisual.setRotationFromEuler(0, 0, 0);
+
+        if (this.workerMaterial) {
+            for (const renderer of workerVisual.getComponentsInChildren(SkinnedMeshRenderer)) {
+                renderer.setMaterial(this.workerMaterial, 0);
+            }
+        }
+
+        this.skeletalAnimation =
+            workerVisual.getComponent(SkeletalAnimation) ??
+            workerVisual.getComponentInChildren(SkeletalAnimation);
     }
 
     start() {
@@ -82,7 +175,7 @@ export class Woodcutter extends Component {
         switch (this._currentState) {
             case WoodcutterState.Idle:
                 if(this.lastAnimation != this.idleAnimName){
-                    this.skeletalAnimation.play(this.idleAnimName);
+                    this.playAnimation(this.idleAnimName);
                     this.lastAnimation = this.idleAnimName;
                 }
                 this.handleIdleState();
@@ -149,8 +242,8 @@ export class Woodcutter extends Component {
         
         if (this._currentTarget) {
             this._currentState = WoodcutterState.Moving;
-            this.skeletalAnimation.play("run2_FuTou");
-            this.lastAnimation = "run2_FuTou";
+            this.playAnimation("run");
+            this.lastAnimation = "run";
         }
     }
 
@@ -176,11 +269,6 @@ export class Woodcutter extends Component {
             this._currentState = WoodcutterState.Chopping;
             this.startChopping();
             await new Promise(resolve => setTimeout(resolve, 1000));
-            // if(this.lastAnimation != "KanMuTou"){
-            //     this.skeletalAnimation.play("KanMuTou");
-            //     this.lastAnimation = "KanMuTou";
-            // }
-            //await new Promise(resolve => setTimeout(resolve, 1000));
             return;
         }
         
@@ -335,9 +423,7 @@ export class Woodcutter extends Component {
 
         const target = this._currentTarget;
         this._isChopCycleRunning = true;
-        if (this.skeletalAnimation) {
-            this.skeletalAnimation.play("KanMuTou");
-        }
+        this.playAnimation("sickle_harvest");
         await this.chopAction.playChopAction(target.node.position.clone().add(this.offsetVec3));
 
         if (this._currentTarget === target && target.node.isValid &&
@@ -404,6 +490,22 @@ export class Woodcutter extends Component {
             const angle = Math.atan2(direction.x, direction.z);
             this.node.setRotationFromEuler(0, angle * 180 / Math.PI, 0);
         }
+    }
+
+    private playAnimation(clipName: string): void {
+        if (!this.skeletalAnimation) {
+            this.skeletalAnimation = this.getComponentInChildren(SkeletalAnimation);
+        }
+        if (!this.skeletalAnimation) {
+            console.warn(`Woodcutter ${this.node.name}: missing SkeletalAnimation`);
+            return;
+        }
+        if (!this.skeletalAnimation.getState(clipName)) {
+            console.warn(`Woodcutter ${this.node.name}: missing animation clip ${clipName}`);
+            return;
+        }
+
+        this.skeletalAnimation.play(clipName);
     }
 
     /**

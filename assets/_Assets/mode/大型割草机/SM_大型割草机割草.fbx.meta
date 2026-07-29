@@ -1,0 +1,278 @@
+{
+  "ver": "2.3.13",
+  "importer": "fbx",
+  "imported": true,
+  "uuid": "e914138e-b7d3-4694-822d-6ecf39d86221",
+  "files": [],
+  "subMetas": {
+    "41f80": {
+      "importer": "gltf-mesh",
+      "uuid": "e914138e-b7d3-4694-822d-6ecf39d86221@41f80",
+      "displayName": "",
+      "id": "41f80",
+      "name": "pCylinder9.mesh",
+      "userData": {
+        "gltfIndex": 0,
+        "triangleCount": 656
+      },
+      "ver": "1.1.1",
+      "imported": true,
+      "files": [
+        ".bin",
+        ".json"
+      ],
+      "subMetas": {}
+    },
+    "3c4ef": {
+      "importer": "gltf-embeded-image",
+      "uuid": "e914138e-b7d3-4694-822d-6ecf39d86221@3c4ef",
+      "displayName": "",
+      "id": "3c4ef",
+      "name": "3d66-export-JCI54555586148-004.image",
+      "userData": {
+        "gltfIndex": 1,
+        "fixAlphaTransparencyArtifacts": true,
+        "hasAlpha": true,
+        "type": "texture"
+      },
+      "ver": "1.0.3",
+      "imported": true,
+      "files": [
+        ".json",
+        ".png"
+      ],
+      "subMetas": {}
+    },
+    "32d91": {
+      "importer": "texture",
+      "uuid": "e914138e-b7d3-4694-822d-6ecf39d86221@32d91",
+      "displayName": "",
+      "id": "32d91",
+      "name": "3d66-export-JCI54555586148-003.texture",
+      "userData": {
+        "wrapModeS": "repeat",
+        "wrapModeT": "repeat",
+        "minfilter": "linear",
+        "magfilter": "linear",
+        "mipfilter": "none",
+        "anisotropy": 0,
+        "isUuid": false,
+        "imageUuidOrDatabaseUri": "db://assets/_Assets/mode/大型割草机/SM_大型割草机_663ce156-e5ac-4386-bded-6dccc3b5ebcd_BaseColor.jpg"
+      },
+      "ver": "1.0.22",
+      "imported": true,
+      "files": [
+        ".json"
+      ],
+      "subMetas": {}
+    },
+    "96a4c": {
+      "importer": "texture",
+      "uuid": "e914138e-b7d3-4694-822d-6ecf39d86221@96a4c",
+      "displayName": "",
+      "id": "96a4c",
+      "name": "3d66-export-JCI54555586148-004.texture",
+      "userData": {
+        "wrapModeS": "repeat",
+        "wrapModeT": "repeat",
+        "minfilter": "linear",
+        "magfilter": "linear",
+        "mipfilter": "none",
+        "anisotropy": 0,
+        "isUuid": true,
+        "imageUuidOrDatabaseUri": "e914138e-b7d3-4694-822d-6ecf39d86221@3c4ef"
+      },
+      "ver": "1.0.22",
+      "imported": true,
+      "files": [
+        ".json"
+      ],
+      "subMetas": {}
+    },
+    "460fd": {
+      "importer": "gltf-material",
+      "uuid": "e914138e-b7d3-4694-822d-6ecf39d86221@460fd",
+      "displayName": "",
+      "id": "460fd",
+      "name": "663ce156-e5ac-4386-bded-6dccc3b5ebcd.material",
+      "userData": {
+        "gltfIndex": 0
+      },
+      "ver": "1.0.14",
+      "imported": true,
+      "files": [
+        ".json"
+      ],
+      "subMetas": {}
+    },
+    "afbe6": {
+      "importer": "gltf-scene",
+      "uuid": "e914138e-b7d3-4694-822d-6ecf39d86221@afbe6",
+      "displayName": "",
+      "id": "afbe6",
+      "name": "SM_大型割草机割草.prefab",
+      "userData": {
+        "gltfIndex": 0
+      },
+      "ver": "1.0.14",
+      "imported": true,
+      "files": [
+        ".json"
+      ],
+      "subMetas": {}
+    }
+  },
+  "userData": {
+    "imageMetas": [
+      {
+        "name": "3d66-export-JCI54555586148-003",
+        "uri": "db://assets/_Assets/mode/大型割草机/SM_大型割草机_663ce156-e5ac-4386-bded-6dccc3b5ebcd_BaseColor.jpg"
+      },
+      {
+        "name": "3d66-export-JCI54555586148-004",
+        "uri": "e914138e-b7d3-4694-822d-6ecf39d86221@3c4ef"
+      }
+    ],
+    "fbx": {
+      "smartMaterialEnabled": true
+    },
+    "lods": {
+      "enable": false,
+      "hasBuiltinLOD": false,
+      "options": [
+        {
+          "screenRatio": 0.25,
+          "faceCount": 1
+        },
+        {
+          "screenRatio": 0.125,
+          "faceCount": 0.25
+        },
+        {
+          "screenRatio": 0.01,
+          "faceCount": 0.1
+        }
+      ]
+    },
+    "assetFinder": {
+      "meshes": [
+        "e914138e-b7d3-4694-822d-6ecf39d86221@41f80"
+      ],
+      "skeletons": [],
+      "textures": [
+        "e914138e-b7d3-4694-822d-6ecf39d86221@32d91",
+        "e914138e-b7d3-4694-822d-6ecf39d86221@96a4c"
+      ],
+      "materials": [
+        "e914138e-b7d3-4694-822d-6ecf39d86221@460fd"
+      ],
+      "scenes": [
+        "e914138e-b7d3-4694-822d-6ecf39d86221@afbe6"
+      ]
+    },
+    "materials": {
+      "e914138e-b7d3-4694-822d-6ecf39d86221@460fd": {
+        "__type__": "cc.Material",
+        "_name": "",
+        "_objFlags": 0,
+        "__editorExtras__": {},
+        "_native": "",
+        "_effectAsset": {
+          "__uuid__": "c8f66d17-351a-48da-a12c-0212d28575c4",
+          "__expectedType__": "cc.EffectAsset"
+        },
+        "_techIdx": 0,
+        "_defines": [
+          {
+            "USE_ALBEDO_MAP": true,
+            "USE_PBR_MAP": true
+          },
+          {},
+          {},
+          {},
+          {},
+          {}
+        ],
+        "_states": [
+          {
+            "rasterizerState": {},
+            "depthStencilState": {},
+            "blendState": {
+              "targets": [
+                {}
+              ]
+            }
+          },
+          {
+            "rasterizerState": {},
+            "depthStencilState": {},
+            "blendState": {
+              "targets": [
+                {}
+              ]
+            }
+          },
+          {
+            "rasterizerState": {},
+            "depthStencilState": {},
+            "blendState": {
+              "targets": [
+                {}
+              ]
+            }
+          },
+          {
+            "rasterizerState": {},
+            "depthStencilState": {},
+            "blendState": {
+              "targets": [
+                {}
+              ]
+            }
+          },
+          {
+            "rasterizerState": {},
+            "depthStencilState": {},
+            "blendState": {
+              "targets": [
+                {}
+              ]
+            }
+          },
+          {
+            "rasterizerState": {},
+            "depthStencilState": {},
+            "blendState": {
+              "targets": [
+                {}
+              ]
+            }
+          }
+        ],
+        "_props": [
+          {
+            "roughness": 1,
+            "specularIntensity": 0.347,
+            "mainTexture": {
+              "__uuid__": "eefc433d-0e99-464d-ba59-9680fa24f0d7@6c48a",
+              "__expectedType__": "cc.Texture2D"
+            },
+            "normalMap": {
+              "__uuid__": "e914138e-b7d3-4694-822d-6ecf39d86221@96a4c",
+              "__expectedType__": "cc.Texture2D"
+            },
+            "pbrMap": {
+              "__uuid__": "eefc433d-0e99-464d-ba59-9680fa24f0d7@6c48a",
+              "__expectedType__": "cc.Texture2D"
+            }
+          },
+          {},
+          {},
+          {},
+          {},
+          {}
+        ]
+      }
+    }
+  }
+}

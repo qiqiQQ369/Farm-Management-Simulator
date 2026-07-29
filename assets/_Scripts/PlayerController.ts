@@ -15,11 +15,19 @@ export enum AnimationName {
     Chop = "KanMuTou"
 }
 
+export enum PlayerToolStage {
+    Sickle,
+    HandMower,
+    RideMower,
+}
+
 enum PlayerVisualAnimationName {
     Idle = "idle",
     Run = "run",
-    ToolIdle = "tool_idle",
-    ToolRun = "tool_run"
+    SickleHarvest = "sickle_harvest",
+    HandMowerIdle = "hand_mower_idle",
+    HandMowerRun = "hand_mower_run",
+    RideMower = "ride_mower",
 }
 
 /**
@@ -73,7 +81,16 @@ export class PlayerController extends Component implements IJoystickInput {
     @property({ type: SkeletalAnimation, tooltip: "骨骼动画" })
     public skeletonAnimation: SkeletalAnimation = null!;
 
+    @property({ type: Node, tooltip: 'Hand mower visual shown after the first side-field reveal.' })
+    public handMowerNode: Node = null!;
+
+    @property({ type: Node, tooltip: 'Ride mower visual shown after the second side-field reveal.' })
+    public rideMowerNode: Node = null!;
+
     private _currentAnimation: string = PlayerVisualAnimationName.Idle;
+    private _toolStage = PlayerToolStage.Sickle;
+    private _isHarvestingCrop = false;
+    private _isChoppingTree = false;
     
     // 私有属性
     private _keyboardInput: Vec3 = new Vec3();
@@ -495,10 +512,12 @@ export class PlayerController extends Component implements IJoystickInput {
     }
 
     public onChopAnimationStarted(): void {
+        this._isChoppingTree = true;
         this.syncMovementAnimation(true);
     }
 
     public onChopAnimationFinished(): void {
+        this._isChoppingTree = false;
         this.refreshMovementAnimation();
     }
 
@@ -548,8 +567,8 @@ export class PlayerController extends Component implements IJoystickInput {
             this._rigidBody.setLinearVelocity(this._tempVec3);
         }
 
-        this._currentAnimation = PlayerVisualAnimationName.Idle;
-        this.playVisualAnimation(PlayerVisualAnimationName.Idle);
+        this._currentAnimation = this.getToolAnimationName(false);
+        this.playVisualAnimation(this._currentAnimation as PlayerVisualAnimationName);
     }
 
     /**
@@ -577,12 +596,25 @@ export class PlayerController extends Component implements IJoystickInput {
     }
 
     public playAnimation(animationName: AnimationName): void {
-        if (animationName === AnimationName.Run) {
-            this._currentAnimation = PlayerVisualAnimationName.Run;
-        } else {
-            this._currentAnimation = PlayerVisualAnimationName.Idle;
-        }
+        this._currentAnimation = this.getToolAnimationName(animationName === AnimationName.Run);
         this.playVisualAnimation(this._currentAnimation as PlayerVisualAnimationName);
+    }
+
+    public setToolStage(stage: PlayerToolStage): void {
+        if (this._toolStage === stage) return;
+        this._toolStage = stage;
+        this.syncToolVisibility();
+        this.syncMovementAnimation(true);
+    }
+
+    public getToolStage(): PlayerToolStage {
+        return this._toolStage;
+    }
+
+    public setCropHarvesting(active: boolean): void {
+        if (this._isHarvestingCrop === active) return;
+        this._isHarvestingCrop = active;
+        this.syncMovementAnimation(true);
     }
 
     private syncMovementAnimation(forceRefresh: boolean = false): void {
@@ -590,15 +622,12 @@ export class PlayerController extends Component implements IJoystickInput {
             return;
         }
 
-        const isUsingTool = this.chopAction?.isPlaying() ?? false;
-        const nextAnimation = isUsingTool
-            ? (this._isMoving ? PlayerVisualAnimationName.ToolRun : PlayerVisualAnimationName.ToolIdle)
-            : (this._isMoving ? PlayerVisualAnimationName.Run : PlayerVisualAnimationName.Idle);
+        const nextAnimation = this.getToolAnimationName(this._isMoving);
         const nextState = this.skeletonAnimation.getState(nextAnimation);
-        const shouldStayPaused = nextAnimation === PlayerVisualAnimationName.Idle && nextState?.isPaused;
+        const shouldHoldSicklePose = this.shouldHoldSicklePose(nextAnimation);
         if (!forceRefresh
             && this._currentAnimation === nextAnimation
-            && (nextState?.isPlaying || shouldStayPaused)) {
+            && (nextState?.isPlaying || shouldHoldSicklePose)) {
             return;
         }
 
@@ -607,28 +636,56 @@ export class PlayerController extends Component implements IJoystickInput {
     }
 
     private syncToolVisibility(): void {
-        const toolNode = this.chopAction?.futouNode;
-        if (toolNode?.isValid) {
-            toolNode.active = this.chopAction.isPlaying();
+        const sickleNode = this.chopAction?.futouNode;
+        if (sickleNode?.isValid) {
+            sickleNode.active = this._toolStage === PlayerToolStage.Sickle;
+        }
+        if (this.handMowerNode?.isValid) {
+            this.handMowerNode.active = this._toolStage === PlayerToolStage.HandMower;
+        }
+        if (this.rideMowerNode?.isValid) {
+            this.rideMowerNode.active = this._toolStage === PlayerToolStage.RideMower;
+        }
+    }
+
+    private getToolAnimationName(isMoving: boolean): PlayerVisualAnimationName {
+        switch (this._toolStage) {
+            case PlayerToolStage.HandMower:
+                return isMoving
+                    ? PlayerVisualAnimationName.HandMowerRun
+                    : PlayerVisualAnimationName.HandMowerIdle;
+            case PlayerToolStage.RideMower:
+                return PlayerVisualAnimationName.RideMower;
+            default:
+                if (this._isHarvestingCrop || this._isChoppingTree || this.chopAction?.isPlaying()) {
+                    return PlayerVisualAnimationName.SickleHarvest;
+                }
+                return isMoving
+                    ? PlayerVisualAnimationName.Run
+                    : PlayerVisualAnimationName.SickleHarvest;
         }
     }
 
     private playVisualAnimation(animationName: PlayerVisualAnimationName): void {
-        if (animationName === PlayerVisualAnimationName.Idle) {
-            const idleState = this.skeletonAnimation.getState(animationName);
-            if (idleState) {
-                this.skeletonAnimation.stop();
-                idleState.time = 0;
-                idleState.sample();
-            }
+        const state = this.skeletonAnimation.getState(animationName);
+        if (state && this.shouldHoldSicklePose(animationName)) {
+            this.skeletonAnimation.stop();
+            state.time = 0;
+            state.sample();
             return;
         }
-
-        const state = this.skeletonAnimation.getState(animationName);
         if (state) {
             state.speed = 1;
         }
         this.skeletonAnimation.play(animationName);
+    }
+
+    private shouldHoldSicklePose(animationName: PlayerVisualAnimationName): boolean {
+        return this._toolStage === PlayerToolStage.Sickle
+            && animationName === PlayerVisualAnimationName.SickleHarvest
+            && !this._isHarvestingCrop
+            && !this._isChoppingTree
+            && !(this.chopAction?.isPlaying() ?? false);
     }
     // private onAnimationFinished(type: AnimationStateEventType, state: AnimationState): void {
     //     console.log("onAnimationFinished", type);        

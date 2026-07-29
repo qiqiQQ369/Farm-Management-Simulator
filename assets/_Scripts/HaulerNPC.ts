@@ -417,17 +417,26 @@ export class HaulerNPC extends Component {
         this.node.setRotationFromEuler(0, yaw, 0);
     }
 
+    private shouldUseCarryAnimation(): boolean {
+        return this.carryStorage?.amount > 0
+            || this._state === HaulerState.Loading
+            || this._state === HaulerState.Delivering
+            || this._state === HaulerState.Unloading;
+    }
+
     private playIdleAnimation(): void {
         if (!this.skeletonAnimation) {
             return;
         }
 
-        if (!this._isMoving && this.skeletonAnimation.getState(HaulerAnimationName.Idle)?.isPlaying) {
+        const carrying = this.shouldUseCarryAnimation();
+        const clipName = carrying ? HaulerAnimationName.CarryIdle : HaulerAnimationName.Idle;
+        if (!this._isMoving && this.skeletonAnimation.getState(clipName)?.isPlaying) {
             return;
         }
 
         this._isMoving = false;
-        this.skeletonAnimation.play(HaulerAnimationName.Idle);
+        this.skeletonAnimation.play(clipName);
     }
 
     private playRunAnimation(): void {
@@ -435,11 +444,13 @@ export class HaulerNPC extends Component {
             return;
         }
 
-        if (this._isMoving && this.skeletonAnimation.getState(HaulerAnimationName.Run)?.isPlaying) {
+        const carrying = this.shouldUseCarryAnimation();
+        const clipName = carrying ? HaulerAnimationName.CarryRun : HaulerAnimationName.Run;
+        if (this._isMoving && this.skeletonAnimation.getState(clipName)?.isPlaying) {
             return;
         }
 
         this._isMoving = true;
-        this.skeletonAnimation.play(HaulerAnimationName.Run);
+        this.skeletonAnimation.play(clipName);
     }
 }

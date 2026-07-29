@@ -4,6 +4,12 @@ import { getCornHarvestStandPosition, moveCornWorkerToward } from './CornWorkerR
 
 const { ccclass, property } = _decorator;
 
+const CornWorkerAnimation = {
+    Idle: 'idle',
+    Run: 'run',
+    Harvest: 'sickle_harvest',
+} as const;
+
 enum CornWorkerState {
     Idle = 'idle',
     Moving = 'moving',
@@ -59,8 +65,8 @@ export class CornWorker extends Component {
     private _isChopping = false;
     private _isChopCycleRunning = false;
     private _isCycleActive = false;
-    private _lastAnimation = 'idle1_FuTou';
-    private readonly _idleAnimation = 'idle1_FuTou';
+    private _lastAnimation = '';
+    private readonly _idleAnimation = CornWorkerAnimation.Idle;
 
     protected onLoad(): void {
         if (!this.chopAction) {
@@ -81,9 +87,8 @@ export class CornWorker extends Component {
 
         switch (this._currentState) {
             case CornWorkerState.Idle:
-                if (this._lastAnimation !== this._idleAnimation && this.skeletalAnimation) {
-                    this.skeletalAnimation.play(this._idleAnimation);
-                    this._lastAnimation = this._idleAnimation;
+                if (this._lastAnimation !== this._idleAnimation) {
+                    this.playAnimation(this._idleAnimation);
                 }
                 this.handleIdleState();
                 break;
@@ -120,10 +125,7 @@ export class CornWorker extends Component {
         if (!this._currentTarget) return;
 
         this._currentState = CornWorkerState.Moving;
-        if (this.skeletalAnimation) {
-            this.skeletalAnimation.play('run2_FuTou');
-            this._lastAnimation = 'run2_FuTou';
-        }
+        this.playAnimation(CornWorkerAnimation.Run);
     }
 
     private async handleMovingState(deltaTime: number): Promise<void> {
@@ -247,7 +249,7 @@ export class CornWorker extends Component {
 
         const target = this._currentTarget;
         this._isChopCycleRunning = true;
-        this.skeletalAnimation?.play('KanMuTou');
+        this.playAnimation(CornWorkerAnimation.Harvest);
         await this.chopAction.playChopAction(this.getTargetPosition(target));
 
         if (this._currentTarget === target && this.canChopTarget(target)) {
@@ -268,6 +270,15 @@ export class CornWorker extends Component {
     private onPlantHarvested(): void {
         this._isChopping = false;
         this.chopAction?.playCompleteAction();
+    }
+
+    private playAnimation(clipName: string): void {
+        if (!this.skeletalAnimation?.getState(clipName)) {
+            console.warn(`CornWorker ${this.node.name}: missing animation clip ${clipName}`);
+            return;
+        }
+        this.skeletalAnimation.play(clipName);
+        this._lastAnimation = clipName;
     }
 
     private faceTarget(targetPosition: Vec3): void {

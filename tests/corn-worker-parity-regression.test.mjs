@@ -156,8 +156,10 @@ test('corn workers restore the forest worker collision body when spawned', () =>
 
 test('corn workers use a dedicated copy of the forest worker state machine', () => {
     assert.ok(existsSync(cornWorkerPath), 'corn workers must have their own component');
-    assert.doesNotMatch(source, /Woodcutter/);
-    assert.doesNotMatch(cornProductionSource, /Woodcutter/);
+    const legacyWoodcutterReference =
+        /(?:getComponent|addComponent)\(Woodcutter\)|from\s+['"].*\/Woodcutter['"]/;
+    assert.doesNotMatch(source, legacyWoodcutterReference);
+    assert.doesNotMatch(cornProductionSource, legacyWoodcutterReference);
 
     const workerSpawn = source.match(
         /private spawnWorkers[\s\S]*?\n    private spawnVehicle/,

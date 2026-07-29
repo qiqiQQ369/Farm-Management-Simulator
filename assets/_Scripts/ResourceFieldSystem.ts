@@ -9,12 +9,14 @@ import {
     find,
     instantiate,
     Label,
+    Material,
     MeshRenderer,
     Node,
     Prefab,
     Renderer,
     RigidBody,
     SkeletalAnimation,
+    SkinnedMeshRenderer,
     Sprite,
     SpriteFrame,
     tween,
@@ -27,17 +29,18 @@ import { CornFieldProduction } from './CornFieldProduction';
 import { CornCustomerScheduler } from './CornCustomerScheduler';
 import { CornHauler } from './CornHauler';
 import { CornHaulerBackpack } from './CornHaulerBackpack';
-import { findLegacyHaulerAnimation, removePlayerOnlyVisual } from './HaulerAnimation';
+import { installFixedCustomerHaulerVisual, removePlayerOnlyVisual } from './HaulerAnimation';
 import { CornPickupDetector } from './CornPickupDetector';
 import { CornStoragePoint } from './CornStoragePoint';
 import { CornTractor } from './CornTractor';
 import { CornUnlockPad } from './CornUnlockPad';
 import { restoreCornVisualHierarchy } from './CornVisualState';
 import { CornWorker } from './CornWorker';
+import { buildFencePerimeterFromAirWalls } from './FencePerimeter';
 import { JoystickController } from './JoystickController';
 import { MainUI } from './MainUI';
 import { MultiResourceBackpack } from './MultiResourceBackpack';
-import { PlayerController } from './PlayerController';
+import { PlayerController, PlayerToolStage } from './PlayerController';
 import { PlayerDetectionZone } from './PlayerDetectionZone';
 
 const { ccclass, property, executionOrder } = _decorator;
@@ -143,6 +146,9 @@ export class ResourceFieldSystem extends Component {
 
     @property({ type: CornStoragePoint, group: 'Right field scene nodes' })
     public rightCollectionStorage: CornStoragePoint = null!;
+
+    @property({ type: CornStoragePoint, group: 'Right field scene nodes' })
+    public rightSellStorage: CornStoragePoint = null!;
 
     @property({ type: Node, group: 'Right field scene nodes' })
     public rightVehicleStartPoint: Node = null!;
@@ -261,7 +267,10 @@ export class ResourceFieldSystem extends Component {
     public vehicleEndpointWait = 0.1;
 
     @property({ tooltip: 'Local position of side-field stock inside its cashier slot, matching the forest wood slot.', group: 'Shared gameplay' })
-    public sellStoragePosition = new Vec3(-1.167, 0.885, -0.104);
+    public sellStoragePosition = new Vec3(0, 0.885, 0);
+
+    @property({ tooltip: 'Local position of sunflower stock on its own cashier table.', group: 'Shared gameplay' })
+    public rightSellStoragePosition = new Vec3(0, 1.485, 0);
 
     @property({ tooltip: 'Visual scale of side-field stock inside its sell slot, matching the forest wood slot.', group: 'Shared gameplay' })
     public sellStorageScale = 0.9;
@@ -284,6 +293,7 @@ export class ResourceFieldSystem extends Component {
 
     protected onLoad(): void {
         ResourceFieldSystem.inst = this;
+        buildFencePerimeterFromAirWalls();
         this._player = find('Player');
         this._playerController = this._player?.getComponent(PlayerController) ?? null;
         this._chopAction = this._player?.getComponent(ChopAction) ?? null;
@@ -391,6 +401,11 @@ export class ResourceFieldSystem extends Component {
 
         field.unlocked = true;
         this._openedSideFields++;
+        this._playerController?.setToolStage(
+            this._openedSideFields >= 2
+                ? PlayerToolStage.RideMower
+                : PlayerToolStage.HandMower,
+        );
         field.collectionStorage.node.active = true;
         field.production.activateProduction();
         // Side-field Sell1/CoinPlace start collapsed for the reveal intro. The
@@ -398,6 +413,9 @@ export class ResourceFieldSystem extends Component {
         // so corn gameplay must restore unit scale here itself. Forest Sell is
         // never owned by this path.
         this.revealCornSellPresentation(field);
+        this.scheduleOnce(() => {
+            if (field.unlocked) this.revealCornSellPresentation(field);
+        }, 0);
         this.showUnlockStage(field, 'worker', true);
 
         if (this._openedSideFields >= 2) {
@@ -411,13 +429,17 @@ export class ResourceFieldSystem extends Component {
     private revealCornSellPresentation(field: FieldRuntime): void {
         const sellNode = field.sellNode;
         if (sellNode?.isValid) {
+            restoreCornVisualHierarchy(sellNode);
             sellNode.active = true;
             sellNode.setScale(1, 1, 1);
+            for (const sellRenderer of sellNode.getComponentsInChildren(MeshRenderer)) {
+                sellRenderer.enabled = true;
+            }
         }
 
         const sellStorageNode = field.sellStorage?.node;
         if (sellStorageNode?.isValid) {
-            sellStorageNode.setPosition(this.sellStoragePosition);
+            sellStorageNode.setPosition(this.resolveSellStoragePosition(field.root));
             sellStorageNode.setScale(this.sellStorageScale, this.sellStorageScale, this.sellStorageScale);
             sellStorageNode.setRotationFromEuler(this.sellStorageRotation);
             field.sellStorage.recoverInterruptedTransfers();
@@ -425,8 +447,7 @@ export class ResourceFieldSystem extends Component {
 
         const coinPlace = field.root.getChildByName('CoinPlace');
         if (coinPlace?.isValid) {
-            coinPlace.active = true;
-            coinPlace.setScale(1, 1, 1);
+            coinPlace.active = false;
         }
 
         const customerScheduler = field.root.getChildByName('NPCScheduler-001');
@@ -494,8 +515,13 @@ export class ResourceFieldSystem extends Component {
         workerUnlockPoint.active = false;
         vehicleUnlockPoint.active = false;
         haulerUnlockPoint.active = false;
-        const sellStorageAnchor = this.resolveSellStorageAnchor(root, sellNode);
-        const sellStorage = this.ensureSellStorage(sellStorageAnchor, id);
+        const sellStorage = root === this.rightFieldRoot && this.rightSellStorage
+            ? this.configureSellStorage(this.rightSellStorage.node, id)
+            : this.ensureSellStorage(
+                this.resolveSellStorageAnchor(root, sellNode),
+                id,
+                this.resolveSellStoragePosition(root),
+            );
         this.bindCornCustomerScheduler(root, sellStorage);
         const cropRoot = root.children[0] ?? null;
         if (!cropRoot || !this._player || !this._resourceBackpack) {
@@ -583,11 +609,16 @@ export class ResourceFieldSystem extends Component {
         const item = this._resourceBackpack.takeResource(field.id);
         if (!item) return;
 
-        item.setScale(1, 1, 1);
+        this.restoreResourcePrefabScale(item, field.resourcePrefab);
         if (field.sellStorage.addResource(item, 4, Vec3.ZERO)) return;
 
         item.destroy();
         this._resourceBackpack.addResource(field.id);
+    }
+
+    private restoreResourcePrefabScale(resource: Node, prefab: Prefab | null): void {
+        const authoredScale = prefab?.data?.scale ?? null;
+        resource.setScale(authoredScale ?? Vec3.ONE);
     }
 
     private updateCornSellHighlight(field: FieldRuntime): void {
@@ -829,8 +860,6 @@ export class ResourceFieldSystem extends Component {
             controller.chopAction = actor.getComponent(ChopAction)
                 ?? actor.getComponentInChildren(ChopAction)
                 ?? actor.addComponent(ChopAction);
-            controller.skeletalAnimation = actor.getComponentInChildren(SkeletalAnimation);
-            controller.chopAction.skeletonAnimation = controller.skeletalAnimation;
             spawned.push({ actor, controller });
             field.workers.push(controller);
         }
@@ -849,9 +878,97 @@ export class ResourceFieldSystem extends Component {
             if (laneStart) actor.setWorldPosition(laneStart);
             controller.setHarvestTargets(assignments[index] ?? []);
             restoreCornVisualHierarchy(actor, false);
+            this.ensureProtagonistWorkerVisual(actor);
+            controller.skeletalAnimation = this.findVisibleWorkerAnimation(actor)!;
+            controller.chopAction.skeletonAnimation = controller.skeletalAnimation;
             controller.enabled = true;
             actor.active = true;
         });
+    }
+
+    private ensureProtagonistWorkerVisual(actor: Node): Node | null {
+        let visibleWorker = actor.getChildByName('WoodcutterVisual');
+        const sourceVisual = find('Player/PlayerVisual');
+
+        if (!visibleWorker && sourceVisual) {
+            sourceVisual.updateWorldTransform();
+            actor.updateWorldTransform();
+
+            visibleWorker = instantiate(sourceVisual);
+            visibleWorker.name = 'WoodcutterVisual';
+            visibleWorker.setParent(actor);
+
+            const sourceWorldScale = sourceVisual.worldScale;
+            const actorWorldScale = actor.worldScale;
+            const scaleX = Math.max(Math.abs(actorWorldScale.x), 0.0001);
+            const scaleY = Math.max(Math.abs(actorWorldScale.y), 0.0001);
+            const scaleZ = Math.max(Math.abs(actorWorldScale.z), 0.0001);
+            visibleWorker.setPosition(
+                0,
+                (sourceVisual.worldPosition.y - actor.worldPosition.y) / scaleY,
+                0,
+            );
+            visibleWorker.setScale(
+                sourceWorldScale.x / scaleX,
+                sourceWorldScale.y / scaleY,
+                sourceWorldScale.z / scaleZ,
+            );
+            visibleWorker.setRotationFromEuler(0, 0, 0);
+
+            const materialOwner = actor.components.find(component =>
+                'workerMaterial' in component,
+            ) as (Component & { workerMaterial?: Material }) | undefined;
+            if (materialOwner?.workerMaterial) {
+                for (const renderer of visibleWorker.getComponentsInChildren(SkinnedMeshRenderer)) {
+                    renderer.setMaterial(materialOwner.workerMaterial, 0);
+                }
+            }
+        }
+
+        if (!visibleWorker) return null;
+
+        for (const child of actor.children) {
+            if (child === visibleWorker) continue;
+            const inheritedAnimation = child.getComponent(SkeletalAnimation)
+                ?? child.getComponentInChildren(SkeletalAnimation);
+            if (inheritedAnimation) child.active = false;
+        }
+
+        visibleWorker.active = true;
+        this.ensureWorkerSickleVisible(visibleWorker);
+        const skeletalAnimation = visibleWorker.getComponent(SkeletalAnimation)
+            ?? visibleWorker.getComponentInChildren(SkeletalAnimation);
+        if (skeletalAnimation) skeletalAnimation.enabled = true;
+        return visibleWorker;
+    }
+
+    /**
+     * The live player hides the sickle after progressing to a mower stage.
+     * Worker visuals cloned afterwards inherit that inactive flag, so restore
+     * only the worker copy and leave the player's tool state untouched.
+     */
+    private ensureWorkerSickleVisible(root: Node): void {
+        const visit = (node: Node): void => {
+            if (node.name === 'SM_镰刀') {
+                node.active = true;
+                for (const renderer of node.getComponents(MeshRenderer)) {
+                    renderer.enabled = true;
+                }
+            }
+            for (const child of node.children) visit(child);
+        };
+        visit(root);
+    }
+
+    private findVisibleWorkerAnimation(actor: Node): SkeletalAnimation | null {
+        const visibleWorker = actor.getChildByName('WoodcutterVisual');
+        const preferredAnimation = visibleWorker?.getComponent(SkeletalAnimation)
+            ?? visibleWorker?.getComponentInChildren(SkeletalAnimation)
+            ?? null;
+        if (preferredAnimation) return preferredAnimation;
+
+        return actor.getComponentsInChildren(SkeletalAnimation)
+            .find(animation => animation.node.active) ?? null;
     }
 
     private spawnVehicle(field: FieldRuntime): void {
@@ -999,17 +1116,17 @@ export class ResourceFieldSystem extends Component {
         for (const storage of actor.getComponentsInChildren(CornStoragePoint)) storage.clearStorage();
 
         const inheritedAxeNode = this.getInheritedAxeNode(actor);
-        const mountTemplate = this.clearInheritedHaulerCargo(actor);
+        this.clearInheritedHaulerCargo(actor);
         const carryNode = new Node('CornHaulerCarryMount');
-        if (mountTemplate?.parent) {
-            carryNode.setParent(mountTemplate.parent);
-            carryNode.setPosition(0, 0.6, 0);
-            carryNode.setRotation(mountTemplate.rotation);
-            carryNode.setScale(mountTemplate.scale);
-        } else {
-            carryNode.setParent(actor);
-            carryNode.setPosition(0, 1.45, 0);
-        }
+        const actorScale = actor.worldScale;
+        carryNode.setParent(actor);
+        carryNode.setPosition(
+            -0.199 / Math.max(Math.abs(actorScale.x), 0.0001),
+            (1.384 - actor.worldPosition.y) / Math.max(Math.abs(actorScale.y), 0.0001),
+            -0.426 / Math.max(Math.abs(actorScale.z), 0.0001),
+        );
+        carryNode.setRotationFromEuler(0, -90, 0);
+        carryNode.setScale(Vec3.ONE);
 
         const carryStorage = actor.getComponent(CornHaulerBackpack) ?? actor.addComponent(CornHaulerBackpack);
         carryStorage.enabled = false;
@@ -1027,7 +1144,6 @@ export class ResourceFieldSystem extends Component {
 
         const behavior = actor.getComponent(CornHauler) ?? actor.addComponent(CornHauler);
         behavior.enabled = false;
-        behavior.skeletonAnimation = findLegacyHaulerAnimation(actor)!;
         behavior.collectionPoint = collectionServicePoint;
         behavior.sellPoint = sellServicePoint;
         behavior.idlePoint = spawnAnchor;
@@ -1040,6 +1156,7 @@ export class ResourceFieldSystem extends Component {
         behavior.collectionStopDistance = 0.05;
         behavior.sellStopDistance = 0.01;
         restoreCornVisualHierarchy(actor, false);
+        behavior.skeletonAnimation = installFixedCustomerHaulerVisual(actor)!;
         this.removeInheritedAxeVisual(actor, inheritedAxeNode);
         behavior.setHiddenAxeNode(null);
         carryStorage.enabled = true;
@@ -1193,18 +1310,25 @@ export class ResourceFieldSystem extends Component {
     }
 
     private resolveSellStorageAnchor(fieldRoot: Node, fallback: Node): Node {
-        const cashierName = fieldRoot === this.leftFieldRoot
-            ? '收银台3'
-            : fieldRoot === this.rightFieldRoot
-                ? '收银台2'
-                : '';
-        const cashier = cashierName
-            ? fieldRoot.scene?.getChildByName('场景')?.getChildByName(cashierName) ?? null
-            : null;
-        return cashier ?? fallback;
+        const cashierRoot = fieldRoot.scene
+            ?.getChildByName('场景')
+            ?.getChildByName('SM_ShouYingTai') ?? null;
+        if (fieldRoot === this.rightFieldRoot) {
+            return cashierRoot?.getChildByName('SM_ShouYingTai') ?? fallback;
+        }
+        if (fieldRoot === this.leftFieldRoot) {
+            return cashierRoot?.getChildByName('SM_ShouYingTai-003') ?? fallback;
+        }
+        return fallback;
     }
 
-    private ensureSellStorage(anchor: Node, resourceId: string): CornStoragePoint {
+    private resolveSellStoragePosition(fieldRoot: Node): Vec3 {
+        return fieldRoot === this.rightFieldRoot
+            ? this.rightSellStoragePosition
+            : this.sellStoragePosition;
+    }
+
+    private ensureSellStorage(anchor: Node, resourceId: string, position: Vec3): CornStoragePoint {
         const existing = anchor.getComponentInChildren(CornStoragePoint);
         const storageNode = existing?.node ?? new Node(`SellStorage_${resourceId}`);
         if (storageNode.parent !== anchor) {
@@ -1212,9 +1336,13 @@ export class ResourceFieldSystem extends Component {
         }
 
         // The forest wood stack is mounted on the cashier, not on its sell sign.
-        storageNode.setPosition(this.sellStoragePosition);
+        storageNode.setPosition(position);
         storageNode.setScale(this.sellStorageScale, this.sellStorageScale, this.sellStorageScale);
         storageNode.setRotationFromEuler(this.sellStorageRotation);
+        return this.configureSellStorage(storageNode, resourceId);
+    }
+
+    private configureSellStorage(storageNode: Node, resourceId: string): CornStoragePoint {
         const storage = this.configureStorage(storageNode, `${resourceId}_sell`, 1000000);
         storage.resourcePerRow = 5;
         storage.resourcePerCol = 2;

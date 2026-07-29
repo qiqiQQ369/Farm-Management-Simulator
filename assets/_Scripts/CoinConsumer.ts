@@ -1,10 +1,10 @@
-import { _decorator, AudioSource, CharacterController, Collider, Component, find, ITriggerEvent, instantiate, Label, Node, Prefab, Quat, RigidBody, Sprite, SpriteFrame, tween, Vec3 } from 'cc';
+import { _decorator, AudioSource, BoxCollider, CharacterController, Collider, Component, find, ITriggerEvent, instantiate, Label, Node, Prefab, Quat, RigidBody, Sprite, SpriteFrame, tween, Vec3 } from 'cc';
 import { ArrowTipController } from './ArrowTipController';
 import { CameraController } from './CameraController';
 import { ChopAction } from './ChopAction';
 import { CoinBackpack } from './CoinBackpack';
 import { HaulerNPC } from './HaulerNPC';
-import { findLegacyHaulerAnimation, removePlayerOnlyVisual } from './HaulerAnimation';
+import { installFixedCustomerHaulerVisual, removePlayerOnlyVisual } from './HaulerAnimation';
 import { JoystickController } from './JoystickController';
 import { MultiResourceBackpack } from './MultiResourceBackpack';
 import { PlayerController } from './PlayerController';
@@ -93,6 +93,7 @@ export class CoinConsumer extends Component {
     public haulerRequiredCoins = 260;
 
     private _isPlayerInArea = false;
+    private _isPlayerInTrigger = false;
     private _playerNode: Node | null = null;
     private _playerController: PlayerController | null = null;
     private _consumeTimer = 0;
@@ -109,6 +110,7 @@ export class CoinConsumer extends Component {
     protected onLoad(): void {
         this.validateComponents();
         this.initializeUpgradeConfigs();
+        this.bindUnlockUI();
         this.updateUI();
 
         if (this.remainingLabel) {
@@ -125,6 +127,7 @@ export class CoinConsumer extends Component {
     }
 
     protected update(deltaTime: number): void {
+        this.refreshPlayerPresenceByDistance();
         this.normalizeUnlockChainState();
 
         if (this._isPlayerInArea && !this._isConsuming && !this._isCompleted) {
@@ -215,11 +218,8 @@ export class CoinConsumer extends Component {
             return;
         }
 
-        this._isPlayerInArea = true;
-        this._playerNode = event.otherCollider.node;
-        this._playerController = this._playerNode.getComponent(PlayerController);
-        this._consumeTimer = 0;
-        this.updateUI();
+        this._isPlayerInTrigger = true;
+        this.setPlayerPresence(true, event.otherCollider.node);
     }
 
     private onPlayerExit(event: ITriggerEvent): void {
@@ -227,17 +227,58 @@ export class CoinConsumer extends Component {
             return;
         }
 
-        this._isPlayerInArea = false;
-        this._playerNode = null;
-        this._playerController = null;
-        this._consumeTimer = 0;
-        this._isConsuming = false;
+        this._isPlayerInTrigger = false;
     }
 
     private isPlayerNode(node: Node): boolean {
         return node.name === 'Player' ||
             node.getComponent(PlayerController) !== null ||
             node.parent?.name === 'Player';
+    }
+
+    private refreshPlayerPresenceByDistance(): void {
+        const playerNode = this.playerCoinBackpack?.node
+            ?? this.node.scene?.getComponentInChildren(PlayerController)?.node
+            ?? null;
+        if (!playerNode) {
+            return;
+        }
+
+        const interactionNode = this.node.getChildByName('pos') ?? this.node;
+        const collider = this.node.getComponent(BoxCollider);
+        const worldScale = this.node.worldScale;
+        const interactionRadius = collider
+            ? Math.hypot(
+                collider.size.x * Math.abs(worldScale.x),
+                collider.size.z * Math.abs(worldScale.z),
+            ) * 0.5
+            : 2;
+        const playerPosition = playerNode.worldPosition;
+        const interactionPosition = interactionNode.worldPosition;
+        const isWithinDistance = Math.hypot(
+            playerPosition.x - interactionPosition.x,
+            playerPosition.z - interactionPosition.z,
+        ) <= interactionRadius;
+
+        this.setPlayerPresence(this._isPlayerInTrigger || isWithinDistance, playerNode);
+    }
+
+    private setPlayerPresence(isInside: boolean, playerNode: Node): void {
+        if (this._isPlayerInArea === isInside) {
+            return;
+        }
+
+        this._isPlayerInArea = isInside;
+        this._consumeTimer = 0;
+        if (isInside) {
+            this._playerNode = playerNode;
+            this._playerController = playerNode.getComponent(PlayerController);
+            this.updateUI();
+            return;
+        }
+
+        this._playerNode = null;
+        this._playerController = null;
     }
 
     private async tryConsumeCoins(): Promise<void> {
@@ -266,30 +307,42 @@ export class CoinConsumer extends Component {
         const coinAmount = find('Canvas/CoinLabel/coinAmount');
         const audioSource = this.node.getComponent(AudioSource);
 
-        for (let index = 0; index < playerStoragePoint.amount; index++) {
-            if (this._currentProgress >= currentConfig.requiredCoins) {
-                this.onUpgradeComplete();
-                this._isConsuming = false;
-                return;
-            }
-
-            if (audioSource?.clip) {
-                audioSource.playOneShot(audioSource.clip);
-            }
-
-            const targetNode = this.node.getChildByName('pos') ?? this.node;
-            playerStoragePoint.removeResourceWithAnimation(targetNode.worldPosition, 'parabola');
-
-            if (coinAmount) {
-                const coinAmountLabel = coinAmount.getComponent(Label);
-                if (coinAmountLabel) {
-                    coinAmountLabel.string = (parseInt(coinAmountLabel.string) - 5).toString();
+        this._isConsuming = true;
+        try {
+            const availableCoins = playerStoragePoint.amount;
+            for (let index = 0; index < availableCoins && this._isPlayerInArea; index++) {
+                if (this._currentProgress >= currentConfig.requiredCoins) {
+                    this.onUpgradeComplete();
+                    return;
                 }
-            }
 
-            this._currentProgress += 5;
-            this.updateUI();
-            await new Promise(resolve => setTimeout(resolve, 100));
+                if (playerStoragePoint.amount <= 0) {
+                    return;
+                }
+
+                if (audioSource?.clip) {
+                    audioSource.playOneShot(audioSource.clip);
+                }
+
+                const targetNode = this.node.getChildByName('pos') ?? this.node;
+                playerStoragePoint.removeResourceWithAnimation(targetNode.worldPosition, 'parabola');
+
+                if (coinAmount) {
+                    const coinAmountLabel = coinAmount.getComponent(Label);
+                    if (coinAmountLabel) {
+                        coinAmountLabel.string = (parseInt(coinAmountLabel.string) - 5).toString();
+                    }
+                }
+
+                this._currentProgress = Math.min(
+                    currentConfig.requiredCoins,
+                    this._currentProgress + 5,
+                );
+                this.updateUI();
+                await new Promise(resolve => setTimeout(resolve, 100));
+            }
+        } finally {
+            this._isConsuming = false;
         }
     }
 
@@ -649,7 +702,7 @@ export class CoinConsumer extends Component {
 
     private configureHaulerNode(hauler: Node, unlockPad: Node, spawnAnchor: Node): void {
         const behavior = hauler.getComponent(HaulerNPC) ?? hauler.addComponent(HaulerNPC);
-        behavior.skeletonAnimation = findLegacyHaulerAnimation(hauler)!;
+        behavior.skeletonAnimation = installFixedCustomerHaulerVisual(hauler)!;
         const arrow = this.node.scene?.getComponentInChildren(ArrowTipController);
         const carryStorage = this.ensureHaulerCarryStorage(hauler);
         const collectionStorage = arrow?.cutterWoodStorageNode ?? null;
@@ -697,15 +750,15 @@ export class CoinConsumer extends Component {
     private ensureHaulerCarryStorage(hauler: Node): StoragePoint | null {
         const carryNode = this.findNamedNode(hauler, 'HaulerCarryStorage') ?? new Node('HaulerCarryStorage');
         const carryMount = this._haulerCarryMounts.get(hauler) ?? null;
-        if (carryMount?.parent) {
-            carryNode.setParent(carryMount.parent);
-            carryNode.setPosition(0, 0.6, 0);
-            carryNode.setRotation(carryMount.rotation);
-            carryNode.setScale(carryMount.scale);
-        } else {
-            carryNode.setParent(hauler);
-            carryNode.setPosition(0, 1.2, 0);
-        }
+        const haulerScale = hauler.worldScale;
+        carryNode.setParent(hauler);
+        carryNode.setPosition(
+            -0.199 / Math.max(Math.abs(haulerScale.x), 0.0001),
+            (1.384 - hauler.worldPosition.y) / Math.max(Math.abs(haulerScale.y), 0.0001),
+            -0.426 / Math.max(Math.abs(haulerScale.z), 0.0001),
+        );
+        carryNode.setRotationFromEuler(0, -90, 0);
+        carryNode.setScale(Vec3.ONE);
 
         const carryStorage = carryNode.getComponent(StoragePoint) ?? carryNode.addComponent(StoragePoint);
         carryStorage.storageName = '搬运工木材存储';
@@ -853,7 +906,7 @@ export class CoinConsumer extends Component {
         }
 
         this.initializeUpgradeConfigs();
-        this.bindHaulerUnlockUI();
+        this.bindUnlockUI();
         this.applyHaulerUnlockVisuals();
         this.updateUI();
     }
@@ -863,7 +916,7 @@ export class CoinConsumer extends Component {
             return;
         }
 
-        this.bindHaulerUnlockUI();
+        this.bindUnlockUI();
 
         const currentConfig = this._upgradeConfigs.get(this.targetLevel);
         if (!currentConfig) {
@@ -880,20 +933,18 @@ export class CoinConsumer extends Component {
         this.updateUI();
     }
 
-    private bindHaulerUnlockUI(): void {
-        const amountNode = this.node.name === 'unlockLevel3'
-            ? this.findFirstNamedNode(this.node, ['ShuZi', 'amount'])
-            : this.findNamedNode(this.node, 'amount');
+    private bindUnlockUI(): void {
+        const amountNode = this.findFirstNamedNode(this.node, ['ShuZi', 'amount']);
         const amountLabel = amountNode?.getComponent(Label) ?? null;
         if (amountLabel) {
             this.remainingLabel = amountLabel;
             this.remainingLabel.node.active = true;
         }
 
-        const fillNode = this.node.name === 'unlockLevel3'
-            ? this.findFirstNamedNode(this.node, ['JinDuTiao', 'fill'])
-            : this.node.getChildByName('fill') ?? this.findNamedNode(this.node, 'fill');
-        const fillSprite = fillNode?.getComponent(Sprite) ?? null;
+        const fillSprite = this.findFirstNamedSprite(
+            this.node,
+            ['JinDuTiao', 'fill', 'splash2'],
+        );
         if (fillSprite) {
             this.fillSprite = fillSprite;
             this.fillSprite.fillRange = 0;
@@ -907,6 +958,17 @@ export class CoinConsumer extends Component {
     private findNamedSprite(root: Node | null, targetName: string): Sprite | null {
         const targetNode = this.findNamedNode(root, targetName);
         return targetNode?.getComponent(Sprite) ?? null;
+    }
+
+    private findFirstNamedSprite(root: Node | null, targetNames: string[]): Sprite | null {
+        for (const targetName of targetNames) {
+            const sprite = this.findNamedSprite(root, targetName);
+            if (sprite) {
+                return sprite;
+            }
+        }
+
+        return null;
     }
 
     private findFirstNamedNode(root: Node | null, targetNames: string[]): Node | null {
@@ -966,10 +1028,6 @@ export class CoinConsumer extends Component {
             this.fillSprite.fillRange = clampedFillRange;
         }
 
-        if (this.node.name !== 'unlockLevel3') {
-            return;
-        }
-
         const filledSprites = this.node.getComponentsInChildren(Sprite)
             .filter(sprite => sprite.type === Sprite.Type.FILLED);
 
@@ -1004,7 +1062,7 @@ export class CoinConsumer extends Component {
 
     private updateUI(): void {
         const currentConfig = this._upgradeConfigs.get(this.targetLevel);
-        if (!currentConfig || !this.remainingLabel) {
+        if (!currentConfig) {
             return;
         }
 
@@ -1018,13 +1076,15 @@ export class CoinConsumer extends Component {
 
     private animateRemainingCount(targetRemaining: number): void {
         const currentConfig = this._upgradeConfigs.get(this.targetLevel);
-        if (!currentConfig || !this.remainingLabel) {
+        if (!currentConfig) {
             return;
         }
 
         const clampedTargetRemaining = Math.max(0, targetRemaining);
         const initialRemaining = Math.max(0, currentConfig.requiredCoins - this._currentProgress + 5);
-        this.remainingLabel.string = clampedTargetRemaining.toString();
+        if (this.remainingLabel) {
+            this.remainingLabel.string = clampedTargetRemaining.toString();
+        }
         const currentRemaining = Math.min(currentConfig.requiredCoins, initialRemaining);
 
         if (currentRemaining > currentConfig.requiredCoins) {
@@ -1034,7 +1094,9 @@ export class CoinConsumer extends Component {
         }
 
         if (currentRemaining === clampedTargetRemaining) {
-            this.remainingLabel.string = `${clampedTargetRemaining}`;
+            if (this.remainingLabel) {
+                this.remainingLabel.string = `${clampedTargetRemaining}`;
+            }
             this.applyUnlockLevel3FillRange(1 - clampedTargetRemaining / currentConfig.requiredCoins);
             this._isAnimComplete = true;
             return;
@@ -1042,7 +1104,9 @@ export class CoinConsumer extends Component {
 
         const decrementCount = currentRemaining - clampedTargetRemaining;
         if (decrementCount <= 0) {
-            this.remainingLabel.string = `${clampedTargetRemaining}`;
+            if (this.remainingLabel) {
+                this.remainingLabel.string = `${clampedTargetRemaining}`;
+            }
             this.applyUnlockLevel3FillRange(1 - clampedTargetRemaining / currentConfig.requiredCoins);
             this._isAnimComplete = true;
             return;
@@ -1057,7 +1121,9 @@ export class CoinConsumer extends Component {
             currentCount--;
             this.applyUnlockLevel3FillRange(1 - currentCount / currentConfig.requiredCoins);
 
-            this.remainingLabel.string = `${currentCount}`;
+            if (this.remainingLabel) {
+                this.remainingLabel.string = `${currentCount}`;
+            }
 
             if (currentCount <= clampedTargetRemaining) {
                 if (this._remainingAnimationTimer) {
@@ -1065,7 +1131,9 @@ export class CoinConsumer extends Component {
                     this._remainingAnimationTimer = null;
                 }
 
-                this.remainingLabel.string = `${clampedTargetRemaining}`;
+                if (this.remainingLabel) {
+                    this.remainingLabel.string = `${clampedTargetRemaining}`;
+                }
                 this.applyUnlockLevel3FillRange(1 - clampedTargetRemaining / currentConfig.requiredCoins);
                 this._isAnimComplete = true;
             }

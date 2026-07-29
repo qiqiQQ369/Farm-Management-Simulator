@@ -322,6 +322,7 @@ export class FinishNode extends Component {
         //this.onSequenceComplete();
 
         this.node2.active = true;
+        this.node1.active = true;
 
         // Gameplay nodes must appear before optional reveal decorations run.
         if (ResourceFieldSystem.notifyFieldRevealCompleted(this.node.parent ?? this.node)) {
@@ -336,16 +337,28 @@ export class FinishNode extends Component {
             tween(this.node3)
             .to(0.2, { scale: new Vec3(1, 1, 1) })
             .call(() => {
-                var player = find('Player');
-                var playerController = player.getComponent(PlayerController);
+                const player = find('Player');
+                const playerController = player?.getComponent(PlayerController) ?? null;
+                if (!player || !playerController) {
+                    this._isPlaying = false;
+                    return;
+                }
+
+                const grayNode = this.tableNode?.getChildByName("gray") ?? null;
+                const redNode = this.tableNode?.getChildByName("red") ?? null;
+                const lockAnimation = this.tableNode?.getChildByName("锁")?.getComponent(Animation) ?? null;
+                if (!grayNode || !redNode || !lockAnimation) {
+                    this.restoreGameplayAfterSequence(player, playerController);
+                    return;
+                }
+
                 playerController.enabled = false;
 
                 tween(this.tableNode)
                 .delay(0.7)
                 .call(() => {
-                    this.tableNode.getChildByName("gray").active = false;
-                    this.tableNode.getChildByName("red").active = true;
-                    const lockAnimation = this.tableNode.getChildByName("锁").getComponent(Animation);
+                    grayNode.active = false;
+                    redNode.active = true;
                     lockAnimation.once(Animation.EventType.FINISHED, () => {
                         this.restoreGameplayAfterSequence(player, playerController);
                     });

@@ -1,0 +1,255 @@
+{
+  "ver": "2.3.13",
+  "importer": "fbx",
+  "imported": true,
+  "uuid": "f7864223-d84c-4f63-85de-bb94aedf99ee",
+  "files": [],
+  "subMetas": {
+    "19783": {
+      "importer": "gltf-embeded-image",
+      "uuid": "f7864223-d84c-4f63-85de-bb94aedf99ee@19783",
+      "displayName": "",
+      "id": "19783",
+      "name": "3d66-export-JCI54558805346-001.image",
+      "userData": {
+        "gltfIndex": 0,
+        "fixAlphaTransparencyArtifacts": true,
+        "hasAlpha": true,
+        "type": "texture"
+      },
+      "ver": "1.0.3",
+      "imported": true,
+      "files": [
+        ".json",
+        ".png"
+      ],
+      "subMetas": {}
+    },
+    "ae581": {
+      "importer": "gltf-mesh",
+      "uuid": "f7864223-d84c-4f63-85de-bb94aedf99ee@ae581",
+      "displayName": "",
+      "id": "ae581",
+      "name": "polySurface9.mesh",
+      "userData": {
+        "gltfIndex": 0,
+        "triangleCount": 224
+      },
+      "ver": "1.1.1",
+      "imported": true,
+      "files": [
+        ".bin",
+        ".json"
+      ],
+      "subMetas": {}
+    },
+    "1c432": {
+      "importer": "texture",
+      "uuid": "f7864223-d84c-4f63-85de-bb94aedf99ee@1c432",
+      "displayName": "",
+      "id": "1c432",
+      "name": "3d66-export-JCI54558805346-001.texture",
+      "userData": {
+        "wrapModeS": "repeat",
+        "wrapModeT": "repeat",
+        "minfilter": "linear",
+        "magfilter": "linear",
+        "mipfilter": "none",
+        "anisotropy": 0,
+        "isUuid": true,
+        "imageUuidOrDatabaseUri": "f7864223-d84c-4f63-85de-bb94aedf99ee@19783"
+      },
+      "ver": "1.0.22",
+      "imported": true,
+      "files": [
+        ".json"
+      ],
+      "subMetas": {}
+    },
+    "ad23c": {
+      "importer": "gltf-material",
+      "uuid": "f7864223-d84c-4f63-85de-bb94aedf99ee@ad23c",
+      "displayName": "",
+      "id": "ad23c",
+      "name": "e84cb926-ba84-4668-be08-47c8041904dc.material",
+      "userData": {
+        "gltfIndex": 0
+      },
+      "ver": "1.0.14",
+      "imported": true,
+      "files": [
+        ".json"
+      ],
+      "subMetas": {}
+    },
+    "3b6a9": {
+      "importer": "gltf-scene",
+      "uuid": "f7864223-d84c-4f63-85de-bb94aedf99ee@3b6a9",
+      "displayName": "",
+      "id": "3b6a9",
+      "name": "SM_小型割草机轮子.prefab",
+      "userData": {
+        "gltfIndex": 0
+      },
+      "ver": "1.0.14",
+      "imported": true,
+      "files": [
+        ".json"
+      ],
+      "subMetas": {}
+    }
+  },
+  "userData": {
+    "imageMetas": [
+      {
+        "name": "3d66-export-JCI54558805346-001",
+        "uri": "f7864223-d84c-4f63-85de-bb94aedf99ee@19783"
+      }
+    ],
+    "fbx": {
+      "smartMaterialEnabled": true
+    },
+    "lods": {
+      "enable": false,
+      "hasBuiltinLOD": false,
+      "options": [
+        {
+          "screenRatio": 0.25,
+          "faceCount": 1
+        },
+        {
+          "screenRatio": 0.125,
+          "faceCount": 0.25
+        },
+        {
+          "screenRatio": 0.01,
+          "faceCount": 0.1
+        }
+      ]
+    },
+    "assetFinder": {
+      "meshes": [
+        "f7864223-d84c-4f63-85de-bb94aedf99ee@ae581"
+      ],
+      "skeletons": [],
+      "textures": [
+        "f7864223-d84c-4f63-85de-bb94aedf99ee@1c432"
+      ],
+      "materials": [
+        "f7864223-d84c-4f63-85de-bb94aedf99ee@ad23c"
+      ],
+      "scenes": [
+        "f7864223-d84c-4f63-85de-bb94aedf99ee@3b6a9"
+      ]
+    },
+    "materials": {
+      "f7864223-d84c-4f63-85de-bb94aedf99ee@ad23c": {
+        "__type__": "cc.Material",
+        "_name": "",
+        "_objFlags": 0,
+        "__editorExtras__": {},
+        "_native": "",
+        "_effectAsset": {
+          "__uuid__": "c8f66d17-351a-48da-a12c-0212d28575c4",
+          "__expectedType__": "cc.EffectAsset"
+        },
+        "_techIdx": 0,
+        "_defines": [
+          {
+            "USE_ALBEDO_MAP": true,
+            "USE_PBR_MAP": true,
+            "USE_EMISSIVE_MAP": true
+          },
+          {},
+          {},
+          {},
+          {},
+          {}
+        ],
+        "_states": [
+          {
+            "rasterizerState": {},
+            "depthStencilState": {},
+            "blendState": {
+              "targets": [
+                {}
+              ]
+            }
+          },
+          {
+            "rasterizerState": {},
+            "depthStencilState": {},
+            "blendState": {
+              "targets": [
+                {}
+              ]
+            }
+          },
+          {
+            "rasterizerState": {},
+            "depthStencilState": {},
+            "blendState": {
+              "targets": [
+                {}
+              ]
+            }
+          },
+          {
+            "rasterizerState": {},
+            "depthStencilState": {},
+            "blendState": {
+              "targets": [
+                {}
+              ]
+            }
+          },
+          {
+            "rasterizerState": {},
+            "depthStencilState": {},
+            "blendState": {
+              "targets": [
+                {}
+              ]
+            }
+          },
+          {
+            "rasterizerState": {},
+            "depthStencilState": {},
+            "blendState": {
+              "targets": [
+                {}
+              ]
+            }
+          }
+        ],
+        "_props": [
+          {
+            "emissiveScale": {
+              "__type__": "cc.Vec3",
+              "x": 0.2,
+              "y": 0.2,
+              "z": 0.2
+            },
+            "mainTexture": {
+              "__uuid__": "4ff9ab35-cf2c-4513-9c6c-67f5575b1b20@6c48a",
+              "__expectedType__": "cc.Texture2D"
+            },
+            "pbrMap": {
+              "__uuid__": "4ff9ab35-cf2c-4513-9c6c-67f5575b1b20@6c48a",
+              "__expectedType__": "cc.Texture2D"
+            },
+            "emissiveMap": {
+              "__uuid__": "4ff9ab35-cf2c-4513-9c6c-67f5575b1b20@6c48a",
+              "__expectedType__": "cc.Texture2D"
+            }
+          },
+          {},
+          {},
+          {},
+          {},
+          {}
+        ]
+      }
+    }
+  }
+}
