@@ -118,6 +118,7 @@ export class Tree extends Component {
     private _currentState: TreeState = TreeState.Full;
     private _currentChopCount: number = 0;
     private _isChopping: boolean = false;
+    private _activePlayerChopController: any = null;
     private _choppingSince: number = 0;
     private _respawnTimer: number = 0;
     private _initialPosition: Vec3 = new Vec3();
@@ -338,7 +339,7 @@ export class Tree extends Component {
         this.pruneInactiveChoppers();
 
         if (this._choppersInRange.size === 0) {
-            if (this._isChopping) {
+            if (this._isChopping || this._activePlayerChopController) {
                 this.stopChopping();
             }
             return;
@@ -348,7 +349,7 @@ export class Tree extends Component {
         this.selectPriorityChopper();
         
         if (!this._currentChopper) {
-            if (this._isChopping) {
+            if (this._isChopping || this._activePlayerChopController) {
                 this.stopChopping();
             }
             return;
@@ -421,6 +422,10 @@ export class Tree extends Component {
         }
         
         this._currentChopper = selectedChopper;
+        if (this._activePlayerChopController
+            && selectedChopper?.controller !== this._activePlayerChopController) {
+            this.endPlayerChopAnimation();
+        }
     }
 
     /**
@@ -487,15 +492,35 @@ export class Tree extends Component {
      * 停止砍伐
      */
     private stopChopping(): void {
-        if (!this._isChopping) return;
-        
+        const wasChopping = this._isChopping;
         this._isChopping = false;
         this._choppingSince = 0;
+
+        this.endPlayerChopAnimation();
+        if (!wasChopping) return;
         
         // 触发事件
         if (this._currentChopper) {
             this.onChoppingStopped?.(this, this._currentChopper);
         }
+    }
+
+    private beginPlayerChopAnimation(playerController: any): void {
+        if (!playerController || this._activePlayerChopController === playerController) {
+            return;
+        }
+
+        this.endPlayerChopAnimation();
+        this._activePlayerChopController = playerController;
+        playerController.onChopAnimationStarted?.();
+    }
+
+    private endPlayerChopAnimation(): void {
+        const playerController = this._activePlayerChopController;
+        if (!playerController) return;
+
+        this._activePlayerChopController = null;
+        playerController.onChopAnimationFinished?.();
     }
 
     /**
@@ -529,13 +554,9 @@ export class Tree extends Component {
 
         if(this._currentChopper.type == ChopperType.Player) {
             const playerController = this._currentChopper.controller;
-            playerController.onChopAnimationStarted?.();
-            try {
-                await playerController.chopAction.playChopAction(this.node.position);
-                await new Promise(resolve => setTimeout(resolve, 500));
-            } finally {
-                playerController.onChopAnimationFinished?.();
-            }
+            this.beginPlayerChopAnimation(playerController);
+            await playerController.chopAction.playChopAction(this.node.position);
+            await new Promise(resolve => setTimeout(resolve, 500));
         }
 
         this.playShakeAnimation();
@@ -716,6 +737,7 @@ export class Tree extends Component {
      */
     private respawnTree(): void {
 
+        this.endPlayerChopAnimation();
         this._currentChopCount = 0;
         this._respawnTimer = 0;
         this._isChopping = false;
@@ -822,6 +844,7 @@ export class Tree extends Component {
      * 强制重置树木
      */
     public reset(): void {
+        this.endPlayerChopAnimation();
         this._currentChopCount = 0;
         this._respawnTimer = 0;
         this._isChopping = false;

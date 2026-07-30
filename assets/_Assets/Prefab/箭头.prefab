@@ -193,6 +193,14 @@
       "__id__": 8
     },
     "targetArrowTip": null,
+    "targetArrowVisualPrefab": {
+      "__uuid__": "46a0b473-da88-449f-b17b-ad8e495cfaa8@46c5f",
+      "__expectedType__": "cc.Prefab"
+    },
+    "originalArrowAnimationPrefab": {
+      "__uuid__": "e79ce566-57f9-4fcb-8d4b-5aa838008f30@34b2c",
+      "__expectedType__": "cc.Prefab"
+    },
     "arrowOffset": {
       "__type__": "cc.Vec3",
       "x": 0,

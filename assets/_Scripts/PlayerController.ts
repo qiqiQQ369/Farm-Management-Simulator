@@ -24,6 +24,7 @@ export enum PlayerToolStage {
 enum PlayerVisualAnimationName {
     Idle = "idle",
     Run = "run",
+    SickleRun = "sickle_run",
     SickleHarvest = "sickle_harvest",
     HandMowerIdle = "hand_mower_idle",
     HandMowerRun = "hand_mower_run",
@@ -67,6 +68,9 @@ export class PlayerController extends Component implements IJoystickInput {
     
     @property({ tooltip: "砍树检测半径" })
     public chopDetectionRadius: number = 2.0;
+
+    @property({ tooltip: "Delay before leaving the looping tree-chop animation." })
+    public chopAnimationReleaseDelay: number = 0.2;
     
     // 旋转相关设置
     @property({ tooltip: "是否立即转向移动方向" })
@@ -91,6 +95,18 @@ export class PlayerController extends Component implements IJoystickInput {
     private _toolStage = PlayerToolStage.Sickle;
     private _isHarvestingCrop = false;
     private _isChoppingTree = false;
+    private readonly _releaseTreeChopAnimation = (): void => {
+        if (this.chopAction?.isPlaying()) {
+            this.scheduleOnce(
+                this._releaseTreeChopAnimation,
+                Math.max(this.chopAnimationReleaseDelay, 0),
+            );
+            return;
+        }
+
+        this._isChoppingTree = false;
+        this.refreshMovementAnimation();
+    };
     
     // 私有属性
     private _keyboardInput: Vec3 = new Vec3();
@@ -166,6 +182,7 @@ export class PlayerController extends Component implements IJoystickInput {
     }
 
     protected onDestroy(): void {
+        this.unschedule(this._releaseTreeChopAnimation);
         this.disableInput();
     }
 
@@ -512,13 +529,21 @@ export class PlayerController extends Component implements IJoystickInput {
     }
 
     public onChopAnimationStarted(): void {
+        this.unschedule(this._releaseTreeChopAnimation);
+        if (this._isChoppingTree) {
+            return;
+        }
+
         this._isChoppingTree = true;
         this.syncMovementAnimation(true);
     }
 
     public onChopAnimationFinished(): void {
-        this._isChoppingTree = false;
-        this.refreshMovementAnimation();
+        this.unschedule(this._releaseTreeChopAnimation);
+        this.scheduleOnce(
+            this._releaseTreeChopAnimation,
+            Math.max(this.chopAnimationReleaseDelay, 0),
+        );
     }
 
     public isMoving(): boolean {
@@ -657,7 +682,10 @@ export class PlayerController extends Component implements IJoystickInput {
             case PlayerToolStage.RideMower:
                 return PlayerVisualAnimationName.RideMower;
             default:
-                if (this._isHarvestingCrop || this._isChoppingTree || this.chopAction?.isPlaying()) {
+                if (this._isChoppingTree || this.chopAction?.isPlaying()) {
+                    return PlayerVisualAnimationName.SickleRun;
+                }
+                if (this._isHarvestingCrop) {
                     return PlayerVisualAnimationName.SickleHarvest;
                 }
                 return isMoving
