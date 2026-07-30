@@ -44,24 +44,47 @@ test('player starts with the sickle and exposes all three tool stages', () => {
     assert.match(playerSource, /public setToolStage\(stage: PlayerToolStage\): void/);
 });
 
-test('sickle swings while harvesting crops or chopping trees, but not while moving', () => {
+test('tree chopping loops the moving sickle action until the chop sequence has ended', () => {
     assert.match(playerSource, /private _isHarvestingCrop(?:\s*:\s*boolean)?\s*=\s*false/);
     assert.match(playerSource, /private _isChoppingTree(?:\s*:\s*boolean)?\s*=\s*false/);
     assert.match(playerSource, /public setCropHarvesting\(active: boolean\): void/);
     assert.match(
         playerSource,
-        /this\._isHarvestingCrop \|\| this\._isChoppingTree \|\| this\.chopAction\?\.isPlaying\(\)/,
+        /this\._isChoppingTree \|\| this\.chopAction\?\.isPlaying\(\)/,
+    );
+    assert.match(
+        playerSource,
+        /return PlayerVisualAnimationName\.SickleRun/,
+    );
+    assert.match(
+        playerSource,
+        /if \(this\._isHarvestingCrop\)[\s\S]*?return PlayerVisualAnimationName\.SickleHarvest/,
     );
     assert.match(
         playerSource,
         /return isMoving\s*\?\s*PlayerVisualAnimationName\.Run\s*:\s*PlayerVisualAnimationName\.SickleHarvest/,
     );
+    assert.match(playerSource, /this\.unschedule\(this\._releaseTreeChopAnimation\)/);
+    assert.match(
+        playerSource,
+        /this\.scheduleOnce\(\s*this\._releaseTreeChopAnimation,\s*Math\.max\(this\.chopAnimationReleaseDelay, 0\)/,
+    );
+    assert.match(
+        playerSource,
+        /if \(this\._isChoppingTree\)\s*\{\s*return;\s*\}/,
+        'successive tree hits must not restart the looping chop clip',
+    );
     assert.match(productionSource, /setCropHarvesting\(true\)/);
     assert.match(productionSource, /finally\s*\{[\s\S]*?setCropHarvesting\(false\)/);
-    assert.match(treeSource, /onChopAnimationStarted\?\.\(\)/);
+    assert.match(treeSource, /private beginPlayerChopAnimation/);
+    assert.match(treeSource, /private endPlayerChopAnimation/);
     assert.match(
         treeSource,
-        /onChopAnimationStarted\?\.\(\)[\s\S]*?await new Promise\(resolve => setTimeout\(resolve, 500\)\)[\s\S]*?finally\s*\{[\s\S]*?onChopAnimationFinished\?\.\(\)/,
+        /this\.beginPlayerChopAnimation\(playerController\)[\s\S]*?await new Promise\(resolve => setTimeout\(resolve, 500\)\)/,
+    );
+    assert.match(
+        treeSource,
+        /this\._activePlayerChopController = null;\s*playerController\.onChopAnimationFinished\?\.\(\)/,
     );
     assert.match(playerSource, /state\.time = 0/);
     assert.match(playerSource, /state\.sample\(\)/);

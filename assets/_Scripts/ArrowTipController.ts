@@ -1,4 +1,15 @@
-import { _decorator, Component, find, Node, Quat, Vec3 } from 'cc';
+import {
+    _decorator,
+    Animation,
+    Component,
+    instantiate,
+    MeshRenderer,
+    Node,
+    Prefab,
+    Quat,
+    SkeletalAnimation,
+    Vec3,
+} from 'cc';
 import { StoragePoint } from './Resource/StoragePoint';
 //import { GameFlowManager, GameState } from './GameFlowManager';
 //import { MainUI } from '../ui/MainUI';
@@ -13,6 +24,10 @@ export class ArrowTipController extends Component {
     // 新增：目标位置箭头节点（需在编辑器绑定）
     @property({ type: Node, tooltip: '目标位置的箭头提示节点' })
     targetArrowTip: Node = null!;
+    @property({ type: Prefab, tooltip: '目标位置使用的 An_箭头 动画素材' })
+    targetArrowVisualPrefab: Prefab = null!;
+    @property({ type: Prefab, tooltip: '旧箭头原始 Idle 动画驱动器（不渲染）' })
+    originalArrowAnimationPrefab: Prefab = null!;
 
     // 箭头相关属性（需在编辑器中绑定）
     // @property({ type: Node, tooltip: '状态指向箭头提示节点' })
@@ -53,6 +68,20 @@ export class ArrowTipController extends Component {
     public unlockLevelNode3: Node = null!;
 
     private _tmpVec3: Vec3 = new Vec3(0,0,0);
+    private _arrowDriverBone: Node | null = null;
+    private _arrowVisualBone: Node | null = null;
+    private _arrowDriverAnimation: Animation | null = null;
+    private readonly _driverBoneBasePosition = new Vec3();
+    private readonly _visualBoneBasePosition = new Vec3();
+    private readonly _driverBoneBaseRotation = new Quat();
+    private readonly _visualBoneBaseRotation = new Quat();
+    private readonly _driverBoneBaseScale = new Vec3();
+    private readonly _visualBoneBaseScale = new Vec3();
+    private readonly _animationPosition = new Vec3();
+    private readonly _animationScale = new Vec3();
+    private readonly _inverseBaseRotation = new Quat();
+    private readonly _animationRotationDelta = new Quat();
+    private readonly _animationRotation = new Quat();
 
     protected onLoad() {
         // 单例初始化
@@ -68,6 +97,87 @@ export class ArrowTipController extends Component {
 
         // 新增：初始化目标箭头为隐藏
         this.targetArrowTip.active = false;
+        this.installTargetArrowVisual();
+    }
+
+    private installTargetArrowVisual(): void {
+        if (!this.targetArrowTip || !this.targetArrowVisualPrefab || !this.originalArrowAnimationPrefab) return;
+
+        for (const oldVisual of [...this.targetArrowTip.children]) {
+            oldVisual.active = false;
+            oldVisual.removeFromParent();
+            oldVisual.destroy();
+        }
+
+        const driver = instantiate(this.originalArrowAnimationPrefab);
+        driver.name = 'OriginalArrowAnimationDriver';
+        driver.setParent(this.targetArrowTip);
+        driver.setPosition(Vec3.ZERO);
+        driver.setRotationFromEuler(Vec3.ZERO);
+        driver.setScale(Vec3.ONE);
+        for (const renderer of driver.getComponentsInChildren(MeshRenderer)) {
+            renderer.enabled = false;
+        }
+        const driverAnimation = driver.getComponent(Animation)
+            ?? driver.getComponentInChildren(Animation);
+        this._arrowDriverAnimation = driverAnimation;
+        if (driverAnimation?.defaultClip) {
+            driverAnimation.playOnLoad = true;
+            driverAnimation.play();
+        }
+
+        const visual = instantiate(this.targetArrowVisualPrefab);
+        visual.name = 'An_箭头';
+        visual.setParent(driver);
+        visual.setPosition(Vec3.ZERO);
+        visual.setRotationFromEuler(Vec3.ZERO);
+        visual.setScale(Vec3.ONE);
+
+        const animation = visual.getComponent(SkeletalAnimation)
+            ?? visual.getComponentInChildren(SkeletalAnimation);
+        if (animation) animation.enabled = false;
+
+        this._arrowDriverBone = driver.getChildByName('Bone001');
+        this._arrowVisualBone = visual.getChildByName('Bone001');
+        if (!this._arrowDriverBone || !this._arrowVisualBone) return;
+        this._driverBoneBasePosition.set(this._arrowDriverBone.position);
+        this._visualBoneBasePosition.set(this._arrowVisualBone.position);
+        this._driverBoneBaseRotation.set(this._arrowDriverBone.rotation);
+        this._visualBoneBaseRotation.set(this._arrowVisualBone.rotation);
+        this._driverBoneBaseScale.set(this._arrowDriverBone.scale);
+        this._visualBoneBaseScale.set(this._arrowVisualBone.scale);
+    }
+
+    protected lateUpdate(): void {
+        if (!this._arrowDriverBone?.isValid || !this._arrowVisualBone?.isValid) return;
+
+        Vec3.subtract(
+            this._animationPosition,
+            this._arrowDriverBone.position,
+            this._driverBoneBasePosition,
+        );
+        Vec3.add(this._animationPosition, this._visualBoneBasePosition, this._animationPosition);
+        this._arrowVisualBone.setPosition(this._animationPosition);
+
+        Quat.invert(this._inverseBaseRotation, this._driverBoneBaseRotation);
+        Quat.multiply(
+            this._animationRotationDelta,
+            this._arrowDriverBone.rotation,
+            this._inverseBaseRotation,
+        );
+        Quat.multiply(
+            this._animationRotation,
+            this._animationRotationDelta,
+            this._visualBoneBaseRotation,
+        );
+        this._arrowVisualBone.setRotation(this._animationRotation);
+
+        this._animationScale.set(
+            this._visualBoneBaseScale.x * this._arrowDriverBone.scale.x / this._driverBoneBaseScale.x,
+            this._visualBoneBaseScale.y * this._arrowDriverBone.scale.y / this._driverBoneBaseScale.y,
+            this._visualBoneBaseScale.z * this._arrowDriverBone.scale.z / this._driverBoneBaseScale.z,
+        );
+        this._arrowVisualBone.setScale(this._animationScale);
     }
 
     // 更新箭头状态（由PlayerController调用）
@@ -216,5 +326,9 @@ export class ArrowTipController extends Component {
     private operateArrowTip(operate: boolean){
         this.arrowTip.active = operate;
         this.targetArrowTip.active = operate;
+        if (operate && this._arrowDriverAnimation?.defaultClip) {
+            const state = this._arrowDriverAnimation.getState(this._arrowDriverAnimation.defaultClip.name);
+            if (!state?.isPlaying) this._arrowDriverAnimation.play();
+        }
     }
 }
