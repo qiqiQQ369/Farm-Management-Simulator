@@ -1,13 +1,14 @@
-import { _decorator, Component, Node, Vec3, Tween, tween, Animation, Prefab, instantiate, Sprite, Label } from 'cc';
+import { _decorator, Component, Node, Vec3, Tween, tween, Animation, Camera, Prefab, instantiate, Sprite, Label } from 'cc';
 import { PlayerDetectionZone } from './PlayerDetectionZone';
 import { StoragePoint } from './Resource/StoragePoint';
 import { ResourceManager } from './Resource/ResourceManager';
 import { AnimationLibrary } from './AnimationLibrary';
 import { AnimationController } from './AnimationController';
 import { CameraFacingUI } from './CameraFacingUI';
-const { ccclass, property } = _decorator;
+const { ccclass, property, executionOrder } = _decorator;
 
 @ccclass('NPCScheduler')
+@executionOrder(200)
 export class NPCScheduler extends Component {
 
     @property({ type: PlayerDetectionZone, group: { name: '区域' }, tooltip: '当前区对应的卖货检测区' })
@@ -63,6 +64,7 @@ export class NPCScheduler extends Component {
     private bReserved: boolean = false; // 从A出发去B的占用预定（含在途与装货）
     private activeDeparted: Set<Node> = new Set(); // 已脱队执行A->B->C->D->Start链路
     private runningTweens: Map<Node, Tween<Node>> = new Map();
+    private _queueDirection: Vec3 | null = null;
     private _fillTipTargetNpc: Node | null = null;
     private _resolvedSellStoragePoint: StoragePoint | null = null;
     private readonly _fillTipOffset: Vec3 = new Vec3();
@@ -70,7 +72,11 @@ export class NPCScheduler extends Component {
 
     protected onEnable(): void {
         this._resolvedSellStoragePoint = null;
+        this._queueDirection = null;
         this.setupFillTipFacing();
+    }
+
+    protected start(): void {
         this.initializeQueue();
     }
 
@@ -103,25 +109,68 @@ export class NPCScheduler extends Component {
         }
     }
 
-    // 初始化：将所有NPC放置到起点并按间距沿着 start->A 的方向排布
+    // 初始化：从购买位 B 穿过等待位 A，向后排成一条直线
     private initializeQueue(): void {
-        if (!this.startPoint || !this.pointA) return;
+        if (!this.startPoint || !this.pointA || !this.pointB) return;
+        this._queueDirection = this.resolveQueueDirection();
         this.queue = [...this.npcs];
-        const startPos = this.startPoint.worldPosition.clone();
-        const dir = this.pointA.worldPosition.clone().subtract(startPos).normalize();
         for (let i = 0; i < this.queue.length; i++) {
             const npc = this.queue[i];
-            const offset = dir.clone().multiplyScalar(-this.spacing * i);
-            const pos = startPos.clone().add(offset);
-            npc.setWorldPosition(pos);
+            npc.setWorldPosition(this.getQueueSlot(i));
         }
         this.syncQueueMove(true);
+    }
+
+    private getQueueSlot(index: number): Vec3 {
+        const authoredDirection = this.pointA.worldPosition.clone().subtract(this.pointB.worldPosition);
+        const queueDirection = (this._queueDirection ?? authoredDirection.clone().normalize()).clone();
+        const distanceBehindBuyer = authoredDirection.length() + this.spacing * index;
+        return this.pointB.worldPosition.clone()
+            .add(queueDirection.multiplyScalar(distanceBehindBuyer));
+    }
+
+    private resolveQueueDirection(): Vec3 {
+        const authoredDirection = this.pointA.worldPosition.clone().subtract(this.pointB.worldPosition);
+        const queueDirection = authoredDirection.clone().normalize();
+        const gameCamera = this.resolveGameCamera();
+        if (gameCamera) {
+            const buyerPosition = this.pointB.worldPosition.clone();
+            const buyerScreenPosition = gameCamera.worldToScreen(buyerPosition);
+            const sameScreenColumnRay = gameCamera.screenPointToRay(
+                buyerScreenPosition.x,
+                buyerScreenPosition.y - 100,
+            );
+            if (Math.abs(sameScreenColumnRay.d.y) > 0.0001) {
+                const groundDistance = (buyerPosition.y - sameScreenColumnRay.o.y)
+                    / sameScreenColumnRay.d.y;
+                const screenVerticalGroundPoint = sameScreenColumnRay.o.clone()
+                    .add(sameScreenColumnRay.d.clone().multiplyScalar(groundDistance));
+                const screenVerticalDirection = screenVerticalGroundPoint.subtract(buyerPosition);
+                screenVerticalDirection.y = 0;
+                if (screenVerticalDirection.length() > 0.0001) {
+                    screenVerticalDirection.normalize();
+                    if (Vec3.dot(screenVerticalDirection, authoredDirection) < 0) {
+                        screenVerticalDirection.multiplyScalar(-1);
+                    }
+                    queueDirection.set(screenVerticalDirection);
+                }
+            }
+        }
+        return queueDirection;
+    }
+
+    private resolveGameCamera(): Camera | null {
+        const cameras = this.node.scene?.getComponentsInChildren(Camera) ?? [];
+        return cameras.find(camera => camera.node.name === 'Main Camera')
+            ?? cameras.find(camera => (camera.visibility & this.node.layer) !== 0)
+            ?? cameras[0]
+            ?? null;
     }
 
     // 同步队伍移动与等待A点逻辑（所有NPC同时移动，同时停止）
     private syncQueueMove(initial = false): void {
         if (this.queue.length === 0) return;
-        const aPos = this.pointA.worldPosition.clone();
+        const aPos = this.getQueueSlot(0);
         const head = this.queue[0];
         const headDist = Vec3.distance(head.worldPosition, aPos);
         if (headDist <= 0.0001) {
@@ -135,9 +184,8 @@ export class NPCScheduler extends Component {
         // 为队伍内所有成员设置在相同时间内前进同样的距离（headDist），从而同时移动并同时停止
         for (let i = 0; i < this.queue.length; i++) {
             const npc = this.queue[i];
-            const from = npc.worldPosition.clone();
-            const dir = aPos.clone().subtract(from);
-            if (dir.length() < 0.0001) {
+            const target = this.getQueueSlot(i);
+            if (Vec3.distance(npc.worldPosition, target) < 0.0001) {
                 // 已在A点（极少数情况）
                 if (i === 0) {
                     this.waitingAtA = npc;
@@ -145,8 +193,6 @@ export class NPCScheduler extends Component {
                 }
                 continue;
             }
-            dir.normalize();
-            const target = from.clone().add(dir.multiplyScalar(headDist));
             if (i === 0) {
                 // 朝向A
                 this.faceTarget(npc, aPos);
@@ -254,10 +300,7 @@ export class NPCScheduler extends Component {
     }
 
     private enqueueAtStart(npc: Node): void {
-        const startPos = this.startPoint.worldPosition.clone();
-        const dir = this.pointA.worldPosition.clone().subtract(startPos).normalize();
-        const tail = this.queue[this.queue.length - 1];
-        const target = tail ? tail.worldPosition.clone().subtract(dir.multiplyScalar(this.spacing)) : startPos;
+        const target = this.getQueueSlot(this.queue.length);
         // 先移动到队尾后方 spacing 处，再加入队列
         this.moveToPosition(npc, target, () => {
             this.queue.push(npc);
