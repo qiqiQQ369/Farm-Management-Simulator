@@ -1,6 +1,7 @@
 import {
     _decorator,
     Animation,
+    Camera,
     BoxCollider,
     Component,
     Label,
@@ -21,7 +22,7 @@ import { CornStoragePoint } from './CornStoragePoint';
 import { restoreCornVisualHierarchy } from './CornVisualState';
 import { PlayerController } from './PlayerController';
 
-const { ccclass, property } = _decorator;
+const { ccclass, property, executionOrder } = _decorator;
 
 type StorageLike = Component & {
     amount: number;
@@ -46,6 +47,7 @@ type StorageLike = Component & {
 
 /** 玉米区独立顾客调度器。流程与森林顾客一致，但不读取森林库存。 */
 @ccclass('CornCustomerScheduler')
+@executionOrder(200)
 export class CornCustomerScheduler extends Component {
     @property({ type: Component }) public sellZone: Component = null!;
     @property({ type: Node }) public fillTip: Node = null!;
@@ -77,6 +79,7 @@ export class CornCustomerScheduler extends Component {
     private _bReserved = false;
     private readonly _activeDeparted = new Set<Node>();
     private readonly _runningTweens = new Map<Node, Tween<Node>>();
+    private _queueDirection: Vec3 | null = null;
     private _resolvedSellStoragePoint: CornStoragePoint | null = null;
     private _boundSellStoragePoint: CornStoragePoint | null = null;
     private _fillTipTargetNpc: Node | null = null;
@@ -90,9 +93,13 @@ export class CornCustomerScheduler extends Component {
         this._resolvedSellStoragePoint = this.isValidStorage(this._boundSellStoragePoint)
             ? this._boundSellStoragePoint
             : null;
+        this._queueDirection = null;
         this.ensureLocalCoinDropArea();
         this.prepareNpcCarryStorages();
         this.setupFillTipFacing();
+    }
+
+    protected start(): void {
         this.initializeQueue();
     }
 
@@ -333,20 +340,65 @@ export class CornCustomerScheduler extends Component {
     }
 
     private initializeQueue(): void {
-        if (!this.startPoint || !this.pointA) return;
+        if (!this.startPoint || !this.pointA || !this.pointB) return;
+        this._queueDirection = this.resolveQueueDirection();
         this._queue = this.npcs.filter(npc => npc?.isValid);
-        const startPosition = this.startPoint.worldPosition.clone();
-        const direction = this.pointA.worldPosition.clone().subtract(startPosition).normalize();
         this._queue.forEach((npc, index) => {
-            npc.setWorldPosition(startPosition.clone().add(direction.clone().multiplyScalar(-this.spacing * index)));
+            npc.setWorldPosition(this.getQueueSlot(index));
             this.playIdle(npc);
         });
         this.syncQueueMove();
     }
 
+    private getQueueSlot(index: number): Vec3 {
+        const authoredDirection = this.pointA.worldPosition.clone().subtract(this.pointB.worldPosition);
+        const queueDirection = (this._queueDirection ?? authoredDirection.clone().normalize()).clone();
+        const distanceBehindBuyer = authoredDirection.length() + this.spacing * index;
+        return this.pointB.worldPosition.clone()
+            .add(queueDirection.multiplyScalar(distanceBehindBuyer));
+    }
+
+    private resolveQueueDirection(): Vec3 {
+        const authoredDirection = this.pointA.worldPosition.clone().subtract(this.pointB.worldPosition);
+        const queueDirection = authoredDirection.clone().normalize();
+        const gameCamera = this.resolveGameCamera();
+        if (gameCamera) {
+            const buyerPosition = this.pointB.worldPosition.clone();
+            const buyerScreenPosition = gameCamera.worldToScreen(buyerPosition);
+            const sameScreenColumnRay = gameCamera.screenPointToRay(
+                buyerScreenPosition.x,
+                buyerScreenPosition.y - 100,
+            );
+            if (Math.abs(sameScreenColumnRay.d.y) > 0.0001) {
+                const groundDistance = (buyerPosition.y - sameScreenColumnRay.o.y)
+                    / sameScreenColumnRay.d.y;
+                const screenVerticalGroundPoint = sameScreenColumnRay.o.clone()
+                    .add(sameScreenColumnRay.d.clone().multiplyScalar(groundDistance));
+                const screenVerticalDirection = screenVerticalGroundPoint.subtract(buyerPosition);
+                screenVerticalDirection.y = 0;
+                if (screenVerticalDirection.length() > 0.0001) {
+                    screenVerticalDirection.normalize();
+                    if (Vec3.dot(screenVerticalDirection, authoredDirection) < 0) {
+                        screenVerticalDirection.multiplyScalar(-1);
+                    }
+                    queueDirection.set(screenVerticalDirection);
+                }
+            }
+        }
+        return queueDirection;
+    }
+
+    private resolveGameCamera(): Camera | null {
+        const cameras = this.node.scene?.getComponentsInChildren(Camera) ?? [];
+        return cameras.find(camera => camera.node.name === 'Main Camera')
+            ?? cameras.find(camera => (camera.visibility & this.node.layer) !== 0)
+            ?? cameras[0]
+            ?? null;
+    }
+
     private syncQueueMove(): void {
         if (this._queue.length === 0 || !this.pointA) return;
-        const targetA = this.pointA.worldPosition.clone();
+        const targetA = this.getQueueSlot(0);
         const head = this._queue[0];
         const travelDistance = Vec3.distance(head.worldPosition, targetA);
         if (travelDistance <= 0.0001) {
@@ -358,11 +410,7 @@ export class CornCustomerScheduler extends Component {
 
         const duration = travelDistance / Math.max(this.moveSpeed, 0.01);
         this._queue.forEach((npc, index) => {
-            const from = npc.worldPosition.clone();
-            const direction = targetA.clone().subtract(from).normalize();
-            const target = index === 0
-                ? targetA
-                : from.clone().add(direction.multiplyScalar(travelDistance));
+            const target = this.getQueueSlot(index);
             this.faceTarget(npc, target);
             this.playTween(npc, target, duration, index === 0 ? () => {
                 this._waitingAtA = npc;
@@ -407,12 +455,7 @@ export class CornCustomerScheduler extends Component {
 
     private enqueueAtStart(npc: Node): void {
         if (!this.startPoint || !this.pointA) return;
-        const startPosition = this.startPoint.worldPosition.clone();
-        const direction = this.pointA.worldPosition.clone().subtract(startPosition).normalize();
-        const tail = this._queue[this._queue.length - 1];
-        const target = tail
-            ? tail.worldPosition.clone().subtract(direction.multiplyScalar(this.spacing))
-            : startPosition;
+        const target = this.getQueueSlot(this._queue.length);
         this.moveToPosition(npc, target, () => {
             this._queue.push(npc);
             if (!this._waitingAtA) this.syncQueueMove();
